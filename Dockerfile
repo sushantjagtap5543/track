@@ -8,7 +8,7 @@ RUN chmod +x gradlew && ./gradlew assemble
 FROM node:20-alpine AS web-build
 WORKDIR /app/traccar-web
 COPY traccar-web/package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 COPY traccar-web/ .
 RUN npm run build
 
