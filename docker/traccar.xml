@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+<properties>
+
+    <entry key='database.driver'>org.postgresql.Driver</entry>
+    <entry key='database.url'>jdbc:postgresql://db:5432/geosurepath</entry>
+    <entry key='database.user'>geosurepath</entry>
+    <entry key='database.password'>password123</entry>
+
+    <entry key='web.path'>./modern</entry>
+    <entry key='web.port'>8082</entry>
+
+    <entry key='geofence.polyline'>true</entry>
+    <entry key='server.statistics'>https://www.traccar.org/analytics/</entry>
+
+</properties>

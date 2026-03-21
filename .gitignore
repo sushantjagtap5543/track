@@ -12,3 +12,10 @@ out
 build
 .vscode
 bin
+11111.pem
+.env
+*.env
+node_modules
+dist
+logs
+data
