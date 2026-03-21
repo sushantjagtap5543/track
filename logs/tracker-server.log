@@ -270,3 +270,4 @@
 2026-03-21 11:52:26  INFO: Started oeje10s.ServletContextHandler@6a278584{ROOT,/,b=file:///C:/Users/Sushant/Desktop/Github/track/web/,a=AVAILABLE,h=oeje10s.SessionHandler@28f90752{STARTED}}
 2026-03-21 11:52:26  INFO: Started oejs.ServerConnector@417751d3{HTTP/1.1, (http/1.1)}{0.0.0.0:8082}
 2026-03-21 11:52:26  INFO: Started oejs.Server@5bf4dfb{STARTING}[12.1.6,sto=0] @2528ms
+2026-03-21 13:45:26  WARN: HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=1h24m41s130ms792µs500ns).
