@@ -1,22 +1,61 @@
 // src/services/traccar.js
 const { TRACCAR_URL, TRACCAR_ADMIN_EMAIL, TRACCAR_ADMIN_PASSWORD } = process.env;
 
-// Basic headers for Traccar API
-const getAuthHeaders = (email = TRACCAR_ADMIN_EMAIL, password = TRACCAR_ADMIN_PASSWORD) => {
-  return {
-    'Authorization': 'Basic ' + Buffer.from(`${email}:${password}`).toString('base64'),
+let sessionCookie = null;
+
+/**
+ * Basic headers for Traccar API
+ * Includes Authorization for every request (as fallback) and Cookie if available.
+ */
+const getAuthHeaders = () => {
+  const headers = {
+    'Authorization': 'Basic ' + Buffer.from(`${TRACCAR_ADMIN_EMAIL}:${TRACCAR_ADMIN_PASSWORD}`).toString('base64'),
     'Content-Type': 'application/json'
   };
+  if (sessionCookie) {
+    headers['Cookie'] = sessionCookie;
+  }
+  return headers;
+};
+
+/**
+ * Ensures we have a valid session with Traccar.
+ * Traccar 6.x requires a session for POST/PUT/DELETE operations.
+ */
+const ensureSession = async () => {
+    if (sessionCookie) return;
+    
+    console.log(`Establishing Traccar session for ${TRACCAR_ADMIN_EMAIL}...`);
+    
+    const params = new URLSearchParams();
+    params.append('email', TRACCAR_ADMIN_EMAIL);
+    params.append('password', TRACCAR_ADMIN_PASSWORD);
+
+    const response = await fetch(`${TRACCAR_URL}/api/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        console.error(`Traccar session creation failed [${response.status}]:`, text);
+        throw new Error(`Traccar session creation failed: ${response.status} ${text}`);
+    }
+
+    const setCookie = response.headers.get('set-cookie');
+    if (setCookie) {
+        // Extract JSESSIONID
+        sessionCookie = setCookie.split(';')[0];
+        console.log('Traccar session established successfully.');
+    }
 };
 
 /**
  * Creates a new user in Traccar
- * @param {string} name 
- * @param {string} email 
- * @param {string} password 
- * @returns {Promise<Object>} The created Traccar user
  */
 const createUser = async (name, email, password) => {
+  await ensureSession();
   const response = await fetch(`${TRACCAR_URL}/api/users`, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -32,11 +71,9 @@ const createUser = async (name, email, password) => {
 
 /**
  * Creates a new device in Traccar
- * @param {string} name 
- * @param {string} uniqueId (IMEI)
- * @returns {Promise<Object>} The created Traccar device
  */
 const createDevice = async (name, uniqueId) => {
+  await ensureSession();
   const response = await fetch(`${TRACCAR_URL}/api/devices`, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -52,10 +89,9 @@ const createDevice = async (name, uniqueId) => {
 
 /**
  * Links a device to a user in Traccar
- * @param {number} userId 
- * @param {number} deviceId 
  */
 const linkDeviceToUser = async (userId, deviceId) => {
+  await ensureSession();
   const response = await fetch(`${TRACCAR_URL}/api/permissions`, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -63,17 +99,17 @@ const linkDeviceToUser = async (userId, deviceId) => {
   });
   if (!response.ok) {
     const text = await response.text();
+    console.error(`Traccar linkDeviceToUser failed [${response.status}]:`, text);
     throw new Error(`Traccar linkDeviceToUser failed: ${response.status} ${text}`);
   }
   return response.ok;
 };
 
 /**
- * Fetches the latest position for a device from Traccar
- * @param {number} deviceId 
- * @returns {Promise<Object|null>} The latest position or null
+ * Fetches the latest position for a device
  */
 const getLatestPosition = async (deviceId) => {
+    await ensureSession();
     const response = await fetch(`${TRACCAR_URL}/api/positions?deviceId=${deviceId}`, {
         headers: getAuthHeaders()
     });
@@ -84,9 +120,9 @@ const getLatestPosition = async (deviceId) => {
 
 /**
  * Deletes a user from Traccar
- * @param {number} userId 
  */
 const deleteUser = async (userId) => {
+    await ensureSession();
     const response = await fetch(`${TRACCAR_URL}/api/users/${userId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
@@ -96,9 +132,9 @@ const deleteUser = async (userId) => {
 
 /**
  * Deletes a device from Traccar
- * @param {number} deviceId 
  */
 const deleteDevice = async (deviceId) => {
+    await ensureSession();
     const response = await fetch(`${TRACCAR_URL}/api/devices/${deviceId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
@@ -108,11 +144,9 @@ const deleteDevice = async (deviceId) => {
 
 /**
  * Sends a command to a device in Traccar
- * @param {number} deviceId 
- * @param {string} type 
- * @param {Object} attributes 
  */
 const sendCommand = async (deviceId, type, attributes = {}) => {
+    await ensureSession();
     const response = await fetch(`${TRACCAR_URL}/api/commands/send`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -127,10 +161,9 @@ const sendCommand = async (deviceId, type, attributes = {}) => {
 
 /**
  * Creates a geofence in Traccar
- * @param {string} name 
- * @param {string} area (WKT format)
  */
 const createGeofence = async (name, area) => {
+    await ensureSession();
     const response = await fetch(`${TRACCAR_URL}/api/geofences`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -144,23 +177,10 @@ const createGeofence = async (name, area) => {
 };
 
 /**
- * Deletes a geofence from Traccar
- * @param {number} geofenceId 
- */
-const deleteGeofence = async (geofenceId) => {
-    const response = await fetch(`${TRACCAR_URL}/api/geofences/${geofenceId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-    });
-    return response.ok;
-};
-
-/**
- * Links a geofence to a device in Traccar
- * @param {number} deviceId 
- * @param {number} geofenceId 
+ * Links a geofence to a device
  */
 const linkGeofenceToDevice = async (deviceId, geofenceId) => {
+    await ensureSession();
     const response = await fetch(`${TRACCAR_URL}/api/permissions`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -182,6 +202,5 @@ module.exports = {
   deleteDevice,
   sendCommand,
   createGeofence,
-  deleteGeofence,
   linkGeofenceToDevice
 };
