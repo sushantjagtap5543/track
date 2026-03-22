@@ -1,4 +1,4 @@
-# GeoSurePath Dockerfile v1.1.0
+# GeoSurePath Dockerfile v1.2.0
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 COPY . .
@@ -17,7 +17,9 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /opt/traccar
 
 # Copy backend
-COPY --from=build /app/build/libs/*.jar ./tracker-server.jar
+# The build.gradle is configured to output to target/
+COPY --from=build /app/target/*.jar ./tracker-server.jar
+COPY --from=build /app/target/lib ./lib
 COPY --from=build /app/schema ./schema
 COPY --from=build /app/templates ./templates
 
