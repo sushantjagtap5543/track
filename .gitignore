@@ -23,5 +23,5 @@ track.tar.gz
 
 deploy.tar.gz
 setup_saas.sql
-11111.pem
+traccar_error.log
 unified_schema.prisma

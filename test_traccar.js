@@ -11,9 +11,14 @@ const getAuthHeaders = () => {
 
 async function testRegistration() {
     try {
-        console.log('Testing Traccar Registration locally against AWS server...');
+        console.log(`Testing Traccar Registration against ${TRACCAR_URL}...`);
         
-        const userPayload = { name: 'Test User', email: 'test12345@test.com', password: 'password123' };
+        const timestamp = Date.now();
+        const userPayload = { 
+            name: 'Test User', 
+            email: `test${timestamp}@example.com`, 
+            password: 'password123' 
+        };
         console.log('1. Creating User:', userPayload);
         
         const res1 = await fetch(`${TRACCAR_URL}/api/users`, {
