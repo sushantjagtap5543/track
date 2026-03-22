@@ -10,5 +10,6 @@
     <entry key='database.password' />
     <entry key='web.path'>./web</entry>
 
-    <entry key='registration.enable'>true</entry>
+    <entry key='registration.enabled'>true</entry>
+    <entry key='server.registration'>true</entry>
 </properties>
