@@ -83,6 +83,13 @@ async function testRegistration() {
         console.log(`Link Response: ${res3.status}`);
         console.log(`Link Body:`, await res3.text());
         
+        console.log('4. Cleaning up Test User...');
+        const res4 = await fetch(`${TRACCAR_URL}/api/users/${traccarUser.id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        console.log(`Cleanup Response: ${res4.status}`);
+
         console.log('[SUCCESS] Traccar side is working perfectly. The error might be locally in Prisma schema.');
     } catch (e) {
         console.error('Fatal fetch error:', e);
