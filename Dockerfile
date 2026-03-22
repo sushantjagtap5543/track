@@ -15,6 +15,7 @@ RUN npm run build
 # Stage 3: Run Traccar
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /opt/traccar
+RUN mkdir logs
 
 # Copy backend
 # The build.gradle is configured to output to target/
