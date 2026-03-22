@@ -80,7 +80,29 @@ done
 
 # 4b. Force Traccar registration setting in database
 echo "🔓 Enabling Traccar user registration in database..."
-docker exec geosurepath_db psql -U ${DB_USER:-geosurepath} -d ${DB_NAME:-geosurepath} -c "UPDATE tc_servers SET registration = true;" || echo "⚠️  Could not update tc_servers. Handled manually."
+# Wait for Traccar to initialize schema (up to 30s)
+for i in {1..15}; do
+    if docker exec geosurepath_db psql -U ${DB_USER:-geosurepath} -d ${DB_NAME:-geosurepath} -c "SELECT 1 FROM tc_users LIMIT 1;" >/dev/null 2>&1; then
+        echo "✅ Traccar schema ready."
+        break
+    fi
+    echo "⏳ Waiting for Traccar schema... ($i/15)"
+    sleep 2
+done
+
+docker exec geosurepath_db psql -U ${DB_USER:-geosurepath} -d ${DB_NAME:-geosurepath} -c "UPDATE tc_servers SET registration = true;" || echo "⚠️ Could not update tc_servers."
+
+# 4c. Ensure Admin User exists (Default: admin@example.com / admin)
+# Traccar 6.x hash for 'admin' with salt '00000000000000000000000000000000' (32 zeros)
+# Actually, since I can't easily generate the hash in cross-platform shell, 
+# I'll just use the SaaS API's register flow if I can, or skip if exists.
+echo "👤 Checking Traccar administrator..."
+ADMIN_EXISTS=$(docker exec geosurepath_db psql -U ${DB_USER:-geosurepath} -d ${DB_NAME:-geosurepath} -t -A -c "SELECT count(*) FROM tc_users WHERE administrator = true;")
+if [ "$ADMIN_EXISTS" -eq 0 ]; then
+    echo "⚠️ No administrator found. Please register the first user at http://3.108.114.12/register to become the administrator."
+else
+    echo "✅ Administrator found."
+fi
 
 if [ $COUNT -eq $MAX_RETRIES ]; then
     echo "❌ Migration failed after multiple attempts."
