@@ -5,7 +5,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER:-geosurepath}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-password123}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME:-geosurepath}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-geosurepath} -d $${POSTGRES_DB:-geosurepath}"]
@@ -61,7 +61,7 @@ services:
     env_file:
       - ./saas/.env
     environment:
-      - DATABASE_URL=postgresql://${DB_USER:-geosurepath}:${DB_PASSWORD:-password123}@db:5432/${DB_NAME:-geosurepath}?schema=saas
+      - DATABASE_URL=postgresql://${DB_USER:-geosurepath}:${DB_PASSWORD}@db:5432/${DB_NAME:-geosurepath}?schema=saas
       - REDIS_HOST=redis
       - TRACCAR_URL=http://traccar:8082
 
