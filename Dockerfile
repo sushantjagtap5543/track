@@ -17,7 +17,7 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /opt/traccar
 
 # Copy backend
-COPY --from=build /app/build/libs/tracker-server.jar ./
+COPY --from=build /app/build/libs/*.jar ./tracker-server.jar
 COPY --from=build /app/schema ./schema
 COPY --from=build /app/templates ./templates
 
