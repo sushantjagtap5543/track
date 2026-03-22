@@ -53,9 +53,9 @@ const ensureSession = async () => {
 
 /**
  * Creates a new user in Traccar
+ * Note: Does not require ensureSession() to allow for the very first admin registration.
  */
 const createUser = async (name, email, password) => {
-  await ensureSession();
   const response = await fetch(`${TRACCAR_URL}/api/users`, {
     method: 'POST',
     headers: getAuthHeaders(),
