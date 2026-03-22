@@ -78,6 +78,10 @@ until docker exec geosurepath_saas_api npx prisma db push --accept-data-loss || 
     COUNT=$((COUNT + 1))
 done
 
+# 4b. Force Traccar registration setting in database
+echo "🔓 Enabling Traccar user registration in database..."
+docker exec geosurepath_db psql -U ${DB_USER:-geosurepath} -d ${DB_NAME:-geosurepath} -c "UPDATE tc_servers SET registration = true;" || echo "⚠️  Could not update tc_servers. Handled manually."
+
 if [ $COUNT -eq $MAX_RETRIES ]; then
     echo "❌ Migration failed after multiple attempts."
     exit 1
