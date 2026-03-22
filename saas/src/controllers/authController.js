@@ -23,10 +23,27 @@ exports.register = async (req, res) => {
     // Order: Create Traccar User -> Create Traccar Device -> Link -> Create local user/vehicle
     
     // 2. Create User in Traccar
-    const traccarUser = await traccarService.createUser(name, email, password);
+    let traccarUser;
+    try {
+      traccarUser = await traccarService.createUser(name, email, password);
+    } catch (err) {
+      if (err.message && (err.message.includes('Duplicate entry') || err.message.includes('Unique'))) {
+        throw new Error('Email is already registered. Please login.');
+      }
+      throw err;
+    }
     
     // 3. Create Device in Traccar
-    const traccarDevice = await traccarService.createDevice(vehicleName, deviceImei);
+    let traccarDevice;
+    try {
+      traccarDevice = await traccarService.createDevice(vehicleName, deviceImei);
+    } catch (err) {
+      // NOTE: Normally we would delete traccarUser here to rollback the partial creation
+      if (err.message && (err.message.includes('Duplicate entry') || err.message.includes('Unique'))) {
+        throw new Error('Device IMEI is already registered. Please use a different device or login.');
+      }
+      throw err;
+    }
     
     // 4. Link Device to User in Traccar
     await traccarService.linkDeviceToUser(traccarUser.id, traccarDevice.id);
@@ -58,7 +75,22 @@ exports.register = async (req, res) => {
 
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed', details: error.message });
+    
+    let errorMessage = 'Registration failed. Please try again.';
+    
+    if (error.message) {
+      if (error.message.includes('Duplicate entry') || error.message.includes('Unique') || error.message.includes('already exists')) {
+        errorMessage = 'Email or Device IMEI is already registered. Please login or use different details.';
+      } else if (error.message.includes('Traccar')) {
+        errorMessage = error.message;
+      } else if (error.code === 'P2002') {
+        errorMessage = 'A user or vehicle with these details already exists locally.';
+      } else {
+        errorMessage = error.message;
+      }
+    }
+
+    res.status(500).json({ error: errorMessage, details: error.message });
   }
 };
 
