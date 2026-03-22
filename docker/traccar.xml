@@ -16,5 +16,6 @@
 
     <!-- Allow admin API to create users (registration.enable must be true for POST /api/users) -->
     <entry key='registration.enable'>true</entry>
-
+    <entry key='registration.enabled'>true</entry>
+    <entry key='registration'>true</entry>
 </properties>
