@@ -1,4 +1,4 @@
-#set($subject = "$esc.html($device.name): сброс топлива)
+#set($subject = "$esc.html($device.name): сброс топлива")
 #set($digest = "$device.name сброс топлива в $dateTool.format('dd.MM.yyyy HH:mm:ss', $event.eventTime, $locale, $timezone)")
 <!DOCTYPE html>
 <html>

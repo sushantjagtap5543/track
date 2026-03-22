@@ -1,0 +1,12 @@
+.git
+.env
+*.pem
+*.log
+node_modules
+traccar-web/node_modules
+saas/node_modules
+logs/
+data/
+traccar-server/target/
+traccar-server/build/
+.gradle/

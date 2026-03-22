@@ -3,7 +3,7 @@
 import sys
 import os
 import xml.etree.ElementTree
-import urllib
+import urllib.parse
 import urllib.request as urllib2
 import json
 import socket
@@ -145,7 +145,7 @@ def load_ports():
     matches = pattern.findall(content)
     ports = {protocol: int(port) for protocol, port in matches}
     if debug:
-        print('\nports: {ports!r}\n')
+        print(f'\nports: {ports!r}\n')
     return ports
 
 def login():

@@ -37,7 +37,6 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8082:8082"
       - "5001-5150:5001-5150/tcp"
       - "5001-5150:5001-5150/udp"
     volumes:
@@ -56,8 +55,7 @@ services:
         condition: service_healthy
       traccar:
         condition: service_started
-    ports:
-      - "3001:3001"
+    # No direct port exposure (Nginx only)
     env_file:
       - ./saas/.env
     environment:
