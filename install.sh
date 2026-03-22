@@ -39,7 +39,13 @@ docker system prune -af --volumes || true
 # 5. Set up Environment
 echo "⚙️  Setting up environment..."
 if [ ! -f "saas/.env" ]; then
-    echo "⚠️ Warning: saas/.env not found. Please ensure it is present."
+    echo "❌ Error: saas/.env not found. Deployment aborted."
+    exit 1
+fi
+
+if [ ! -f ".env" ]; then
+    echo "❌ Error: Root .env not found. Deployment aborted."
+    exit 1
 fi
 
 # 6. Deploy with Docker Compose
