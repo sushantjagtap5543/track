@@ -66,17 +66,19 @@ echo "🚢 Deploying all services..."
 docker compose down --remove-orphans || true
 docker compose up -d --build
 
+# 4. Run database migrations or push schema
 echo "🔄 Running database migrations..."
+# Wait for API to be ready for Prisma commands
 echo "⏳ Waiting for database and API to be ready (up to 60s)..."
 MAX_RETRIES=30
-RETRY_COUNT=0
-until docker exec geosurepath_saas_api npx prisma migrate deploy || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
-    echo "⏳ Database not ready yet, retrying in 2s... ($RETRY_COUNT/$MAX_RETRIES)"
+COUNT=0
+until docker exec geosurepath_saas_api npx prisma db push --accept-data-loss || [ $COUNT -eq $MAX_RETRIES ]; do
+    echo "⏳ Database not ready yet, retrying in 2s... ($COUNT/$MAX_RETRIES)"
     sleep 2
-    RETRY_COUNT=$((RETRY_COUNT + 1))
+    COUNT=$((COUNT + 1))
 done
 
-if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+if [ $COUNT -eq $MAX_RETRIES ]; then
     echo "❌ Migration failed after multiple attempts."
     exit 1
 fi

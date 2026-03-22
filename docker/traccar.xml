@@ -14,6 +14,6 @@
     <entry key='geofence.polyline'>true</entry>
     <entry key='server.statistics'>https://www.traccar.org/analytics/</entry>
 
-    <!-- Allow admin API to create users (registration.enable must be true for POST /api/users) -->
+    <!-- Allow admin API to create users -->
     <entry key='registration.enable'>true</entry>
 </properties>
