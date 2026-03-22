@@ -80,9 +80,106 @@ const getLatestPosition = async (deviceId) => {
     return positions.length > 0 ? positions[0] : null;
 };
 
+/**
+ * Deletes a user from Traccar
+ * @param {number} userId 
+ */
+const deleteUser = async (userId) => {
+    const response = await fetch(`${TRACCAR_URL}/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
+    return response.ok;
+};
+
+/**
+ * Deletes a device from Traccar
+ * @param {number} deviceId 
+ */
+const deleteDevice = async (deviceId) => {
+    const response = await fetch(`${TRACCAR_URL}/api/devices/${deviceId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
+    return response.ok;
+};
+
+/**
+ * Sends a command to a device in Traccar
+ * @param {number} deviceId 
+ * @param {string} type 
+ * @param {Object} attributes 
+ */
+const sendCommand = async (deviceId, type, attributes = {}) => {
+    const response = await fetch(`${TRACCAR_URL}/api/commands/send`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ deviceId, type, attributes })
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Traccar sendCommand failed: ${response.status} ${text}`);
+    }
+    return response.json();
+};
+
+/**
+ * Creates a geofence in Traccar
+ * @param {string} name 
+ * @param {string} area (WKT format)
+ */
+const createGeofence = async (name, area) => {
+    const response = await fetch(`${TRACCAR_URL}/api/geofences`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name, area })
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Traccar createGeofence failed: ${response.status} ${text}`);
+    }
+    return response.json();
+};
+
+/**
+ * Deletes a geofence from Traccar
+ * @param {number} geofenceId 
+ */
+const deleteGeofence = async (geofenceId) => {
+    const response = await fetch(`${TRACCAR_URL}/api/geofences/${geofenceId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
+    return response.ok;
+};
+
+/**
+ * Links a geofence to a device in Traccar
+ * @param {number} deviceId 
+ * @param {number} geofenceId 
+ */
+const linkGeofenceToDevice = async (deviceId, geofenceId) => {
+    const response = await fetch(`${TRACCAR_URL}/api/permissions`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ deviceId, geofenceId })
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Traccar linkGeofenceToDevice failed: ${response.status} ${text}`);
+    }
+    return response.ok;
+};
+
 module.exports = {
   createUser,
   createDevice,
   linkDeviceToUser,
-  getLatestPosition
+  getLatestPosition,
+  deleteUser,
+  deleteDevice,
+  sendCommand,
+  createGeofence,
+  deleteGeofence,
+  linkGeofenceToDevice
 };

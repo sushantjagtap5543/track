@@ -38,7 +38,10 @@ exports.register = async (req, res) => {
     try {
       traccarDevice = await traccarService.createDevice(vehicleName, deviceImei);
     } catch (err) {
-      // NOTE: Normally we would delete traccarUser here to rollback the partial creation
+      // Rollback: Delete the orphaned Traccar user
+      console.warn(`Rolling back: Deleting Traccar User ${traccarUser.id} due to device creation failure.`);
+      await traccarService.deleteUser(traccarUser.id).catch(e => console.error('Rollback cleanup failed:', e));
+      
       if (err.message && /duplicate|unique/i.test(err.message)) {
         throw new Error('Device IMEI is already registered. Please use a different device or login.');
       }
@@ -46,7 +49,15 @@ exports.register = async (req, res) => {
     }
     
     // 4. Link Device to User in Traccar
-    await traccarService.linkDeviceToUser(traccarUser.id, traccarDevice.id);
+    try {
+      await traccarService.linkDeviceToUser(traccarUser.id, traccarDevice.id);
+    } catch (err) {
+      // Rollback: Delete both user and device to keep data consistent
+      console.warn(`Rolling back: Deleting Traccar User ${traccarUser.id} and Device ${traccarDevice.id} due to linking failure.`);
+      await traccarService.deleteDevice(traccarDevice.id).catch(e => console.error('Rollback cleanup failed:', e));
+      await traccarService.deleteUser(traccarUser.id).catch(e => console.error('Rollback cleanup failed:', e));
+      throw err;
+    }
 
     // 5. Create local User and Vehicle record
     const user = await prisma.user.create({
@@ -76,15 +87,11 @@ exports.register = async (req, res) => {
   } catch (error) {
     console.error('Registration error:', error);
     
+    // Final generic fallback error message
     let errorMessage = 'Registration failed. Please try again.';
-    
     if (error.message) {
       if (/duplicate|unique|already exists/i.test(error.message)) {
         errorMessage = 'Email or Device IMEI is already registered. Please login or use different details.';
-      } else if (error.message.includes('Traccar')) {
-        errorMessage = error.message;
-      } else if (error.code === 'P2002') {
-        errorMessage = 'A user or vehicle with these details already exists locally.';
       } else {
         errorMessage = error.message;
       }

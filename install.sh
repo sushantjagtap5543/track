@@ -24,11 +24,10 @@ else
     echo "✅ Docker is already installed."
 fi
 
-# 3. Install Docker Compose
-if ! command -v docker-compose &> /dev/null; then
-    echo "🐙 Installing Docker Compose..."
-    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
+# 3. Install Docker Compose (Modern plugin is usually included with docker-ce)
+if ! docker compose version &> /dev/null; then
+    echo "🐙 Installing Docker Compose Plugin..."
+    sudo apt-get install -y docker-compose-plugin
 else
     echo "✅ Docker Compose is already installed."
 fi
@@ -44,13 +43,24 @@ if [ ! -f "saas/.env" ]; then
 fi
 
 # 6. Deploy with Docker Compose
-echo "🚢 Deploying all services one by one..."
-docker-compose down --remove-orphans || true
-docker-compose up -d --build
+echo "🚢 Deploying all services..."
+docker compose down --remove-orphans || true
+docker compose up -d --build
 
 echo "🔄 Running database migrations..."
-sleep 15 # Wait for containers to start
-docker exec geosurepath_saas_api npx prisma migrate deploy
+echo "⏳ Waiting for database and API to be ready (up to 60s)..."
+MAX_RETRIES=30
+RETRY_COUNT=0
+until docker exec geosurepath_saas_api npx prisma migrate deploy || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
+    echo "⏳ Database not ready yet, retrying in 2s... ($RETRY_COUNT/$MAX_RETRIES)"
+    sleep 2
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+    echo "❌ Migration failed after multiple attempts."
+    exit 1
+fi
 
 echo "----------------------------------------------------"
 echo "✨ Deployment Complete! ✨"

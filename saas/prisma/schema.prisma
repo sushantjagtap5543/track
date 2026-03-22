@@ -44,6 +44,7 @@ model Vehicle {
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   traccarDeviceId Int?     @unique
+  traccarGeofenceId Int?   @unique
   safeParkingOn   Boolean  @default(false)
   parkingLat      Float?
   parkingLng      Float?

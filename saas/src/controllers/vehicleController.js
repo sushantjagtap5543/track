@@ -36,22 +36,8 @@ exports.toggleEngine = async (req, res) => {
       }
     }
 
-    // Send command to Traccar
-    const commandResponse = await fetch(`${process.env.TRACCAR_URL}/api/commands/send`, {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${process.env.TRACCAR_ADMIN_EMAIL}:${process.env.TRACCAR_ADMIN_PASSWORD}`).toString('base64'),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        deviceId: vehicle.traccarDeviceId,
-        type: action
-      })
-    });
-
-    if (!commandResponse.ok) {
-        throw new Error('Failed to send command to Traccar');
-    }
+    // Send command to Traccar using the service
+    await traccarService.sendCommand(vehicle.traccarDeviceId, action);
 
     res.json({ message: `Engine command '${action}' sent successfully via Traccar` });
   } catch (error) {
@@ -65,22 +51,46 @@ exports.toggleSafeParking = async (req, res) => {
   const { vehicleId, enable, lat, lng, radius } = req.body;
 
   try {
-    const vehicle = await prisma.vehicle.updateMany({
-      where: { id: vehicleId, userId: req.user.userId },
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id: vehicleId, userId: req.user.userId }
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({ error: 'Vehicle not found' });
+    }
+
+    let traccarGeofenceId = vehicle.traccarGeofenceId;
+
+    if (enable) {
+      // 1. Create Geofence in Traccar (Circle format)
+      // Area format: CIRCLE (lat lng, radius_in_meters)
+      const area = `CIRCLE (${lat} ${lng}, ${radius || 100})`;
+      const geofence = await traccarService.createGeofence(`SafeParking_${vehicle.name}`, area);
+      traccarGeofenceId = geofence.id;
+
+      // 2. Link Geofence to Device in Traccar
+      await traccarService.linkGeofenceToDevice(vehicle.traccarDeviceId, traccarGeofenceId);
+    } else if (traccarGeofenceId) {
+      // 3. Delete Geofence from Traccar if it exists
+      await traccarService.deleteGeofence(traccarGeofenceId).catch(e => console.error('Failed to delete Traccar geofence:', e));
+      traccarGeofenceId = null;
+    }
+
+    // 4. Update local DB
+    await prisma.vehicle.update({
+      where: { id: vehicleId },
       data: {
         safeParkingOn: enable,
         parkingLat: enable ? lat : null,
         parkingLng: enable ? lng : null,
-        parkingRadius: enable ? radius : null
+        parkingRadius: enable ? (radius || 100) : null,
+        traccarGeofenceId: traccarGeofenceId
       }
     });
 
-    if (vehicle.count === 0) {
-      return res.status(404).json({ error: 'Vehicle not found' });
-    }
-
     res.json({ message: `Safe parking ${enable ? 'enabled' : 'disabled'} successfully` });
   } catch (error) {
+    console.error('Safe parking error:', error);
     res.status(500).json({ error: 'Failed to update safe parking status', details: error.message });
   }
 };

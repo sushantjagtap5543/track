@@ -1,6 +1,6 @@
-const TRACCAR_URL = 'http://3.108.114.12:8082';
-const TRACCAR_ADMIN_EMAIL = 'admin';
-const TRACCAR_ADMIN_PASSWORD = 'admin';
+const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
+const TRACCAR_ADMIN_EMAIL = process.env.TRACCAR_ADMIN_EMAIL || 'admin@example.com';
+const TRACCAR_ADMIN_PASSWORD = process.env.TRACCAR_ADMIN_PASSWORD || 'admin';
 
 const getAuthHeaders = () => {
     return {
@@ -31,7 +31,14 @@ async function testRegistration() {
             return;
         }
         
-        const traccarUser = JSON.parse(text1);
+        let traccarUser;
+        try {
+            traccarUser = JSON.parse(text1);
+        } catch (e) {
+            console.error('❌ Failed to parse User Creation response as JSON');
+            console.error('Response might be HTML or error message:', text1);
+            return;
+        }
         
         const devicePayload = { name: 'Test Vehicle', uniqueId: '869727079043558' };
         console.log('2. Creating Device:', devicePayload);
@@ -51,7 +58,14 @@ async function testRegistration() {
             return;
         }
         
-        const traccarDevice = JSON.parse(text2);
+        let traccarDevice;
+        try {
+            traccarDevice = JSON.parse(text2);
+        } catch (e) {
+            console.error('❌ Failed to parse Device Creation response as JSON');
+            console.error('Response might be HTML or error message:', text2);
+            return;
+        }
         
         console.log('3. Linking Device to User');
         const linkPayload = { userId: traccarUser.id, deviceId: traccarDevice.id };
