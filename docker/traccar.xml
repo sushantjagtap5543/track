@@ -5,7 +5,7 @@
     <entry key='database.driver'>org.postgresql.Driver</entry>
     <entry key='database.url'>jdbc:postgresql://db:5432/geosurepath</entry>
     <entry key='database.user'>geosurepath</entry>
-    <entry key='database.password'>password123</entry>
+    <entry key='database.password'>${DB_PASSWORD}</entry>
 
     <entry key='web.path'>./modern</entry>
     <entry key='web.port'>8082</entry>

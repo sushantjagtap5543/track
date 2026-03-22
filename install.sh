@@ -57,7 +57,11 @@ if [ -z "$DB_PASSWORD" ] || [ "$DB_PASSWORD" == "change-this-to-something-long-a
     exit 1
 fi
 
-# 6. Deploy with Docker Compose
+# 6. Inject DB_PASSWORD into Traccar config
+echo "🔑 Injecting database password into Traccar config..."
+sed -i "s/\${DB_PASSWORD}/$DB_PASSWORD/g" docker/traccar.xml
+
+# 7. Deploy with Docker Compose
 echo "🚢 Deploying all services..."
 docker compose down --remove-orphans || true
 docker compose up -d --build
@@ -78,9 +82,9 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
 fi
 
 echo "----------------------------------------------------"
-echo "FINISH Deployment Complete! FINISH"
+echo "✅ Deployment Complete!"
 echo "----------------------------------------------------"
-echo "Nginx: http://$(curl -s ifconfig.me)"
-echo "Traccar: http://$(curl -s ifconfig.me):8082"
-echo "SaaS API: http://$(curl -s ifconfig.me):3001"
+echo "Application: http://$(curl -s ifconfig.me)"
+echo "----------------------------------------------------"
+echo "Note: All services are behind Nginx. No raw ports are exposed."
 echo "----------------------------------------------------"

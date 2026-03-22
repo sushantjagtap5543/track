@@ -91,3 +91,29 @@ exports.verifyPayment = async (req, res) => {
     res.status(400).json({ error: 'Payment signature verification failed', success: false });
   }
 };
+
+// Get user subscription
+exports.getSubscription = async (req, res) => {
+  try {
+    const subscription = await prisma.subscription.findFirst({
+      where: { userId: req.user.userId },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(subscription || { status: 'INACTIVE', planId: 'FREE' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch subscription' });
+  }
+};
+
+// Get payment history
+exports.getPayments = async (req, res) => {
+  try {
+    const payments = await prisma.payment.findMany({
+      where: { userId: req.user.userId },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(payments);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch payment history' });
+  }
+};

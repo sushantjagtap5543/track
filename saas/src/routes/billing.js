@@ -12,4 +12,10 @@ router.post('/create-order', billingController.createOrder);
 // Verify payment
 router.post('/verify', billingController.verifyPayment);
 
+// Get current subscription
+router.get('/subscription', billingController.getSubscription);
+
+// Get payment history
+router.get('/history', billingController.getPayments);
+
 module.exports = router;
