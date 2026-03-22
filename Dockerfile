@@ -1,4 +1,4 @@
-# Stage 1: Build Traccar Backend
+# GeoSurePath Dockerfile v1.1.0
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 COPY . .
