@@ -1,7 +1,7 @@
 # Stage 1: Build Traccar Backend
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
-COPY traccar-server .
+COPY . .
 RUN chmod +x gradlew && ./gradlew assemble
 
 # Stage 2: Build Traccar Frontend (React)
