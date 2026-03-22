@@ -4,7 +4,7 @@
 set -e
 
 echo "----------------------------------------------------"
-echo "🚀 Starting GeoSurePath Deployment on Clean Instance"
+echo "START Starting GeoSurePath Deployment on Clean Instance"
 echo "----------------------------------------------------"
 
 # 1. Update and Upgrade System
@@ -37,14 +37,14 @@ echo "🧹 Performing deep clean of Docker resources..."
 docker system prune -af --volumes || true
 
 # 5. Set up Environment
-echo "⚙️  Setting up environment..."
+echo "SETTING Setting up environment..."
 if [ ! -f "saas/.env" ]; then
-    echo "❌ Error: saas/.env not found. Deployment aborted."
+    echo "FAIL Error: saas/.env not found. Deployment aborted."
     exit 1
 fi
 
 if [ ! -f ".env" ]; then
-    echo "❌ Error: Root .env not found. Deployment aborted."
+    echo "FAIL Error: Root .env not found. Deployment aborted."
     exit 1
 fi
 
@@ -69,7 +69,7 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
 fi
 
 echo "----------------------------------------------------"
-echo "✨ Deployment Complete! ✨"
+echo "FINISH Deployment Complete! FINISH"
 echo "----------------------------------------------------"
 echo "Nginx: http://$(curl -s ifconfig.me)"
 echo "Traccar: http://$(curl -s ifconfig.me):8082"

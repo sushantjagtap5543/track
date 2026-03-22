@@ -32,7 +32,7 @@ async function testRegistration() {
         console.log(`User Create Body:`, text1);
         
         if (!res1.ok) {
-            console.log('❌ Failed at User Creation');
+            console.log('[FAIL] User Creation');
             return;
         }
         
@@ -40,7 +40,7 @@ async function testRegistration() {
         try {
             traccarUser = JSON.parse(text1);
         } catch (e) {
-            console.error('❌ Failed to parse User Creation response as JSON');
+            console.error('[FAIL] Failed to parse User Creation response as JSON');
             console.error('Response might be HTML or error message:', text1);
             return;
         }
@@ -59,7 +59,7 @@ async function testRegistration() {
         console.log(`Device Create Body:`, text2);
         
         if (!res2.ok) {
-            console.log('❌ Failed at Device Creation');
+            console.log('[FAIL] Device Creation');
             return;
         }
         
@@ -67,7 +67,7 @@ async function testRegistration() {
         try {
             traccarDevice = JSON.parse(text2);
         } catch (e) {
-            console.error('❌ Failed to parse Device Creation response as JSON');
+            console.error('[FAIL] Failed to parse Device Creation response as JSON');
             console.error('Response might be HTML or error message:', text2);
             return;
         }
@@ -83,7 +83,7 @@ async function testRegistration() {
         console.log(`Link Response: ${res3.status}`);
         console.log(`Link Body:`, await res3.text());
         
-        console.log('✅ Traccar side is working perfectly. The error might be locally in Prisma schema.');
+        console.log('[SUCCESS] Traccar side is working perfectly. The error might be locally in Prisma schema.');
     } catch (e) {
         console.error('Fatal fetch error:', e);
     }
