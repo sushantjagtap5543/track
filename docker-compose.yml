@@ -38,6 +38,7 @@ services:
     volumes:
       - ./logs:/opt/traccar/logs:rw
       - ./data:/opt/traccar/data:rw
+      - ./docker/traccar.xml:/opt/traccar/conf/traccar.xml:ro
 
   saas-api:
     build: ./saas
