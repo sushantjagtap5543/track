@@ -48,6 +48,10 @@ echo "🚢 Deploying all services one by one..."
 docker-compose down --remove-orphans || true
 docker-compose up -d --build
 
+echo "🔄 Running database migrations..."
+sleep 15 # Wait for containers to start
+docker exec geosurepath_saas_api npx prisma migrate deploy
+
 echo "----------------------------------------------------"
 echo "✨ Deployment Complete! ✨"
 echo "----------------------------------------------------"

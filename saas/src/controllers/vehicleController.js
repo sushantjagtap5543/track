@@ -28,16 +28,15 @@ exports.toggleEngine = async (req, res) => {
       return res.status(404).json({ error: 'Vehicle not found or not linked to device' });
     }
 
-    // TODO: Need Traccar API service function to fetch latest position/speed
-    // Prevent engine OFF if speed > threshold (e.g., 20 km/h)
-    // if (action === 'engineStop') {
-    //   const speed = await fetchCurrentSpeed(vehicle.traccarDeviceId);
-    //   if (speed > 20) return res.status(400).json({error: 'Cannot stop engine while driving over 20km/h'});
-    // }
+    // Prevention: Cannot stop engine while driving over 20km/h
+    if (action === 'engineStop') {
+      const position = await traccarService.getLatestPosition(vehicle.traccarDeviceId);
+      if (position && position.speed > 20) {
+        return res.status(400).json({ error: 'Cannot stop engine while driving over 20km/h for safety.' });
+      }
+    }
 
     // Send command to Traccar
-    // Endpoint: POST /api/commands/send
-    // Body: { deviceId: vehicle.traccarDeviceId, type: action }
     const commandResponse = await fetch(`${process.env.TRACCAR_URL}/api/commands/send`, {
       method: 'POST',
       headers: {

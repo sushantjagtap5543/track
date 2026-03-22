@@ -52,7 +52,7 @@ services:
     env_file:
       - ./saas/.env
     environment:
-      - DATABASE_URL=postgresql://geosurepath:password123@db:5432/geosurepath?schema=public
+      - DATABASE_URL=postgresql://geosurepath:password123@db:5432/geosurepath?schema=saas
       - REDIS_HOST=redis
       - TRACCAR_URL=http://traccar:8082
 

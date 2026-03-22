@@ -17,12 +17,13 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /opt/traccar
 
 # Copy backend
-COPY --from=build /app/build/libs/tracker-server.jar ./
+COPY --from=build /app/target/tracker-server.jar ./
+COPY --from=build /app/target/lib ./lib
 COPY --from=build /app/schema ./schema
 COPY --from=build /app/templates ./templates
 
 # Copy frontend
-COPY --from=web-build /app/traccar-web/dist ./modern
+COPY --from=web-build /app/traccar-web/build ./modern
 
 # Copy configuration
 COPY docker/traccar.xml ./conf/traccar.xml

@@ -20,3 +20,8 @@ dist
 logs
 data
 track.tar.gz
+
+deploy.tar.gz
+setup_saas.sql
+11111.pem
+unified_schema.prisma

@@ -66,8 +66,23 @@ const linkDeviceToUser = async (userId, deviceId) => {
   return response.ok;
 };
 
+/**
+ * Fetches the latest position for a device from Traccar
+ * @param {number} deviceId 
+ * @returns {Promise<Object|null>} The latest position or null
+ */
+const getLatestPosition = async (deviceId) => {
+    const response = await fetch(`${TRACCAR_URL}/api/positions?deviceId=${deviceId}`, {
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) return null;
+    const positions = await response.json();
+    return positions.length > 0 ? positions[0] : null;
+};
+
 module.exports = {
   createUser,
   createDevice,
-  linkDeviceToUser
+  linkDeviceToUser,
+  getLatestPosition
 };

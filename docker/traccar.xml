@@ -9,6 +9,7 @@
 
     <entry key='web.path'>./modern</entry>
     <entry key='web.port'>8082</entry>
+    <entry key='database.changelog'>./schema/changelog-master.xml</entry>
 
     <entry key='geofence.polyline'>true</entry>
     <entry key='server.statistics'>https://www.traccar.org/analytics/</entry>
