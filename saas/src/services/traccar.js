@@ -24,6 +24,7 @@ const createUser = async (name, email, password) => {
   });
   if (!response.ok) {
     const text = await response.text();
+    console.error(`Traccar createUser failed [${response.status}]:`, text);
     throw new Error(`Traccar createUser failed: ${response.status} ${text}`);
   }
   return response.json();
@@ -43,6 +44,7 @@ const createDevice = async (name, uniqueId) => {
   });
   if (!response.ok) {
     const text = await response.text();
+    console.error(`Traccar createDevice failed [${response.status}]:`, text);
     throw new Error(`Traccar createDevice failed: ${response.status} ${text}`);
   }
   return response.json();
