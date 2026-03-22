@@ -2,7 +2,7 @@
 
 import sys
 import math
-import urllib
+import urllib.parse
 import http.client as httplib
 import time
 import random
@@ -78,7 +78,7 @@ while True:
     accuracy = 100 if (index % 10) == 0 else 0
     rpm = random.randint(500, 4000)
     fuel = random.randint(0, 80)
-    driverUniqueId = driver_id if (index % len(points)) == 0 else False
+    driverUniqueId = driver_id if (index % len(points)) == 0 else None
     send(conn, lat1, lon1, altitude, course(lat1, lon1, lat2, lon2), speed, battery, alarm, ignition, accuracy, rpm, fuel, driverUniqueId)
     time.sleep(period)
     index += 1

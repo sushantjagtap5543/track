@@ -7,9 +7,9 @@ echo "----------------------------------------------------"
 echo "START Starting GeoSurePath Deployment on Clean Instance"
 echo "----------------------------------------------------"
 
-# 1. Update and Upgrade System
+# 1. Update System
 echo "📦 Updating system packages..."
-sudo apt-get update && sudo apt-get upgrade -y
+sudo apt-get update
 
 # 2. Install Docker
 if ! command -v docker &> /dev/null; then
@@ -20,6 +20,7 @@ if ! command -v docker &> /dev/null; then
     sudo apt-get update
     sudo apt-get install -y docker-ce docker-ce-cli containerd.io
     sudo usermod -aG docker $USER
+    echo "⚠️  Note: Docker group changes require a logout/login to take effect in the current shell."
 else
     echo "✅ Docker is already installed."
 fi
@@ -33,8 +34,8 @@ else
 fi
 
 # 4. Deep Clean (Optional but requested for 'clean instance')
-echo "🧹 Performing deep clean of Docker resources..."
-docker system prune -af --volumes || true
+echo "🧹 Performing deep clean of Docker resources (images and containers)..."
+docker system prune -af || true
 
 # 5. Set up Environment
 echo "SETTING Setting up environment..."
@@ -45,6 +46,14 @@ fi
 
 if [ ! -f ".env" ]; then
     echo "FAIL Error: Root .env not found. Deployment aborted."
+    exit 1
+fi
+
+# Load root .env and check DB_PASSWORD
+export $(grep -v '^#' .env | xargs)
+if [ -z "$DB_PASSWORD" ] || [ "$DB_PASSWORD" == "change-this-to-something-long-and-random" ]; then
+    echo "FAIL Error: DB_PASSWORD is not set or still has the placeholder value in .env."
+    echo "Please set a strong, unique password in the root .env file."
     exit 1
 fi
 
