@@ -27,7 +27,7 @@ exports.register = async (req, res) => {
     try {
       traccarUser = await traccarService.createUser(name, email, password);
     } catch (err) {
-      if (err.message && (err.message.includes('Duplicate entry') || err.message.includes('Unique'))) {
+      if (err.message && /duplicate|unique/i.test(err.message)) {
         throw new Error('Email is already registered. Please login.');
       }
       throw err;
@@ -39,7 +39,7 @@ exports.register = async (req, res) => {
       traccarDevice = await traccarService.createDevice(vehicleName, deviceImei);
     } catch (err) {
       // NOTE: Normally we would delete traccarUser here to rollback the partial creation
-      if (err.message && (err.message.includes('Duplicate entry') || err.message.includes('Unique'))) {
+      if (err.message && /duplicate|unique/i.test(err.message)) {
         throw new Error('Device IMEI is already registered. Please use a different device or login.');
       }
       throw err;
@@ -79,7 +79,7 @@ exports.register = async (req, res) => {
     let errorMessage = 'Registration failed. Please try again.';
     
     if (error.message) {
-      if (error.message.includes('Duplicate entry') || error.message.includes('Unique') || error.message.includes('already exists')) {
+      if (/duplicate|unique|already exists/i.test(error.message)) {
         errorMessage = 'Email or Device IMEI is already registered. Please login or use different details.';
       } else if (error.message.includes('Traccar')) {
         errorMessage = error.message;

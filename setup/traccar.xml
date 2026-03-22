@@ -10,4 +10,5 @@
     <entry key='database.password' />
     <entry key='web.path'>./web</entry>
 
+<entry key='registration'>true</entry>
 </properties>
