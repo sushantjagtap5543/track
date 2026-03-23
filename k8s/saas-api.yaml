@@ -18,7 +18,7 @@ spec:
       - name: saas-api
         image: saas-api:latest # Replace with your actual image
         ports:
-        - containerPort: 3000
+        - containerPort: 3001
         envFrom:
         - configMapRef:
             name: saas-api-config
@@ -34,5 +34,5 @@ spec:
     app: saas-api
   ports:
   - port: 80
-    targetPort: 3000
+    targetPort: 3001
   type: ClusterIP

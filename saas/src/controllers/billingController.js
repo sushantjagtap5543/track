@@ -11,11 +11,23 @@ const razorpay = new Razorpay({
 
 // Create a new order
 exports.createOrder = async (req, res) => {
-  const { amount, planId } = req.body; // Amount in INR 
+  const { planId, deviceCount } = req.body; 
 
   try {
+    // 1. Fetch Plan details from DB
+    const plan = await prisma.plan.findUnique({
+      where: { id: planId }
+    });
+
+    if (!plan) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+
+    // 2. Calculate Total Amount
+    const totalAmount = plan.pricePerDevice * (deviceCount || 1);
+
     const options = {
-      amount: amount * 100, // amount in the smallest currency unit (paise)
+      amount: totalAmount * 100, // paise
       currency: "INR",
       receipt: `receipt_order_${Date.now()}`
     };
@@ -26,7 +38,7 @@ exports.createOrder = async (req, res) => {
     await prisma.payment.create({
       data: {
         userId: req.user.userId,
-        amount: amount,
+        amount: totalAmount,
         status: 'CREATED',
         transactionId: order.id
       }
@@ -60,16 +72,30 @@ exports.verifyPayment = async (req, res) => {
     });
 
     // Create or renew subscription
-    // Assuming a 1-year validity for standard plans
+    const payment = await prisma.payment.findFirst({
+      where: { transactionId: razorpay_order_id }
+    });
+
+    // Determine plan type (from metadata or passed planId)
+    const plan = await prisma.plan.findUnique({
+      where: { id: planId || 'STANDARD_PLAN' }
+    });
+
+    // Set expiration based on plan cycle
     const expiresAt = new Date();
-    expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+    if (plan?.billingCycle === 'YEARLY') {
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+    } else {
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+    }
 
     await prisma.subscription.create({
       data: {
         userId: req.user.userId,
         status: 'ACTIVE',
-        planId: planId || 'STANDARD_PLAN',
-        price: 0, // Should look up plan pricing in production
+        planId: planId || (plan?.id),
+        price: payment?.amount || 0,
+        deviceCount: req.body.deviceCount || 1,
         expiresAt: expiresAt
       }
     });

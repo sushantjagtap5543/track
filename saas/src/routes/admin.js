@@ -10,6 +10,7 @@ router.use(requireRole('ADMIN'));
 
 router.get('/health', adminController.getSystemHealth);
 router.get('/stats', adminController.getStats);
+router.get('/advanced-stats', adminController.getAdvancedStats);
 router.post('/client-status', adminController.updateClientStatus);
 
 module.exports = router;

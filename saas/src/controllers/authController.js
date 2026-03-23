@@ -161,3 +161,46 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: 'Login failed', details: error.message });
   }
 };
+
+exports.changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user.userId;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current and new password are required' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Incorrect current password' });
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update SaaS DB
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedNewPassword }
+    });
+
+    // Update Traccar Engine
+    if (user.geosurepathUserId) {
+      try {
+        await geosurepathService.updateUser(user.geosurepathUserId, { password: newPassword });
+        console.log(`[Sync] Password updated in Traccar for ${user.email}`);
+      } catch (syncError) {
+        console.error(`[Sync Error] Failed to update password in Traccar for ${user.email}:`, syncError.message);
+        // We might want to warn the user that Traccar session might still use old password
+      }
+    }
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Failed to update password', details: error.message });
+  }
+};

@@ -1,6 +1,34 @@
 // src/services/geosurepath.js
 const { GEOSUREPATH_URL, GEOSUREPATH_ADMIN_EMAIL, GEOSUREPATH_ADMIN_PASSWORD } = process.env;
 
+/**
+ * Common hardware command mappings for different protocols.
+ * This ensures that a generic action like 'engineStop' is translated
+ * to the correct hardware-specific command for supported protocols.
+ */
+const PROTOCOL_COMMANDS = {
+  'gt06': {
+    'engineStop': { type: 'engineStop' },
+    'engineResume': { type: 'engineResume' }
+  },
+  'teltonika': {
+    'engineStop': { type: 'engineStop' },
+    'engineResume': { type: 'engineResume' }
+  },
+  'gps103': {
+    'engineStop': { type: 'engineStop' },
+    'engineResume': { type: 'engineResume' }
+  },
+  'tk103': {
+    'engineStop': { type: 'engineStop' },
+    'engineResume': { type: 'engineResume' }
+  },
+  'h02': {
+    'engineStop': { type: 'custom', attributes: { data: 'stop123456' } },
+    'engineResume': { type: 'custom', attributes: { data: 'resume123456' } }
+  }
+};
+
 let sessionCookie = null;
 
 /**
@@ -118,6 +146,14 @@ const getLatestPosition = async (deviceId) => {
 };
 
 /**
+ * Gets the protocol of a device from its latest position
+ */
+const getDeviceProtocol = async (deviceId) => {
+    const position = await getLatestPosition(deviceId);
+    return position ? position.protocol : null;
+};
+
+/**
  * Deletes a user from GeoSurePath
  */
 const deleteUser = async (userId) => {
@@ -142,15 +178,35 @@ const deleteDevice = async (deviceId) => {
 };
 
 /**
- * Sends a command to a device in GeoSurePath
+ * Sends a command to a device in GeoSurePath with protocol-aware mapping
  */
-const sendCommand = async (deviceId, type, attributes = {}) => {
+const sendCommand = async (deviceId, action, attributes = {}) => {
     await ensureSession();
+
+    // 1. Detect protocol
+    const protocol = await getDeviceProtocol(deviceId);
+    console.log(`Detected protocol for device ${deviceId}: ${protocol || 'unknown'}`);
+
+    let commandType = action;
+    let commandAttributes = { ...attributes };
+
+    // 2. Map generic action to protocol-specific command
+    if (protocol) {
+        const protoKey = protocol.toLowerCase();
+        if (PROTOCOL_COMMANDS[protoKey] && PROTOCOL_COMMANDS[protoKey][action]) {
+            const mapping = PROTOCOL_COMMANDS[protoKey][action];
+            commandType = mapping.type;
+            commandAttributes = { ...commandAttributes, ...mapping.attributes };
+            console.log(`Mapping action '${action}' to command '${commandType}' for protocol '${protocol}'`);
+        }
+    }
+
     const response = await fetch(`${GEOSUREPATH_URL}/api/commands/send`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ deviceId, type, attributes })
+        body: JSON.stringify({ deviceId, type: commandType, attributes: commandAttributes })
     });
+
     if (!response.ok) {
         const text = await response.text();
         throw new Error(`GeoSurePath sendCommand failed: ${response.status} ${text}`);
@@ -192,8 +248,41 @@ const linkGeofenceToDevice = async (deviceId, geofenceId) => {
     return response.ok;
 };
 
+/**
+ * Updates a user in GeoSurePath
+ * @param {number} userId - The GeoSurePath user ID
+ * @param {object} data - The data to update (e.g., { disabled: true })
+ */
+const updateUser = async (userId, data) => {
+    await ensureSession();
+    const response = await fetch(`${GEOSUREPATH_URL}/api/users/${userId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id: userId, ...data })
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        console.error(`GeoSurePath updateUser failed [${response.status}]:`, text);
+        throw new Error(`GeoSurePath updateUser failed: ${response.status} ${text}`);
+    }
+    return response.json();
+};
+
+/**
+ * Fetches all latest positions
+ */
+const getAllLatestPositions = async () => {
+    await ensureSession();
+    const response = await fetch(`${GEOSUREPATH_URL}/api/positions`, {
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) return [];
+    return response.json();
+};
+
 module.exports = {
   createUser,
+  updateUser,
   createDevice,
   linkDeviceToUser,
   getLatestPosition,
@@ -201,5 +290,6 @@ module.exports = {
   deleteDevice,
   sendCommand,
   createGeofence,
-  linkGeofenceToDevice
+  linkGeofenceToDevice,
+  getAllLatestPositions
 };

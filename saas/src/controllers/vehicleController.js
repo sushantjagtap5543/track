@@ -94,3 +94,67 @@ exports.toggleSafeParking = async (req, res) => {
     res.status(500).json({ error: 'Failed to update safe parking status', details: error.message });
   }
 };
+
+// Create Custom Alert Rule
+exports.createAlertRule = async (req, res) => {
+  const { vehicleId, type, parameters } = req.body;
+
+  try {
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id: vehicleId, userId: req.user.userId }
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({ error: 'Vehicle not found' });
+    }
+
+    const alertRule = await prisma.alertRule.create({
+      data: {
+        vehicleId,
+        type,
+        parameters: parameters || {}
+      }
+    });
+
+    res.json(alertRule);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create alert rule' });
+  }
+};
+
+// Get Alert Rules for a vehicle
+exports.getAlertRules = async (req, res) => {
+  const { vehicleId } = req.params;
+
+  try {
+    const rules = await prisma.alertRule.findMany({
+      where: { vehicleId, vehicle: { userId: req.user.userId } }
+    });
+    res.json(rules);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch alert rules' });
+  }
+};
+
+// Delete Alert Rule
+exports.deleteAlertRule = async (req, res) => {
+  const { ruleId } = req.params;
+
+  try {
+    const rule = await prisma.alertRule.findFirst({
+      where: { id: ruleId, vehicle: { userId: req.user.userId } }
+    });
+
+    if (!rule) {
+      return res.status(404).json({ error: 'Alert rule not found' });
+    }
+
+    await prisma.alertRule.delete({
+      where: { id: ruleId }
+    });
+
+    res.json({ message: 'Alert rule deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete alert rule' });
+  }
+};

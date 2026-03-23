@@ -15,4 +15,9 @@ router.post('/engine', vehicleController.toggleEngine);
 // Safe parking toggle
 router.post('/safe-parking', vehicleController.toggleSafeParking);
 
+// Custom Alerts
+router.post('/alerts', vehicleController.createAlertRule);
+router.get('/:vehicleId/alerts', vehicleController.getAlertRules);
+router.delete('/alerts/:ruleId', vehicleController.deleteAlertRule);
+
 module.exports = router;

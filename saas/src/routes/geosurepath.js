@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { alertQueue } = require('../services/queue');
 
 /**
  * Endpoint to receive forwarded events from Traccar
@@ -45,7 +46,30 @@ router.post('/events', async (req, res) => {
             }
         });
 
-        console.log(`[Alert] Sent notification to ${vehicle.user.email}: ${message}`);
+        // 5. Custom Alert Rules Processing
+        if (event.type === 'geofenceEnter') {
+            const rules = await prisma.alertRule.findMany({
+                where: { vehicleId: vehicle.id, type: 'AREA_STAY', isActive: true }
+            });
+
+            for (const rule of rules) {
+                const params = rule.parameters;
+                // rule.parameters example: { "geofenceId": 123, "durationMinutes": 30 }
+                if (params.geofenceId === event.geofenceId) {
+                    await alertQueue.add('check-stay-duration', {
+                        userId: vehicle.userId,
+                        vehicleId: vehicle.id,
+                        geofenceId: event.geofenceId,
+                        durationMinutes: params.durationMinutes || 30,
+                        ruleId: rule.id
+                    }, { delay: (params.durationMinutes || 30) * 60 * 1000 });
+                    
+                    console.log(`[AlertQueue] Queued stay-duration check for vehicle ${vehicle.name} in geofence ${event.geofenceId}`);
+                }
+            }
+        }
+
+        console.log(`[Alert] processed event ${event.type} for ${vehicle.user.email}`);
         res.sendStatus(200);
     } catch (error) {
         console.error('Error processing GeoSurePath event:', error);
