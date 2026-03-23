@@ -2,12 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const authMiddleware = require('../middleware/authMiddleware');
+const { authenticateToken } = require('../middleware/authMiddleware');
 
 /**
  * Fetch latest notifications for the current user
  */
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
     try {
         const notifications = await prisma.notification.findMany({
             where: { userId: req.user.userId },
@@ -23,7 +23,7 @@ router.get('/', authMiddleware, async (req, res) => {
 /**
  * Mark a notification as read
  */
-router.put('/:id/read', authMiddleware, async (req, res) => {
+router.put('/:id/read', authenticateToken, async (req, res) => {
     try {
         await prisma.notification.update({
             where: { id: req.params.id, userId: req.user.userId },
