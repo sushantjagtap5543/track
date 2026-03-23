@@ -2,6 +2,7 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
+const geosurepathService = require('../services/geosurepath');
 const prisma = new PrismaClient();
 
 const razorpay = new Razorpay({
