@@ -78,8 +78,6 @@ exports.verifyPayment = async (req, res) => {
     });
 
     // Determine plan type (from metadata or passed planId)
-    const plan = await prisma.plan.findUnique({
-    // Look up plan details if planId provided, otherwise fallback to a default logic
     let price = 0;
     let durationMonths = 12; // Default to 1 year
     
