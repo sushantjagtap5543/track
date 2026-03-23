@@ -31,6 +31,7 @@ model User {
   vehicles      Vehicle[]
   subscriptions Subscription[]
   payments      Payment[]
+  notifications Notification[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
