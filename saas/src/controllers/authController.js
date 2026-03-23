@@ -7,7 +7,7 @@ const geosurepathService = require('../services/geosurepath');
 const prisma = new PrismaClient();
 
 exports.register = async (req, res) => {
-  let { name, email, phone, password, vehicleName, vehicleType, vehicleModel, deviceImei } = req.body;
+  let { name, email, phone, password, vehicleName, vehicleType, vehiclePlate, deviceImei } = req.body;
   
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
   
@@ -77,7 +77,7 @@ exports.register = async (req, res) => {
             name: vehicleName,
             imei: deviceImei,
             type: vehicleType,
-            model: vehicleModel,
+            model: vehiclePlate,
             geosurepathDeviceId: geosurepathDevice.id
           }]
         }

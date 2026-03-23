@@ -17,6 +17,25 @@ Use the following credentials for the first user registration (this user automat
 
 ---
 
+## 🧪 Testing Credentials
+
+Use these pre-configured accounts for testing different parts of the platform:
+
+### Admin Panel (Administrator Role)
+Access full system statistics, client management, and administrative features.
+- **URL**: [http://3.108.114.12/](http://3.108.114.12/)
+- **Email**: `admin@geosurepath.com`
+- **Password**: `AdminTestPassword123!`
+
+### Client Panel (User Role)
+Access the standard vehicle tracking dashboard and personal settings.
+- **URL**: [http://3.108.114.12/](http://3.108.114.12/)
+- **Email**: `client@geosurepath.com`
+- **Password**: `ClientTestPassword123!`
+
+---
+
+
 ## 🏗 Architecture
 
 The platform follows a microservices-inspired architecture managed via Docker Compose:
