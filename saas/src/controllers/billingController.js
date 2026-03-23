@@ -79,24 +79,27 @@ exports.verifyPayment = async (req, res) => {
 
     // Determine plan type (from metadata or passed planId)
     const plan = await prisma.plan.findUnique({
-      where: { id: planId || 'STANDARD_PLAN' }
-    });
-
-    // Set expiration based on plan cycle
-    const expiresAt = new Date();
-    if (plan?.billingCycle === 'YEARLY') {
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-    } else {
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
+    // Look up plan details if planId provided, otherwise fallback to a default logic
+    let price = 0;
+    let durationMonths = 12; // Default to 1 year
+    
+    if (planId) {
+      const plan = await prisma.plan.findUnique({ where: { id: planId } });
+      if (plan) {
+        price = plan.pricePerDevice;
+        durationMonths = plan.billingCycle === 'YEARLY' ? 12 : 1;
+      }
     }
+
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + durationMonths);
 
     await prisma.subscription.create({
       data: {
         userId: req.user.userId,
         status: 'ACTIVE',
-        planId: planId || (plan?.id),
-        price: payment?.amount || 0,
-        deviceCount: req.body.deviceCount || 1,
+        planId: planId || null,
+        price: price,
         expiresAt: expiresAt
       }
     });

@@ -60,10 +60,52 @@ const startWorkers = () => {
   }, { connection: redisConnection });
 
   const billingWorker = new Worker('BillingQueue', async job => {
-    console.log(`[BillingWorker] Processing billing check for user ${job.data.userId}`);
-    // Subscription suspension logic
-    // ...
+    if (job.name === 'check-expirations') {
+        console.log('[BillingWorker] Running periodic subscription expiration check...');
+        const now = new Date();
+        
+        // 1. Find all active subscriptions that have expired
+        const expiredSubscriptions = await prisma.subscription.findMany({
+            where: {
+                status: 'ACTIVE',
+                expiresAt: { lt: now }
+            },
+            include: { user: true }
+        });
+
+        console.log(`[BillingWorker] Found ${expiredSubscriptions.length} expired subscriptions.`);
+
+        for (const sub of expiredSubscriptions) {
+            try {
+                // 2. Update Subscription Status to EXPIRED
+                await prisma.subscription.update({
+                    where: { id: sub.id },
+                    data: { status: 'EXPIRED' }
+                });
+
+                // 3. Deactivate User Account in SaaS
+                await prisma.user.update({
+                    where: { id: sub.userId },
+                    data: { isActive: false }
+                });
+
+                // 4. Sync with Traccar Engine (Disable User)
+                if (sub.user.geosurepathUserId) {
+                    await geosurepathService.updateUser(sub.user.geosurepathUserId, { disabled: true });
+                    console.log(`[BillingWorker] User ${sub.user.email} suspended due to expiration.`);
+                }
+            } catch (err) {
+                console.error(`[BillingWorker] Error deactivating user ${sub.user.email}:`, err.message);
+            }
+        }
+    }
   }, { connection: redisConnection });
+
+  // Schedule periodic expiration check (Run every hour)
+  billingQueue.add('check-expirations', {}, {
+    repeat: { cron: '0 * * * *' },
+    jobId: 'periodic-expiration-check' // Prevents duplicate jobs on restart
+  }).catch(e => console.error('[BillingWorker] Failed to schedule expiration check:', e));
 
   // Event listeners for workers
   emailWorker.on('completed', job => console.log(`[EmailWorker] Job ${job.id} completed.`));

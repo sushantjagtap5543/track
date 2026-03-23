@@ -11,13 +11,13 @@ exports.getTrips = async (req, res) => {
   try {
     // Security check: ensure deviceId belongs to the user
     const vehicle = await prisma.vehicle.findFirst({
-        where: { traccarDeviceId: parseInt(deviceId), userId: req.user.userId }
+        where: { geosurepathDeviceId: parseInt(deviceId), userId: req.user.userId }
     });
     if (!vehicle) return res.status(403).json({ error: 'Access denied to this device' });
 
-    const response = await fetch(`${process.env.TRACCAR_URL}/api/reports/trips?deviceId=${deviceId}&from=${from}&to=${to}`, {
+    const response = await fetch(`${process.env.GEOSUREPATH_URL}/api/reports/trips?deviceId=${deviceId}&from=${from}&to=${to}`, {
       headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${process.env.TRACCAR_ADMIN_EMAIL}:${process.env.TRACCAR_ADMIN_PASSWORD}`).toString('base64')
+        'Authorization': 'Basic ' + Buffer.from(`${process.env.GEOSUREPATH_ADMIN_EMAIL}:${process.env.GEOSUREPATH_ADMIN_PASSWORD}`).toString('base64')
       }
     });
     
@@ -36,13 +36,13 @@ exports.getSummary = async (req, res) => {
   try {
     // Security check: ensure deviceId belongs to the user
     const vehicle = await prisma.vehicle.findFirst({
-        where: { traccarDeviceId: parseInt(deviceId), userId: req.user.userId }
+        where: { geosurepathDeviceId: parseInt(deviceId), userId: req.user.userId }
     });
     if (!vehicle) return res.status(403).json({ error: 'Access denied to this device' });
 
-    const response = await fetch(`${process.env.TRACCAR_URL}/api/reports/summary?deviceId=${deviceId}&from=${from}&to=${to}`, {
+    const response = await fetch(`${process.env.GEOSUREPATH_URL}/api/reports/summary?deviceId=${deviceId}&from=${from}&to=${to}`, {
       headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${process.env.TRACCAR_ADMIN_EMAIL}:${process.env.TRACCAR_ADMIN_PASSWORD}`).toString('base64')
+        'Authorization': 'Basic ' + Buffer.from(`${process.env.GEOSUREPATH_ADMIN_EMAIL}:${process.env.GEOSUREPATH_ADMIN_PASSWORD}`).toString('base64')
       }
     });
 
