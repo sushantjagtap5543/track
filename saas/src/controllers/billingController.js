@@ -101,10 +101,20 @@ exports.verifyPayment = async (req, res) => {
     });
 
     // Ensure user account is active
-    await prisma.user.update({
+    const user = await prisma.user.update({
       where: { id: req.user.userId },
       data: { isActive: true }
     });
+
+    // Sync with Traccar engine
+    if (user.geosurepathUserId) {
+        try {
+            await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false });
+            console.log(`[Sync] User ${user.email} re-activated in Traccar after payment.`);
+        } catch (syncError) {
+            console.error(`[Sync Error] Failed to re-activate ${user.email} in Traccar:`, syncError.message);
+        }
+    }
 
     res.json({ message: 'Payment verified successfully', success: true });
   } else {

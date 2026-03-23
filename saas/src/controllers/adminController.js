@@ -61,11 +61,11 @@ exports.updateClientStatus = async (req, res) => {
       data: { isActive: isActive }
     });
     
-    // Sync with Traccar engine
+    // Sync with GeoSurePath: If not active, disable in GeoSurePath
     if (user.geosurepathUserId) {
         try {
             await geosurepathService.updateUser(user.geosurepathUserId, { disabled: !isActive });
-            console.log(`[Sync] User ${user.email} ${isActive ? 'activated' : 'disabled'} in Traccar.`);
+            console.log(`[Sync] User ${user.email} ${isActive ? 'activated' : 'disabled'} in GeoSurePath.`);
         } catch (syncError) {
             console.error(`[Sync Error] Failed to sync status for ${user.email}:`, syncError.message);
             // We continue even if sync fails

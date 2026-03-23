@@ -249,6 +249,18 @@ const linkGeofenceToDevice = async (deviceId, geofenceId) => {
 };
 
 /**
+ * Deletes a geofence from GeoSurePath
+ */
+const deleteGeofence = async (geofenceId) => {
+    await ensureSession();
+    const response = await fetch(`${GEOSUREPATH_URL}/api/geofences/${geofenceId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
+    return response.ok;
+};
+
+/**
  * Updates a user in GeoSurePath
  * @param {number} userId - The GeoSurePath user ID
  * @param {object} data - The data to update (e.g., { disabled: true })
@@ -288,6 +300,7 @@ module.exports = {
   getLatestPosition,
   deleteUser,
   deleteDevice,
+  deleteGeofence,
   sendCommand,
   createGeofence,
   linkGeofenceToDevice,
