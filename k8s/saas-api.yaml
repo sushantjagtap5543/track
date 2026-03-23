@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saas-api
+  labels:
+    app: saas-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: saas-api
+  template:
+    metadata:
+      labels:
+        app: saas-api
+    spec:
+      containers:
+      - name: saas-api
+        image: saas-api:latest # Replace with your actual image
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: saas-api-config
+        - secretRef:
+            name: geosurepath-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: saas-api
+spec:
+  selector:
+    app: saas-api
+  ports:
+  - port: 80
+    targetPort: 3000
+  type: ClusterIP

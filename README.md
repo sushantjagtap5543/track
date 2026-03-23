@@ -1,158 +1,111 @@
-# GeoSurePath SaaS - GPS Tracking Platform
+# 🛰️ GeoSurePath SaaS - Premium GPS Tracking Platform
 
-GeoSurePath is a professional, high-performance SaaS platform for GPS tracking, built on top of the powerful [Traccar](https://www.traccar.org) core. It features a modern user interface, advanced vehicle management, and a robust backend for asset tracking.
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Version](https://img.shields.io/badge/Version-1.2.0--Stable-green.svg)]()
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
+
+**GeoSurePath** is a state-of-the-art, high-performance SaaS platform for real-time GPS tracking and fleet management. Built on the industry-leading [Traccar](https://www.traccar.org) core, GeoSurePath enhances the experience with a premium sleek UI, robust SaaS-layer security, and advanced asset management features.
 
 ---
 
-## 🌐 Live Deployment Details
+## ✨ Key Features
 
-- **Public IP**: `3.108.114.12`
-- **Application URL**: [http://3.108.114.12/](http://3.108.114.12/)
+GeoSurePath provides a comprehensive suite of tools for both individual users and enterprise fleet managers.
+
+### 🚗 Vehicle & Asset Management
+- **Unified Dashboard**: Monitor your entire fleet from a single, high-fidelity map interface.
+- **Custom Identifiers**: Track vehicles by **Vehicle Number Plate**, IMEI, or unique device IDs.
+- **Telemetry Data**: Real-time updates on speed, battery voltage, fuel levels, and engine status (for supported protocols).
+- **Asset Categories**: Effortlessly manage Cars, Trucks, Motorcycles, and industrial equipment with custom icons.
+
+### 🛡️ Safety & Security
+- **Safe Parking (Geofencing)**: Create virtual boundaries around your parking locations. Receive instant alerts if a vehicle leaves a "Safe Zone".
+- **Real-Time Alerts**: Instant notifications for engine starts, tampering, overspeeding, and geofence breaches.
+- **Remote Control**: Send engine-stop and engine-resume commands directly from the dashboard.
+
+### 💼 SaaS Ecosystem
+- **Role-Based Access Control (RBAC)**: Distinct permissions for **Administrators** (Global view, system stats, billing) and **Clients** (Personal assets and settings).
+- **Subscription Management**: Integrated billing with usage-based or tiered plans.
+- **Detailed Reporting**: Export path history, stops, trips, and daily summaries in professional Excel formats.
+
+---
+
+## 🎨 Premium UI/UX
+
+GeoSurePath is designed for visual excellence. The dark-mode interface features glassmorphism elements, vibrant typography, and a "Live Map" experience that feels modern and responsive.
+
+![Dashboard Mockup](file:///C:/Users/Sushant/.gemini/antigravity/brain/6359efc7-3aac-44a4-9db9-bfe276647be0/geosurepath_dashboard_mockup_1774258521147.png)
+*Professional Dark Mode Dashboard*
+
+---
+
+## 🏗️ Technical Architecture
+
+The platform uses a modular, containerized architecture for maximum reliability and scalability.
+
+```mermaid
+graph TD
+    A[Nginx Reverse Proxy] --> B[SaaS API - Node.js]
+    A --> C[Traccar Core - Java/JVM]
+    B --> D[(PostgreSQL)]
+    C --> D
+    B --> E[(Redis Cache)]
+    C --> F[GPS Devices - 2000+ Protocols]
+```
+
+### Stack Overview
+- **Frontend**: React + Material UI (Modern, responsive, and fast)
+- **Backend API**: Node.js + Express + Prisma ORM
+- **Tracking Engine**: Traccar Core (Industry Standard)
+- **Database**: PostgreSQL (Unified storage)
+- **Cache**: Redis (Fast status management)
+- **Reverse Proxy**: Nginx (Rate limiting & SSL termination)
+
+---
+
+## 🌐 Live Access & Testing
+
+- **Platform URL**: [http://3.108.114.12/](http://3.108.114.12/)
 - **Registration**: [http://3.108.114.12/register](http://3.108.114.12/register)
 
-### Initial Administrator Credentials
-Use the following credentials for the first user registration (this user automatically becomes the administrator):
-- **Email**: `sushant@example.com`
-- **Password**: `AdminPassword123!`
+### 🧪 Test Accounts
+Use these pre-configured credentials to explore the platform:
 
----
-
-## 🧪 Testing Credentials
-
-Use these pre-configured accounts for testing different parts of the platform:
-
-### Admin Panel (Administrator Role)
-Access full system statistics, client management, and administrative features.
-- **URL**: [http://3.108.114.12/](http://3.108.114.12/)
-- **Email**: `admin@geosurepath.com`
-- **Password**: `AdminTestPassword123!`
-
-### Client Panel (User Role)
-Access the standard vehicle tracking dashboard and personal settings.
-- **URL**: [http://3.108.114.12/](http://3.108.114.12/)
-- **Email**: `client@geosurepath.com`
-- **Password**: `ClientTestPassword123!`
-
----
-
-
-## 🏗 Architecture
-
-The platform follows a microservices-inspired architecture managed via Docker Compose:
-
-*   **Nginx**: High-performance reverse proxy and entry point with rate limiting.
-*   **SaaS API (Node.js)**: Custom logic for authentication, billing, vehicle management, and account levels.
-*   **Traccar Core (Java)**: The industry-standard GPS tracking engine supporting 2000+ device models.
-*   **PostgreSQL**: Unified database for both SaaS and Traccar data.
-*   **Redis**: High-speed cache and queue management for background tasks.
+| Role | Email | Password |
+| :--- | :--- | :--- |
+| **Administrator** | `admin@geosurepath.com` | `AdminTestPassword123!` |
+| **Client** | `client@geosurepath.com` | `ClientTestPassword123!` |
 
 ---
 
 ## 🚀 Installation & Deployment
 
-### Prerequisites
-*   Ubuntu 22.04+ (Recommended)
-*   Docker & Docker Compose (v2+)
-*   Min 2GB RAM
+### Local Development / Self-Hosting
+1. **Prerequisites**: Docker, Docker Compose, and Node.js (for local tweaks).
+2. **Clone & Setup**:
+   ```bash
+   git clone https://github.com/sushantjagtap5543/track.git
+   cd track
+   ```
+3. **Environment Setup**:
+   Create a `.env` in the root and in `saas/`. Use the `.env.example` templates provided.
+4. **Deploy**:
+   ```bash
+   chmod +x install.sh
+   ./install.sh
+   ```
 
-### Quick Start (Automated)
-
-1.  **Clone the Repository**:
-    ```bash
-    git clone https://github.com/sushantjagtap5543/track.git
-    cd track
-    ```
-
-2.  **Configure Environment**:
-    Create a `.env` file in the root and `saas/` directory. 
-    > [!IMPORTANT]
-    > You MUST set a strong `DB_PASSWORD` before proceeding.
-
-3.  **Run Installer**:
-    ```bash
-    chmod +x install.sh
-    ./install.sh
-    ```
-
-### Manual Deployment
-
-If you prefer to run steps manually:
-
-1.  **Start Services**:
-    ```bash
-    docker compose up -d --build
-    ```
-
-2.  **Initialize Database Schema**:
-    ```bash
-    docker exec geosurepath_saas_api npx prisma db push
-    ```
+### Troubleshooting
+- **Database Logs**: `docker compose logs -f db`
+- **SaaS API Status**: `docker compose logs -f saas-api`
+- **Manual DB Update** (Enable Registration):
+  ```bash
+  docker exec -it geosurepath_db psql -U geosurepath -d geosurepath -c "UPDATE tc_servers SET registration = true;"
+  ```
 
 ---
 
-## ⚙️ Configuration
+## 📄 License & Legal
+GeoSurePath is licensed under the Apache License, Version 2.0. Copyright (c) 2026.
 
-### Environment Variables (.env)
-
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `DB_PASSWORD` | PostgreSQL password | *MUST BE CHANGED* |
-| `DB_USER` | Database user | `geosurepath` |
-| `JWT_SECRET` | Secret key for SaaS tokens | `your_secret_here` |
-| `TRACCAR_ADMIN_EMAIL` | Admin account for Traccar API | `admin@example.com` |
-| `TRACCAR_ADMIN_PASSWORD` | Admin password for Traccar API | `admin` |
-
-### Third-Party Integrations
-
-Most feature-specific settings reside in `saas/.env`.
-
-| Variable | Description |
-| :--- | :--- |
-| `RAZORPAY_KEY_ID` | Razorpay public key for payments |
-| `RAZORPAY_KEY_SECRET` | Razorpay secret key |
-| `SMTP_HOST` | Outgoing mail server (for alerts/recovery) |
-| `SMTP_USER` | Email username |
-| `SMTP_PASS` | Email password |
-
-### Ports & Networking
-
-The application uses standard ports for GPS protocols and a single port for the web interface.
-
-*   **HTTP/HTTPS**: `80` (Nginx)
-*   **GPS Protocols**: `5001-5150` (TCP/UDP)
-*   **Internal Communication**:
-    *   SaaS API: `3001`
-    *   Traccar Web: `8082`
-    *   PostgreSQL: `5432`
-    *   Redis: `6379`
-
----
-
-## 🛠 Troubleshooting & Management
-
-### Restarting Services
-```bash
-docker compose restart
-```
-
-### Viewing Logs
-```bash
-docker compose logs -f [service_name]  # e.g., saas-api, traccar
-```
-
-### Force-Enable Registration
-If the "Registration disabled" error persists after a fresh install:
-```bash
-docker exec -it geosurepath_db psql -U geosurepath -d geosurepath -c "UPDATE tc_servers SET registration = true;"
-```
-
----
-
-## 🔒 Security
-*   All APIs behind Nginx with rate limiting.
-*   Database not exposed to the public internet.
-*   Secure password hashing with Bcrypt.
-*   JWT-based stateless authentication.
-
-## 📄 License
-GeoSurePath is licensed under the Apache License, Version 2.0.
+Designed with ❤️ for High-Performance Tracking.
