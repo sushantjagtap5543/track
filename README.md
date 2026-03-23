@@ -2,6 +2,21 @@
 
 GeoSurePath is a professional, high-performance SaaS platform for GPS tracking, built on top of the powerful [Traccar](https://www.traccar.org) core. It features a modern user interface, advanced vehicle management, and a robust backend for asset tracking.
 
+---
+
+## 🌐 Live Deployment Details
+
+- **Public IP**: `3.108.114.12`
+- **Application URL**: [http://3.108.114.12/](http://3.108.114.12/)
+- **Registration**: [http://3.108.114.12/register](http://3.108.114.12/register)
+
+### Initial Administrator Credentials
+Use the following credentials for the first user registration (this user automatically becomes the administrator):
+- **Email**: `sushant@example.com`
+- **Password**: `AdminPassword123!`
+
+---
+
 ## 🏗 Architecture
 
 The platform follows a microservices-inspired architecture managed via Docker Compose:
