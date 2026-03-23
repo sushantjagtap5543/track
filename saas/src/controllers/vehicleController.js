@@ -1,6 +1,6 @@
 // src/controllers/vehicleController.js
 const { PrismaClient } = require('@prisma/client');
-const traccarService = require('../services/traccar');
+const geosurepathService = require('../services/geosurepath');
 const prisma = new PrismaClient();
 
 // Get user's vehicles
@@ -24,22 +24,22 @@ exports.toggleEngine = async (req, res) => {
       where: { id: vehicleId, userId: req.user.userId }
     });
 
-    if (!vehicle || !vehicle.traccarDeviceId) {
+    if (!vehicle || !vehicle.geosurepathDeviceId) {
       return res.status(404).json({ error: 'Vehicle not found or not linked to device' });
     }
 
     // Prevention: Cannot stop engine while driving over 20km/h
     if (action === 'engineStop') {
-      const position = await traccarService.getLatestPosition(vehicle.traccarDeviceId);
+      const position = await geosurepathService.getLatestPosition(vehicle.geosurepathDeviceId);
       if (position && position.speed > 20) {
         return res.status(400).json({ error: 'Cannot stop engine while driving over 20km/h for safety.' });
       }
     }
 
-    // Send command to Traccar using the service
-    await traccarService.sendCommand(vehicle.traccarDeviceId, action);
+    // Send command to GeoSurePath using the service
+    await geosurepathService.sendCommand(vehicle.geosurepathDeviceId, action);
 
-    res.json({ message: `Engine command '${action}' sent successfully via Traccar` });
+    res.json({ message: `Engine command '${action}' sent successfully via GeoSurePath` });
   } catch (error) {
     console.error('Engine control error:', error);
     res.status(500).json({ error: 'Failed to toggle engine', details: error.message });
@@ -59,21 +59,21 @@ exports.toggleSafeParking = async (req, res) => {
       return res.status(404).json({ error: 'Vehicle not found' });
     }
 
-    let traccarGeofenceId = vehicle.traccarGeofenceId;
+    let geosurepathGeofenceId = vehicle.geosurepathGeofenceId;
 
     if (enable) {
-      // 1. Create Geofence in Traccar (Circle format)
+      // 1. Create Geofence in GeoSurePath (Circle format)
       // Area format: CIRCLE (lat lng, radius_in_meters)
       const area = `CIRCLE (${lat} ${lng}, ${radius || 100})`;
-      const geofence = await traccarService.createGeofence(`SafeParking_${vehicle.name}`, area);
-      traccarGeofenceId = geofence.id;
+      const geofence = await geosurepathService.createGeofence(`SafeParking_${vehicle.name}`, area);
+      geosurepathGeofenceId = geofence.id;
 
-      // 2. Link Geofence to Device in Traccar
-      await traccarService.linkGeofenceToDevice(vehicle.traccarDeviceId, traccarGeofenceId);
-    } else if (traccarGeofenceId) {
-      // 3. Delete Geofence from Traccar if it exists
-      await traccarService.deleteGeofence(traccarGeofenceId).catch(e => console.error('Failed to delete Traccar geofence:', e));
-      traccarGeofenceId = null;
+      // 2. Link Geofence to Device in GeoSurePath
+      await geosurepathService.linkGeofenceToDevice(vehicle.geosurepathDeviceId, geosurepathGeofenceId);
+    } else if (geosurepathGeofenceId) {
+      // 3. Delete Geofence from GeoSurePath if it exists
+      await geosurepathService.deleteGeofence(geosurepathGeofenceId).catch(e => console.error('Failed to delete GeoSurePath geofence:', e));
+      geosurepathGeofenceId = null;
     }
 
     // 4. Update local DB
@@ -84,7 +84,7 @@ exports.toggleSafeParking = async (req, res) => {
         parkingLat: enable ? lat : null,
         parkingLng: enable ? lng : null,
         parkingRadius: enable ? (radius || 100) : null,
-        traccarGeofenceId: traccarGeofenceId
+        geosurepathGeofenceId: geosurepathGeofenceId
       }
     });
 

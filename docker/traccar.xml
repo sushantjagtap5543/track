@@ -15,6 +15,6 @@
     <entry key='server.statistics'>https://www.traccar.org/analytics/</entry>
 
     <!-- Allow admin API to create users -->
-    <entry key='registration.enabled'>true</entry>
+    <entry key='registration.enable'>true</entry>
     <entry key='server.registration'>true</entry>
 </properties>

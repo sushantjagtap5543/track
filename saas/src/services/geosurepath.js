@@ -1,15 +1,15 @@
-// src/services/traccar.js
-const { TRACCAR_URL, TRACCAR_ADMIN_EMAIL, TRACCAR_ADMIN_PASSWORD } = process.env;
+// src/services/geosurepath.js
+const { GEOSUREPATH_URL, GEOSUREPATH_ADMIN_EMAIL, GEOSUREPATH_ADMIN_PASSWORD } = process.env;
 
 let sessionCookie = null;
 
 /**
- * Basic headers for Traccar API
+ * Basic headers for GeoSurePath API
  * Includes Authorization for every request (as fallback) and Cookie if available.
  */
 const getAuthHeaders = () => {
   const headers = {
-    'Authorization': 'Basic ' + Buffer.from(`${TRACCAR_ADMIN_EMAIL}:${TRACCAR_ADMIN_PASSWORD}`).toString('base64'),
+    'Authorization': 'Basic ' + Buffer.from(`${GEOSUREPATH_ADMIN_EMAIL}:${GEOSUREPATH_ADMIN_PASSWORD}`).toString('base64'),
     'Content-Type': 'application/json'
   };
   if (sessionCookie) {
@@ -19,19 +19,19 @@ const getAuthHeaders = () => {
 };
 
 /**
- * Ensures we have a valid session with Traccar.
- * Traccar 6.x requires a session for POST/PUT/DELETE operations.
+ * Ensures we have a valid session with GeoSurePath.
+ * GeoSurePath requirements: a session for POST/PUT/DELETE operations.
  */
 const ensureSession = async () => {
     if (sessionCookie) return;
     
-    console.log(`Establishing Traccar session for ${TRACCAR_ADMIN_EMAIL}...`);
+    console.log(`Establishing GeoSurePath session for ${GEOSUREPATH_ADMIN_EMAIL}...`);
     
     const params = new URLSearchParams();
-    params.append('email', TRACCAR_ADMIN_EMAIL);
-    params.append('password', TRACCAR_ADMIN_PASSWORD);
+    params.append('email', GEOSUREPATH_ADMIN_EMAIL);
+    params.append('password', GEOSUREPATH_ADMIN_PASSWORD);
 
-    const response = await fetch(`${TRACCAR_URL}/api/session`, {
+    const response = await fetch(`${GEOSUREPATH_URL}/api/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params
@@ -39,68 +39,67 @@ const ensureSession = async () => {
 
     if (!response.ok) {
         const text = await response.text();
-        console.error(`Traccar session creation failed [${response.status}]:`, text);
-        throw new Error(`Traccar session creation failed: ${response.status} ${text}`);
+        console.error(`GeoSurePath session creation failed [${response.status}]:`, text);
+        throw new Error(`GeoSurePath session creation failed: ${response.status} ${text}`);
     }
 
     const setCookie = response.headers.get('set-cookie');
     if (setCookie) {
         // Extract JSESSIONID
         sessionCookie = setCookie.split(';')[0];
-        console.log('Traccar session established successfully.');
+        console.log('GeoSurePath session established successfully.');
     }
 };
 
 /**
- * Creates a new user in Traccar
- * Note: Does not require ensureSession() to allow for the very first admin registration.
+ * Creates a new user in GeoSurePath
  */
 const createUser = async (name, email, password) => {
-  const response = await fetch(`${TRACCAR_URL}/api/users`, {
+  const response = await fetch(`${GEOSUREPATH_URL}/api/users`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ name, email, password })
   });
   if (!response.ok) {
     const text = await response.text();
-    console.error(`Traccar createUser failed [${response.status}]:`, text);
-    throw new Error(`Traccar createUser failed: ${response.status} ${text}`);
+    console.error(`GeoSurePath createUser failed [${response.status}]:`, text);
+    throw new Error(`GeoSurePath createUser failed: ${response.status} ${text}`);
   }
   return response.json();
 };
 
 /**
- * Creates a new device in Traccar
+ * Creates a new device in GeoSurePath
  */
 const createDevice = async (name, uniqueId) => {
   await ensureSession();
-  const response = await fetch(`${TRACCAR_URL}/api/devices`, {
+  const response = await fetch(`${GEOSUREPATH_URL}/api/devices`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ name, uniqueId })
   });
   if (!response.ok) {
     const text = await response.text();
-    console.error(`Traccar createDevice failed [${response.status}]:`, text);
-    throw new Error(`Traccar createDevice failed: ${response.status} ${text}`);
+    console.error(`GeoSurePath createDevice failed [${response.status}]:`, text);
+    throw new Error(`GeoSurePath createDevice failed: ${response.status} ${text}`);
   }
   return response.json();
 };
 
 /**
- * Links a device to a user in Traccar
+ * Links a device to a user in GeoSurePath
  */
 const linkDeviceToUser = async (userId, deviceId) => {
   await ensureSession();
-  const response = await fetch(`${TRACCAR_URL}/api/permissions`, {
+  const response = await fetch(`${GEOSUREPATH_URL}/api/permissions`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ userId, deviceId })
   });
   if (!response.ok) {
     const text = await response.text();
-    console.error(`Traccar linkDeviceToUser failed [${response.status}]:`, text);
-    throw new Error(`Traccar linkDeviceToUser failed: ${response.status} ${text}`);
+    console.error(`GeoSurePath linkDeviceToUser failed [${response.status}]:`, text);
+    throw new Error(`GeoSurePath linkDeviceToUser failed: ${response.status} ${text}`);
   }
   return response.ok;
 };
@@ -110,7 +109,7 @@ const linkDeviceToUser = async (userId, deviceId) => {
  */
 const getLatestPosition = async (deviceId) => {
     await ensureSession();
-    const response = await fetch(`${TRACCAR_URL}/api/positions?deviceId=${deviceId}`, {
+    const response = await fetch(`${GEOSUREPATH_URL}/api/positions?deviceId=${deviceId}`, {
         headers: getAuthHeaders()
     });
     if (!response.ok) return null;
@@ -119,11 +118,11 @@ const getLatestPosition = async (deviceId) => {
 };
 
 /**
- * Deletes a user from Traccar
+ * Deletes a user from GeoSurePath
  */
 const deleteUser = async (userId) => {
     await ensureSession();
-    const response = await fetch(`${TRACCAR_URL}/api/users/${userId}`, {
+    const response = await fetch(`${GEOSUREPATH_URL}/api/users/${userId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
     });
@@ -131,11 +130,11 @@ const deleteUser = async (userId) => {
 };
 
 /**
- * Deletes a device from Traccar
+ * Deletes a device from GeoSurePath
  */
 const deleteDevice = async (deviceId) => {
     await ensureSession();
-    const response = await fetch(`${TRACCAR_URL}/api/devices/${deviceId}`, {
+    const response = await fetch(`${GEOSUREPATH_URL}/api/devices/${deviceId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
     });
@@ -143,35 +142,35 @@ const deleteDevice = async (deviceId) => {
 };
 
 /**
- * Sends a command to a device in Traccar
+ * Sends a command to a device in GeoSurePath
  */
 const sendCommand = async (deviceId, type, attributes = {}) => {
     await ensureSession();
-    const response = await fetch(`${TRACCAR_URL}/api/commands/send`, {
+    const response = await fetch(`${GEOSUREPATH_URL}/api/commands/send`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ deviceId, type, attributes })
     });
     if (!response.ok) {
         const text = await response.text();
-        throw new Error(`Traccar sendCommand failed: ${response.status} ${text}`);
+        throw new Error(`GeoSurePath sendCommand failed: ${response.status} ${text}`);
     }
     return response.json();
 };
 
 /**
- * Creates a geofence in Traccar
+ * Creates a geofence in GeoSurePath
  */
 const createGeofence = async (name, area) => {
     await ensureSession();
-    const response = await fetch(`${TRACCAR_URL}/api/geofences`, {
+    const response = await fetch(`${GEOSUREPATH_URL}/api/geofences`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ name, area })
     });
     if (!response.ok) {
         const text = await response.text();
-        throw new Error(`Traccar createGeofence failed: ${response.status} ${text}`);
+        throw new Error(`GeoSurePath createGeofence failed: ${response.status} ${text}`);
     }
     return response.json();
 };
@@ -181,14 +180,14 @@ const createGeofence = async (name, area) => {
  */
 const linkGeofenceToDevice = async (deviceId, geofenceId) => {
     await ensureSession();
-    const response = await fetch(`${TRACCAR_URL}/api/permissions`, {
+    const response = await fetch(`${GEOSUREPATH_URL}/api/permissions`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ deviceId, geofenceId })
     });
     if (!response.ok) {
         const text = await response.text();
-        throw new Error(`Traccar linkGeofenceToDevice failed: ${response.status} ${text}`);
+        throw new Error(`GeoSurePath linkGeofenceToDevice failed: ${response.status} ${text}`);
     }
     return response.ok;
 };

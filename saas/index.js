@@ -20,6 +20,8 @@ app.use('/api/vehicles', require('./src/routes/vehicles'));
 app.use('/api/billing', require('./src/routes/billing'));
 app.use('/api/admin', require('./src/routes/admin'));
 app.use('/api/reports', require('./src/routes/reports'));
+app.use('/api/geosurepath', require('./src/routes/geosurepath'));
+app.use('/api/notifications', require('./src/routes/notifications'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

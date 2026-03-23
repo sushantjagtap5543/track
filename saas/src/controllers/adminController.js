@@ -60,8 +60,8 @@ exports.updateClientStatus = async (req, res) => {
       data: { isActive: isActive }
     });
     
-    // Note: To fully suspend, we might need to send a command to Traccar to disable the user as well.
-    // fetch(`${process.env.TRACCAR_URL}/api/users/${user.traccarUserId}`, { method: 'PUT', ... body: { disabled: !isActive } })
+    // Note: To fully suspend, we might need to send a command to GeoSurePath to disable the user as well.
+    // fetch(`${process.env.GEOSUREPATH_URL}/api/users/${user.geosurepathUserId}`, { method: 'PUT', ... body: { disabled: !isActive } })
 
     res.json({ message: `Client ${isActive ? 'activated' : 'suspended'} successfully`, user });
   } catch (error) {

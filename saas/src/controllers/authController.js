@@ -2,12 +2,17 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
-const traccarService = require('../services/traccar');
+const geosurepathService = require('../services/geosurepath');
 
 const prisma = new PrismaClient();
 
 exports.register = async (req, res) => {
-  const { name, email, phone, password, vehicleName, vehicleType, vehicleModel, deviceImei } = req.body;
+  let { name, email, phone, password, vehicleName, vehicleType, vehicleModel, deviceImei } = req.body;
+  
+  if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+  
+  email = email.toLowerCase().trim();
+  name = name?.trim();
 
   try {
     // 1. Check if user already exists
@@ -19,13 +24,13 @@ exports.register = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Use Prisma transaction if possible, but Traccar API calls aren't transactional with our DB.
-    // Order: Create Traccar User -> Create Traccar Device -> Link -> Create local user/vehicle
+    // Use Prisma transaction if possible, but GeoSurePath API calls aren't transactional with our DB.
+    // Order: Create GeoSurePath User -> Create GeoSurePath Device -> Link -> Create local user/vehicle
     
-    // 2. Create User in Traccar
-    let traccarUser;
+    // 2. Create User in GeoSurePath
+    let geosurepathUser;
     try {
-      traccarUser = await traccarService.createUser(name, email, password);
+      geosurepathUser = await geosurepathService.createUser(name, email, password);
     } catch (err) {
       if (err.message && /duplicate|unique/i.test(err.message)) {
         throw new Error('Email is already registered. Please login.');
@@ -33,14 +38,14 @@ exports.register = async (req, res) => {
       throw err;
     }
     
-    // 3. Create Device in Traccar
-    let traccarDevice;
+    // 3. Create Device in GeoSurePath
+    let geosurepathDevice;
     try {
-      traccarDevice = await traccarService.createDevice(vehicleName, deviceImei);
+      geosurepathDevice = await geosurepathService.createDevice(vehicleName, deviceImei);
     } catch (err) {
-      // Rollback: Delete the orphaned Traccar user
-      console.warn(`Rolling back: Deleting Traccar User ${traccarUser.id} due to device creation failure.`);
-      await traccarService.deleteUser(traccarUser.id).catch(e => console.error('Rollback cleanup failed:', e));
+      // Rollback: Delete the orphaned GeoSurePath user
+      console.warn(`Rolling back: Deleting GeoSurePath User ${geosurepathUser.id} due to device creation failure.`);
+      await geosurepathService.deleteUser(geosurepathUser.id).catch(e => console.error('Rollback cleanup failed:', e));
       
       if (err.message && /duplicate|unique/i.test(err.message)) {
         throw new Error('Device IMEI is already registered. Please use a different device or login.');
@@ -48,14 +53,14 @@ exports.register = async (req, res) => {
       throw err;
     }
     
-    // 4. Link Device to User in Traccar
+    // 4. Link Device to User in GeoSurePath
     try {
-      await traccarService.linkDeviceToUser(traccarUser.id, traccarDevice.id);
+      await geosurepathService.linkDeviceToUser(geosurepathUser.id, geosurepathDevice.id);
     } catch (err) {
       // Rollback: Delete both user and device to keep data consistent
-      console.warn(`Rolling back: Deleting Traccar User ${traccarUser.id} and Device ${traccarDevice.id} due to linking failure.`);
-      await traccarService.deleteDevice(traccarDevice.id).catch(e => console.error('Rollback cleanup failed:', e));
-      await traccarService.deleteUser(traccarUser.id).catch(e => console.error('Rollback cleanup failed:', e));
+      console.warn(`Rolling back: Deleting GeoSurePath User ${geosurepathUser.id} and Device ${geosurepathDevice.id} due to linking failure.`);
+      await geosurepathService.deleteDevice(geosurepathDevice.id).catch(e => console.error('Rollback cleanup failed:', e));
+      await geosurepathService.deleteUser(geosurepathUser.id).catch(e => console.error('Rollback cleanup failed:', e));
       throw err;
     }
 
@@ -66,14 +71,14 @@ exports.register = async (req, res) => {
         email,
         phone,
         password: hashedPassword,
-        traccarUserId: traccarUser.id,
+        geosurepathUserId: geosurepathUser.id,
         vehicles: {
           create: [{
             name: vehicleName,
             imei: deviceImei,
             type: vehicleType,
             model: vehicleModel,
-            traccarDeviceId: traccarDevice.id
+            geosurepathDeviceId: geosurepathDevice.id
           }]
         }
       },
@@ -102,10 +107,22 @@ exports.register = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  const { email, password, ipAddress, device } = req.body;
+  let { email, password, ipAddress, device } = req.body;
+
+  if (!email || !password) return res.status(400).json({ error: 'Email/Phone and password are required' });
+  
+  const identifier = email.toLowerCase().trim();
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    // Search for user by email OR phone number
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: identifier },
+          { phone: identifier }
+        ]
+      }
+    });
     
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -132,12 +149,12 @@ exports.login = async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId: user.id, role: user.role, traccarUserId: user.traccarUserId },
+      { userId: user.id, role: user.role, geosurepathUserId: user.geosurepathUserId },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRATION || '7d' }
     );
 
-    res.json({ message: 'Login successful', token, role: user.role, traccarUserId: user.traccarUserId });
+    res.json({ message: 'Login successful', token, email: user.email, role: user.role, geosurepathUserId: user.geosurepathUserId });
 
   } catch (error) {
     console.error('Login error:', error);

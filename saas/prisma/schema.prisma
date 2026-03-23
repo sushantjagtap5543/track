@@ -25,7 +25,7 @@ model User {
   phone         String?
   password      String
   role          Role      @default(CLIENT)
-  traccarUserId Int?      @unique
+  geosurepathUserId Int?      @unique
   isActive      Boolean   @default(true)
   loginHistory  LoginHistory[]
   vehicles      Vehicle[]
@@ -43,8 +43,8 @@ model Vehicle {
   model           String?
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  traccarDeviceId Int?     @unique
-  traccarGeofenceId Int?   @unique
+  geosurepathDeviceId Int?     @unique
+  geosurepathGeofenceId Int?   @unique
   safeParkingOn   Boolean  @default(false)
   parkingLat      Float?
   parkingLng      Float?
@@ -83,5 +83,14 @@ model LoginHistory {
   ipAddress String?
   device    String?
   success   Boolean
+  createdAt DateTime @default(now())
+}
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // e.g. "SAFE_PARKING_BREACH", "TAMPERING", "ENGINE_CONTROL"
+  message   String
+  isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 }
