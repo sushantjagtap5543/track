@@ -1,7 +1,7 @@
 // src/controllers/vehicleController.js
 const { PrismaClient } = require('@prisma/client');
 const traccarService = require('../services/traccar');
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasources: { db: { url: \"file:./prisma/dev.db\" } } });
 
 // Get user's vehicles
 exports.getVehicles = async (req, res) => {

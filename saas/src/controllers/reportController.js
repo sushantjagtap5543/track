@@ -1,6 +1,6 @@
 // src/controllers/reportController.js
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasources: { db: { url: \"file:./prisma/dev.db\" } } });
 
 // In a real system, these would fetch from Traccar's API (/api/reports/trips, /api/reports/summary)
 // and aggregate based on user's authorized vehicles.

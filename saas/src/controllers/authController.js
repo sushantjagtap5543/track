@@ -4,7 +4,13 @@ const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 const traccarService = require('../services/traccar');
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: 'file:./prisma/dev.db'
+    }
+  }
+});
 
 exports.register = async (req, res) => {
   const { name, email, phone, password, vehicleName, vehicleType, vehiclePlate, deviceImei } = req.body;

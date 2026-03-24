@@ -4,7 +4,13 @@ const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const { startWorkers } = require('./src/services/queue');
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: 'file:./prisma/dev.db'
+    }
+  }
+});
 const app = express();
 
 app.use(cors());

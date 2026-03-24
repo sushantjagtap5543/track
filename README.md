@@ -1,51 +1,45 @@
-# [Traccar](https://www.traccar.org)
+# GeoSurePath GPS Tracking System
 
-## Overview
+GeoSurePath is a premium GPS tracking solution for assets, vehicles, and personnel.
 
-Traccar is an open source GPS tracking system. This repository contains Java-based back-end service. It supports more than 200 GPS protocols and more than 2000 models of GPS tracking devices. Traccar can be used with any major SQL database system. It also provides easy to use [REST API](https://www.traccar.org/traccar-api/).
+## Core Features
+1. **Real-time Tracking**: Monitor assets with precision using modern maps.
+2. **Simplified Registration**: 3-step automated onboarding for users, vehicles, and devices.
+3. **Advanced Reporting**: Generate detailed route, trip, and stop reports.
+4. **Geofencing**: Create virtual boundaries and receive instant notifications.
+5. **Mobile Friendly**: Fully responsive design for tracking on the go.
+6. **Multi-language Support**: Available in multiple languages for global use.
+7. **Secure Administration**: Robust admin dashboard for managing users and devices.
 
-Other parts of Traccar solution include:
+## User Manual
 
-- [Traccar web app](https://github.com/traccar/traccar-web)
-- [Traccar Manager app](https://github.com/traccar/traccar-manager)
+### 1. Registration
+1. Go to the registration page.
+2. **User Details**: Enter your name, email, and contact number.
+3. **Vehicle**: Provide your vehicle name and plate number.
+4. **Device**: Enter the 15-digit IMEI of your tracker.
+5. Click "Create Account".
 
-There is also a set of mobile apps that you can use for tracking mobile devices:
+### 2. Login
+1. Use your registered email and password at the login page.
+2. Default Admin (if applicable): `admin@geosurepath.com` / `admin123`
 
-- [Traccar Client app](https://github.com/traccar/traccar-client)
+### 3. Adding More Devices
+1. Log in and go to Settings > Devices.
+2. Click the '+' button to add a new device identifier.
 
-## Features
+### 4. Viewing Reports
+1. Select "Reports" from the menu.
+2. Choose a report type (e.g., Triple, Route).
+3. Select the device and time range.
 
-Some of the available features include:
+### 5. Deployment Instructions
+1. Build the frontend: `cd traccar-web && npm run build`
+2. Deploy the JAR file and the `build` directory to your server.
+3. Use Nginx as a reverse proxy (see `nginx.conf`).
 
-- Real-time GPS tracking
-- Driver behaviour monitoring
-- Detailed and summary reports
-- Geofencing functionality
-- Alarms and notifications
-- Account and device management
-- Email and SMS support
-
-## Build
-
-Please read [build from source documentation](https://www.traccar.org/build/) on the official website.
-
-## Team
-
-- Anton Tananaev ([anton@traccar.org](mailto:anton@traccar.org))
-- Andrey Kunitsyn ([andrey@traccar.org](mailto:andrey@traccar.org))
-
-## License
-
-    Apache License, Version 2.0
-
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-        http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+## Tech Stack
+- **Frontend**: React, Material UI, Vite
+- **Backend**: Java / Traccar Core
+- **Database**: H2 (Default) / PostgreSQL
+- **Proxy**: Nginx

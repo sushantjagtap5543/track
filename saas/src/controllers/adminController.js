@@ -1,7 +1,7 @@
 // src/controllers/adminController.js
 const os = require('os');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasources: { db: { url: \"file:./prisma/dev.db\" } } });
 
 // Get System Health (CPU, Memory, Uptime)
 exports.getSystemHealth = async (req, res) => {

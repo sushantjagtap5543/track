@@ -2,7 +2,7 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasources: { db: { url: \"file:./prisma/dev.db\" } } });
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_xxxx',

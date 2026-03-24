@@ -5,7 +5,16 @@ const IORedis = require('ioredis');
 const redisConnection = new IORedis({
   host: process.env.REDIS_HOST || '127.0.0.1',
   port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
-  maxRetriesPerRequest: null
+  maxRetriesPerRequest: null,
+  lazyConnect: true, // Don't crash on start
+});
+
+redisConnection.on('error', (err) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[GeoSurePath] Redis not available. Background jobs will be queued locally but not processed.');
+  } else {
+    console.error('[GeoSurePath] Redis error:', err);
+  }
 });
 
 // Create queues
