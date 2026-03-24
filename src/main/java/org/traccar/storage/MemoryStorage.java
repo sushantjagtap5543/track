@@ -58,7 +58,12 @@ public class MemoryStorage extends Storage {
     public <T> Stream<T> getObjectsStream(Class<T> clazz, Request request) {
         return objects.computeIfAbsent(clazz, key -> new HashMap<>()).values().stream()
                 .filter(object -> checkCondition(request.getCondition(), object))
-                .map(object -> (T) object);
+                .map(clazz::cast);
+    }
+
+    @SuppressWarnings("unchecked")
+    private int compare(Object value1, Object value2) {
+        return ((Comparable<Object>) value1).compareTo(value2);
     }
 
     private boolean checkCondition(Condition genericCondition, Object object) {
@@ -69,7 +74,7 @@ public class MemoryStorage extends Storage {
         if (genericCondition instanceof Condition.Compare condition) {
 
             Object value = retrieveValue(object, condition.getColumn());
-            int result = ((Comparable) value).compareTo(condition.getValue());
+            int result = compare(value, condition.getValue());
             return switch (condition.getOperator()) {
                 case "<" -> result < 0;
                 case "<=" -> result <= 0;
@@ -82,9 +87,9 @@ public class MemoryStorage extends Storage {
         } else if (genericCondition instanceof Condition.Between condition) {
 
             Object fromValue = retrieveValue(object, condition.getColumn());
-            int fromResult = ((Comparable) fromValue).compareTo(condition.getFromValue());
+            int fromResult = compare(fromValue, condition.getFromValue());
             Object toValue = retrieveValue(object, condition.getColumn());
-            int toResult = ((Comparable) toValue).compareTo(condition.getToValue());
+            int toResult = compare(toValue, condition.getToValue());
             return fromResult >= 0 && toResult <= 0;
 
         } else if (genericCondition instanceof Condition.Binary condition) {

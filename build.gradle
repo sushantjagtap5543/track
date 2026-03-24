@@ -16,6 +16,7 @@ java {
 }
 
 compileJava.options.encoding = "UTF-8"
+compileJava.options.compilerArgs << "-Xlint:deprecation" << "-Xlint:unchecked"
 jar.destinationDirectory = file("$projectDir/target")
 
 checkstyle {

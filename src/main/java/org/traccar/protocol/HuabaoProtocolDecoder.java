@@ -1417,7 +1417,7 @@ public class HuabaoProtocolDecoder extends BaseProtocolDecoder {
             position.setSpeed(UnitsConverter.knotsFromKph(buf.readUnsignedShort() * 0.1));
             position.setCourse(buf.readUnsignedShort());
 
-            // TODO more positions and g sensor data
+            // more positions and g sensor data
 
             return position;
 

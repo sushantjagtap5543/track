@@ -206,6 +206,13 @@ public final class Keys {
             List.of(KeyType.CONFIG));
 
     /**
+     * Protocol speed units.
+     */
+    public static final ConfigSuffix<String> PROTOCOL_SPEED = new StringConfigSuffix(
+            ".speed",
+            List.of(KeyType.CONFIG));
+
+    /**
      * Protocol type for Suntech.
      */
     public static final ConfigKey<Integer> PROTOCOL_TYPE = new IntegerConfigKey(
@@ -253,6 +260,27 @@ public final class Keys {
     public static final ConfigSuffix<String> PROTOCOL_FORMAT = new StringConfigSuffix(
             ".format",
             List.of(KeyType.CONFIG, KeyType.DEVICE));
+
+    /**
+     * Protocol format 0. Used by GlobalSat protocol.
+     */
+    public static final ConfigSuffix<String> PROTOCOL_FORMAT0 = new StringConfigSuffix(
+            ".format0",
+            List.of(KeyType.CONFIG));
+
+    /**
+     * Protocol format 1. Used by GlobalSat protocol.
+     */
+    public static final ConfigSuffix<String> PROTOCOL_FORMAT1 = new StringConfigSuffix(
+            ".format1",
+            List.of(KeyType.CONFIG));
+
+    /**
+     * Protocol report columns. Used by Genx protocol.
+     */
+    public static final ConfigSuffix<String> PROTOCOL_REPORT_COLUMNS = new StringConfigSuffix(
+            ".reportColumns",
+            List.of(KeyType.CONFIG));
 
     /**
      * Protocol date format. Used by protocols that have configurable date format.

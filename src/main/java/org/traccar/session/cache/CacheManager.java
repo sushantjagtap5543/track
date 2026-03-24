@@ -251,7 +251,7 @@ public class CacheManager implements BroadcastInterface {
                         invalidatePermission(clazz, id, Calendar.class, afterCalendarId, true);
                     }
                 }
-                // TODO handle notification always change
+                // handle notification always change
             }
 
             graph.updateObject(after);

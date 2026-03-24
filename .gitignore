@@ -13,7 +13,7 @@ build
 .vscode
 bin
 11111.pem
-*.env
+# *.env (unignored)
 node_modules
 dist
 logs

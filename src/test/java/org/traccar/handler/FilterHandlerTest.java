@@ -47,7 +47,7 @@ public class FilterHandlerTest extends BaseTest {
         when(config.getInteger(Keys.FILTER_MAX_SPEED)).thenReturn(500);
         when(config.getLong(Keys.FILTER_SKIP_LIMIT)).thenReturn(10L);
         when(config.getBoolean(Keys.FILTER_SKIP_ATTRIBUTES_ENABLE)).thenReturn(true);
-        when(config.getString(Keys.FILTER_SKIP_ATTRIBUTES.getKey())).thenReturn("alarm,result");
+        when(config.getString(Keys.FILTER_SKIP_ATTRIBUTES)).thenReturn("alarm,result");
         var cacheManager = mock(CacheManager.class);
         when(cacheManager.getConfig()).thenReturn(config);
         when(cacheManager.getObject(any(), anyLong())).thenReturn(mock(Device.class));

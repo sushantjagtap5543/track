@@ -79,6 +79,9 @@ public class CommandsManager implements BroadcastInterface {
         long deviceId = command.getDeviceId();
         Device device = storage.getObject(Device.class, new Request(
                 new Columns.All(), new Condition.Equals("id", deviceId)));
+        if (device == null) {
+            throw new RuntimeException("Device not found");
+        }
         Position position = storage.getObject(Position.class, new Request(
                 new Columns.All(), new Condition.Equals("id", device.getPositionId())));
         BaseProtocol protocol = position != null ? serverManager.getProtocol(position.getProtocol()) : null;
@@ -87,7 +90,7 @@ public class CommandsManager implements BroadcastInterface {
             if (smsManager == null) {
                 throw new RuntimeException("SMS not configured");
             }
-            if (position != null) {
+            if (protocol != null) {
                 protocol.sendTextCommand(device.getPhone(), command);
             } else if (command.getType().equals(Command.TYPE_CUSTOM)) {
                 smsManager.sendMessage(device.getPhone(), command.getString(Command.KEY_DATA), true);

@@ -19,14 +19,53 @@ GeoSurePath provides a comprehensive suite of tools for both individual users an
 - **Asset Categories**: Effortlessly manage Cars, Trucks, Motorcycles, and industrial equipment with custom icons.
 
 ### 🛡️ Safety & Security
-- **Safe Parking (Geofencing)**: Create virtual boundaries around your parking locations. Receive instant alerts if a vehicle leaves a "Safe Zone".
+- **Safe Parking**: A one-click security feature that creates a virtual 50-meter perimeter around your vehicle's current location. Receive instant high-priority alerts if the vehicle moves, effectively acting as an anti-theft shield.
 - **Real-Time Alerts**: Instant notifications for engine starts, tampering, overspeeding, and geofence breaches.
-- **Remote Control**: Send engine-stop and engine-resume commands directly from the dashboard.
+- **Remote Control**: Send engine-stop and engine-resume commands (Relay control) directly from the dashboard.
 
 ### 💼 SaaS Ecosystem
 - **Role-Based Access Control (RBAC)**: Distinct permissions for **Administrators** (Global view, system stats, billing) and **Clients** (Personal assets and settings).
 - **Subscription Management**: Integrated billing with usage-based or tiered plans.
 - **Detailed Reporting**: Export path history, stops, trips, and daily summaries in professional Excel formats.
+
+---
+
+## 🔔 Smart Notifications & Alerts
+
+Never miss a moment with our robust multi-channel notification system.
+
+### Trigger Events
+Our system monitors and alerts you for various activities in real-time:
+- **Movement**: 🟢 Device Online, 📡 Moving, 🛑 Stopped, 🔴 Offline.
+- **Vitals**: ⚡ Battery Level (Low/Critical), 🔌 Power Cut, 🌡️ Temperature Alerts.
+- **Performance**: 🚀 Overspeeding (Custom limits), ⛽ Fuel Drop/Increase (Theft detection).
+- **Security**: 🔑 Ignition On/Off, 🚨 SOS/Panic Button, 📳 Vibration/Tamper Alert.
+- **Maintenance**: 🛠️ Odometer-based service reminders, 🕒 Engine Hour maintenance.
+
+### Delivery Channels
+Receive alerts wherever you are through:
+- **Mobile Push**: Native notifications via Firebase (FCM) and Traccar Manager.
+- **Instant Messaging**: Integration with **Telegram Bot** and **WhatsApp Business API**.
+- **Email & SMS**: Professional reports and urgent alerts delivered to your inbox or phone.
+- **Web UI**: Real-time pop-up alerts with sound on the web dashboard.
+- **Webhooks & Commands**: Trigger external APIs or execute server-side commands on specific events.
+
+---
+
+## 🗺️ Advanced Geofencing (Safe Zones)
+
+Create virtual perimeters and monitor entries and exits with high precision.
+
+### Geofence Types:
+- **🔵 Circle**: Define a central point and a radius (e.g., Garage, Warehouse).
+- **🔳 Polygon**: Create complex shapes to match specific boundaries (e.g., City limits, Construction site).
+- **🛤️ Polyline (Route Tracker)**: Set a specific route path with a distance buffer. Perfect for corridor monitoring.
+
+### Key Geofence Features:
+- **Stay-In/Stay-Out**: Receive alerts when a vehicle enters restricted areas or leaves safe zones.
+- **Speed Constraints**: Limit maximum speeds specifically within certain geofences.
+- **Time-Based Geofences**: Schedule zones to be active only during certain hours or days.
+- **Bulk Assignment**: Apply a single geofence to an entire fleet or specific groups with one click.
 
 ---
 
@@ -60,6 +99,7 @@ graph TD
 - **Database**: PostgreSQL (Unified storage)
 - **Cache**: Redis (Fast status management)
 - **Reverse Proxy**: Nginx (Rate limiting & SSL termination)
+- **Protocol Support**: Compatibility with **2000+ protocols** (Teltonika, Queclink, Coban, Concox, etc.).
 
 ---
 

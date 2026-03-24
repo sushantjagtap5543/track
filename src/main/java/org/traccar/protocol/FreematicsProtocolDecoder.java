@@ -89,14 +89,14 @@ public class FreematicsProtocolDecoder extends BaseProtocolDecoder {
             }
             String value = data[1];
             if (key == 0x0) {
-                if (position != null) {
+                if (position != null && dateBuilder != null) {
                     position.setTime(dateBuilder.getDate());
                     positions.add(position);
                 }
                 position = new Position(getProtocolName());
                 position.setDeviceId(deviceSession.getDeviceId());
                 dateBuilder = new DateBuilder(new Date());
-            } else if (position != null) {
+            } else if (position != null && dateBuilder != null) {
                 switch (key) {
                     case 0x11 -> {
                         value = ("000000" + value).substring(value.length());
@@ -140,7 +140,7 @@ public class FreematicsProtocolDecoder extends BaseProtocolDecoder {
             }
         }
 
-        if (position != null) {
+        if (position != null && dateBuilder != null) {
             if (!position.getValid()) {
                 getLastLocation(position, null);
             }

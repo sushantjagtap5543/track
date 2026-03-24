@@ -4,7 +4,13 @@ const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 const geosurepathService = require('../services/geosurepath');
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: 'file:./prisma/dev.db'
+    }
+  }
+});
 
 exports.register = async (req, res) => {
   let { name, email, phone, password, vehicleName, vehicleType, vehiclePlate, deviceImei } = req.body;
@@ -24,9 +30,6 @@ exports.register = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Use Prisma transaction if possible, but GeoSurePath API calls aren't transactional with our DB.
-    // Order: Create GeoSurePath User -> Create GeoSurePath Device -> Link -> Create local user/vehicle
-    
     // 2. Create User in GeoSurePath
     let geosurepathUser;
     try {
@@ -65,29 +68,36 @@ exports.register = async (req, res) => {
     }
 
     // 5. Create local User and Vehicle record
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        phone,
-        password: hashedPassword,
-        geosurepathUserId: geosurepathUser.id,
-        vehicles: {
-          create: [{
-            name: vehicleName,
-            imei: deviceImei,
-            type: vehicleType,
-            model: vehiclePlate,
-            geosurepathDeviceId: geosurepathDevice.id
-          }]
+    try {
+      const user = await prisma.user.create({
+        data: {
+          name,
+          email,
+          phone,
+          password: hashedPassword,
+          geosurepathUserId: geosurepathUser.id,
+          vehicles: {
+            create: [{
+              name: vehicleName,
+              imei: deviceImei,
+              type: vehicleType,
+              plate: vehiclePlate,
+              geosurepathDeviceId: geosurepathDevice.id
+            }]
+          }
+        },
+        include: {
+          vehicles: true
         }
-      },
-      include: {
-        vehicles: true
-      }
-    });
-
-    res.status(201).json({ message: 'Registration successful', user });
+      });
+      res.status(201).json({ message: 'Registration successful', user });
+    } catch (err) {
+      // Rollback: Delete both user and device from GeoSurePath if local DB creation fails
+      console.error('Registration Prisma Error - Rolling back GeoSurePath resources:', err);
+      await geosurepathService.deleteDevice(geosurepathDevice.id).catch(e => console.error('Rollback cleanup failed:', e));
+      await geosurepathService.deleteUser(geosurepathUser.id).catch(e => console.error('Rollback cleanup failed:', e));
+      throw err;
+    }
 
   } catch (error) {
     console.error('Registration error:', error);

@@ -108,7 +108,11 @@ public abstract class BaseProtocolDecoder extends ExtendedObjectDecoder {
     }
 
     protected double convertSpeed(double value, String defaultUnits) {
-        return switch (getConfig().getString(getProtocolName() + ".speed", defaultUnits)) {
+        String units = getConfig().getString(Keys.PROTOCOL_SPEED.withPrefix(getProtocolName()));
+        if (units == null) {
+            units = defaultUnits;
+        }
+        return switch (units) {
             case "kmh" -> UnitsConverter.knotsFromKph(value);
             case "mps" -> UnitsConverter.knotsFromMps(value);
             case "mph" -> UnitsConverter.knotsFromMph(value);
@@ -165,10 +169,11 @@ public abstract class BaseProtocolDecoder extends ExtendedObjectDecoder {
         if (decodedMessage != null) {
             if (decodedMessage instanceof Position position) {
                 deviceIds.add(position.getDeviceId());
-            } else if (decodedMessage instanceof Collection) {
-                Collection<Position> positions = (Collection) decodedMessage;
-                for (Position position : positions) {
-                    deviceIds.add(position.getDeviceId());
+            } else if (decodedMessage instanceof Collection<?> positions) {
+                for (Object position : positions) {
+                    if (position instanceof Position p) {
+                        deviceIds.add(p.getDeviceId());
+                    }
                 }
             }
         }
