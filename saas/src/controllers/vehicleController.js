@@ -64,7 +64,7 @@ exports.toggleSafeParking = async (req, res) => {
     if (enable) {
       // 1. Create Geofence in Traccar (Circle format)
       // Area format: CIRCLE (lat lng, radius_in_meters)
-      const area = `CIRCLE (${lat} ${lng}, ${radius || 100})`;
+      const area = `CIRCLE (${lat} ${lng}, ${radius || 20})`;
       const geofence = await traccarService.createGeofence(`SafeParking_${vehicle.name}`, area);
       traccarGeofenceId = geofence.id;
 

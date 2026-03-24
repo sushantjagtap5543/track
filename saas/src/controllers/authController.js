@@ -7,7 +7,7 @@ const traccarService = require('../services/traccar');
 const prisma = new PrismaClient();
 
 exports.register = async (req, res) => {
-  const { name, email, phone, password, vehicleName, vehicleType, vehicleModel, deviceImei } = req.body;
+  const { name, email, phone, password, vehicleName, vehicleType, vehiclePlate, deviceImei } = req.body;
 
   try {
     // 1. Check if user already exists
@@ -60,29 +60,36 @@ exports.register = async (req, res) => {
     }
 
     // 5. Create local User and Vehicle record
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        phone,
-        password: hashedPassword,
-        traccarUserId: traccarUser.id,
-        vehicles: {
-          create: [{
-            name: vehicleName,
-            imei: deviceImei,
-            type: vehicleType,
-            model: vehicleModel,
-            traccarDeviceId: traccarDevice.id
-          }]
+    try {
+      const user = await prisma.user.create({
+        data: {
+          name,
+          email,
+          phone,
+          password: hashedPassword,
+          traccarUserId: traccarUser.id,
+          vehicles: {
+            create: [{
+              name: vehicleName,
+              imei: deviceImei,
+              type: vehicleType,
+              plate: vehiclePlate,
+              traccarDeviceId: traccarDevice.id
+            }]
+          }
+        },
+        include: {
+          vehicles: true
         }
-      },
-      include: {
-        vehicles: true
-      }
-    });
-
-    res.status(201).json({ message: 'Registration successful', user });
+      });
+      res.status(201).json({ message: 'Registration successful', user });
+    } catch (err) {
+      // Rollback: Delete both user and device from Traccar if local DB creation fails
+      console.error('Registration Prisma Error - Rolling back Traccar resources:', err);
+      await traccarService.deleteDevice(traccarDevice.id).catch(e => console.error('Rollback cleanup failed:', e));
+      await traccarService.deleteUser(traccarUser.id).catch(e => console.error('Rollback cleanup failed:', e));
+      throw err;
+    }
 
   } catch (error) {
     console.error('Registration error:', error);

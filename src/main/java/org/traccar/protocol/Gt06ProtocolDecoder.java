@@ -557,7 +557,9 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
 
             buf.readUnsignedInt(); // data and alarm
 
-            decodeGps(position, buf, false, deviceSession.get(DeviceSession.KEY_TIMEZONE));
+            TimeZone timeZone = deviceSession != null
+                    ? (TimeZone) deviceSession.get(DeviceSession.KEY_TIMEZONE) : TimeZone.getTimeZone("UTC");
+            decodeGps(position, buf, false, timeZone);
 
             buf.readUnsignedShort(); // terminal info
 
@@ -675,7 +677,9 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
 
         } else if (type == MSG_LBS_MULTIPLE_3 && variant == Variant.SR411_MINI) {
 
-            decodeGps(position, buf, false, deviceSession.get(DeviceSession.KEY_TIMEZONE));
+            TimeZone timeZone = deviceSession != null
+                    ? (TimeZone) deviceSession.get(DeviceSession.KEY_TIMEZONE) : TimeZone.getTimeZone("UTC");
+            decodeGps(position, buf, false, timeZone);
 
             decodeLbs(position, buf, type, false);
 
@@ -809,7 +813,9 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
 
             buf.skipBytes(8); // imei
 
-            decodeGps(position, buf, false, deviceSession.get(DeviceSession.KEY_TIMEZONE));
+            TimeZone timeZone = deviceSession != null
+                    ? (TimeZone) deviceSession.get(DeviceSession.KEY_TIMEZONE) : TimeZone.getTimeZone("UTC");
+            decodeGps(position, buf, false, timeZone);
 
             decodeLbs(position, buf, type, false);
 
@@ -834,7 +840,9 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
             }
 
             if (hasGps(type)) {
-                decodeGps(position, buf, false, deviceSession.get(DeviceSession.KEY_TIMEZONE));
+                TimeZone timeZone = deviceSession != null
+                        ? (TimeZone) deviceSession.get(DeviceSession.KEY_TIMEZONE) : TimeZone.getTimeZone("UTC");
+                decodeGps(position, buf, false, timeZone);
             } else {
                 getLastLocation(position, null);
             }
@@ -1056,7 +1064,7 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
                 }
                 decodeGps(
                         position, buf, false, jc400, jc400, jc400, jc400,
-                        deviceSession.get(DeviceSession.KEY_TIMEZONE));
+                        deviceSession != null ? (TimeZone) deviceSession.get(DeviceSession.KEY_TIMEZONE) : TimeZone.getTimeZone("UTC"));
             } else {
                 getLastLocation(position, decodeDate(buf, deviceSession));
             }

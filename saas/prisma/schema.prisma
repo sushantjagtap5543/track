@@ -41,6 +41,7 @@ model Vehicle {
   imei            String   @unique
   type            String?
   model           String?
+  plate           String?
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   traccarDeviceId Int?     @unique

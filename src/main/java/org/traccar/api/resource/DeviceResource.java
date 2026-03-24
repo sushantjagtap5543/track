@@ -20,7 +20,6 @@ import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.core.Context;
 import org.traccar.api.BaseObjectResource;
 import org.traccar.api.signature.TokenManager;
-import org.traccar.broadcast.BroadcastService;
 import org.traccar.config.Config;
 import org.traccar.config.Keys;
 import org.traccar.database.MediaManager;
@@ -76,9 +75,6 @@ public class DeviceResource extends BaseObjectResource<Device> {
 
     @Inject
     private ConnectionManager connectionManager;
-
-    @Inject
-    private BroadcastService broadcastService;
 
     @Inject
     private MediaManager mediaManager;

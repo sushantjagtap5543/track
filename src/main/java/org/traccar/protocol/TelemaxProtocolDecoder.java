@@ -93,10 +93,10 @@ public class TelemaxProtocolDecoder extends BaseProtocolDecoder {
             position.setLongitude((Integer.parseInt(readValue(sentence, index, 6), 16) - 5400000) / 30000.0);
             position.setLatitude((Integer.parseInt(readValue(sentence, index, 6), 16) - 5400000) / 30000.0);
 
-            if (i == 0 | i == count - 1) {
+            if (i == 0 || i == count - 1) {
                 time = new SimpleDateFormat("yyMMddHHmmss").parse(readValue(sentence, index, 12));
                 position.set(Position.KEY_STATUS, readValue(sentence, index, 8));
-            } else {
+            } else if (time != null) {
                 time = new Date(time.getTime() + interval * 1000);
             }
 

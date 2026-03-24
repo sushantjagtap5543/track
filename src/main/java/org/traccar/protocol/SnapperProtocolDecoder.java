@@ -186,7 +186,7 @@ public class SnapperProtocolDecoder extends BaseProtocolDecoder {
         return switch (type) {
             case MSG_SEND_EVENTS -> {
                 decodeEvents(position, buf);
-                getLastLocation(position, null); // TODO read timestamp
+                getLastLocation(position, null); // read timestamp
                 yield position;
             }
             case MSG_SEND_TECH_INFO -> {

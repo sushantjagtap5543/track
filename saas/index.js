@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
+const { startWorkers } = require('./src/services/queue');
 
 const prisma = new PrismaClient();
 const app = express();
@@ -29,6 +30,22 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3001;
 
-app.listen(PORT, () => {
+// Start background workers
+startWorkers();
+
+const server = app.listen(PORT, () => {
   console.log(`[GeoSurePath] Server is running on port ${PORT}`);
 });
+
+// Graceful shutdown
+const shutdown = async (signal) => {
+  console.log(`\n[GeoSurePath] Received ${signal}. Shutting down gracefully...`);
+  server.close(async () => {
+    await prisma.$disconnect();
+    console.log('[GeoSurePath] Prisma disconnected. Process exiting.');
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
