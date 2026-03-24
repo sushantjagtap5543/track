@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+﻿const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const dns = require('dns').promises;
 
@@ -47,7 +47,9 @@ async function getBaseUrl() {
         await fetch('http://localhost:3001/api/health', { signal: controller.signal });
         clearTimeout(timeout);
         return 'http://localhost:3001';
-    } catch (e) {}
+    } catch (e) {
+        // Silently fail if public IP or localhost:3001 are not reachable
+    }
 
     return 'http://localhost'; // Default to Nginx
 }

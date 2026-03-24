@@ -1,4 +1,4 @@
-# Submodule Sync Script
+﻿# Submodule Sync Script
 # This script commits local changes in traccar-web and prepares it for pushing to a fork.
 
 # 1. Commit changes in traccar-web

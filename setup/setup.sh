@@ -1,4 +1,4 @@
-#!/bin/sh
+﻿#!/bin/sh
 
 PRESERVECONFIG=0
 if [ -f /opt/traccar/conf/traccar.xml ]

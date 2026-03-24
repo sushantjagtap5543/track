@@ -1,4 +1,4 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
@@ -12,11 +12,11 @@ const getAuthHeaders = () => {
 };
 
 async function clean() {
-  console.log('🧹 Starting cleanup...');
+  console.log('ðŸ§¹ Starting cleanup...');
 
   try {
     // 1. Fetch all Traccar Devices
-    console.log('📡 Fetching Traccar devices...');
+    console.log('ðŸ“¡ Fetching Traccar devices...');
     let res = await fetch(`${TRACCAR_URL}/api/devices`, { headers: getAuthHeaders() });
     if (res.ok) {
       const devices = await res.json();
@@ -27,7 +27,7 @@ async function clean() {
     }
 
     // 2. Fetch all Traccar Users
-    console.log('👤 Fetching Traccar users...');
+    console.log('ðŸ‘¤ Fetching Traccar users...');
     res = await fetch(`${TRACCAR_URL}/api/users`, { headers: getAuthHeaders() });
     if (res.ok) {
       const users = await res.json();
@@ -41,7 +41,7 @@ async function clean() {
     }
 
     // 3. Delete Local Database Records
-    console.log('🗄️ Cleaning local database (Prisma)...');
+    console.log('ðŸ—„ï¸ Cleaning local database (Prisma)...');
     await prisma.vehicle.deleteMany();
     await prisma.loginHistory.deleteMany();
     await prisma.subscription.deleteMany();
@@ -52,9 +52,9 @@ async function clean() {
       }
     });
 
-    console.log('✅ Cleanup complete! You can now register normally.');
+    console.log('âœ… Cleanup complete! You can now register normally.');
   } catch (error) {
-    console.error('❌ Error during cleanup:', error);
+    console.error('âŒ Error during cleanup:', error);
   } finally {
     await prisma.$disconnect();
   }

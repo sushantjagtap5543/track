@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+﻿const fetch = require('node-fetch');
 
 const API_URL = 'http://localhost/api'; // Through Nginx
 const ADMIN_EMAIL = 'admin@example.com';
@@ -15,7 +15,7 @@ const testSync = async () => {
             body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
         });
         const { token: adminToken } = await adminLogin.json();
-        console.log('✓ Admin logged in');
+        console.log('âœ“ Admin logged in');
 
         // 2. Identify a client to test with
         // For this test, we'll assume a client with ID exists or we'll try to find one.

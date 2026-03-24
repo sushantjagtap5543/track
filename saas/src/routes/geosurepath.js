@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
@@ -28,13 +28,13 @@ router.post('/events', async (req, res) => {
         // Specialized handling for Safe Parking
         if (event.type === 'geofenceExit' && event.attributes.name && event.attributes.name.startsWith('SafeParking')) {
             type = "SAFE_PARKING_BREACH";
-            message = `🚨 SECURITY ALERT: ${vehicle.name} has moved out of its Safe Parking zone!`;
+            message = `ðŸš¨ SECURITY ALERT: ${vehicle.name} has moved out of its Safe Parking zone!`;
         }
 
         // Potential tampering based on alarm or ignition
         if (event.type === 'alarm' && (event.attributes.alarm === 'tampering' || event.attributes.alarm === 'powerCut')) {
             type = "TAMPERING";
-            message = `⚠️ TAMPERING ALERT: Potential tampering detected on ${vehicle.name}! (${event.attributes.alarm})`;
+            message = `âš ï¸ TAMPERING ALERT: Potential tampering detected on ${vehicle.name}! (${event.attributes.alarm})`;
         }
 
         // Store notification for the user

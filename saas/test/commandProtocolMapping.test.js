@@ -1,4 +1,4 @@
-// saas/test/commandProtocolMapping.test.js
+﻿// saas/test/commandProtocolMapping.test.js
 
 // Mock process.env BEFORE requiring the service
 process.env.GEOSUREPATH_URL = 'http://mock-traccar';
@@ -46,9 +46,9 @@ async function runTests() {
     console.log('Sent Type:', res1.sent.type);
     console.log('Sent Attributes:', JSON.stringify(res1.sent.attributes));
     if (res1.sent.type === 'engineStop') {
-        console.log('✅ Passed');
+        console.log('âœ… Passed');
     } else {
-        console.log('❌ Failed');
+        console.log('âŒ Failed');
         process.exit(1);
     }
 
@@ -57,9 +57,9 @@ async function runTests() {
     console.log('Sent Type:', res2.sent.type);
     console.log('Sent Attributes:', JSON.stringify(res2.sent.attributes));
     if (res2.sent.type === 'custom' && res2.sent.attributes.data === 'stop123456') {
-        console.log('✅ Passed');
+        console.log('âœ… Passed');
     } else {
-        console.log('❌ Failed');
+        console.log('âŒ Failed');
         process.exit(1);
     }
 
@@ -68,13 +68,13 @@ async function runTests() {
     console.log('Sent Type:', res3.sent.type);
     console.log('Sent Attributes:', JSON.stringify(res3.sent.attributes));
     if (res3.sent.type === 'engineStop') {
-        console.log('✅ Passed');
+        console.log('âœ… Passed');
     } else {
-        console.log('❌ Failed');
+        console.log('âŒ Failed');
         process.exit(1);
     }
     
-    console.log('\nAll tests passed successfully! 🚀');
+    console.log('\nAll tests passed successfully! ðŸš€');
 }
 
 runTests().catch(e => {

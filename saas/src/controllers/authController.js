@@ -1,4 +1,4 @@
-// src/controllers/authController.js
+﻿// src/controllers/authController.js
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
@@ -36,7 +36,7 @@ exports.register = async (req, res) => {
       geosurepathUser = await geosurepathService.createUser(name, email, password);
     } catch (err) {
       if (err.message && /duplicate|unique/i.test(err.message)) {
-        throw new Error('Email is already registered. Please login.');
+        throw new Error('Email is already registered. Please login.', { cause: err });
       }
       throw err;
     }
@@ -51,7 +51,7 @@ exports.register = async (req, res) => {
       await geosurepathService.deleteUser(geosurepathUser.id).catch(e => console.error('Rollback cleanup failed:', e));
       
       if (err.message && /duplicate|unique/i.test(err.message)) {
-        throw new Error('Device IMEI is already registered. Please use a different device or login.');
+        throw new Error('Device IMEI is already registered. Please use a different device or login.', { cause: err });
       }
       throw err;
     }

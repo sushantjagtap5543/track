@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+﻿const fetch = require('node-fetch');
 
 const API_URL = 'http://localhost:3001/api';
 const ADMIN_EMAIL = 'admin@example.com';
@@ -21,24 +21,24 @@ const testAdmin = async () => {
     }
     
     const { token } = await loginRes.json();
-    console.log('✓ Admin Login successful');
+    console.log('âœ“ Admin Login successful');
     
     const headers = { 'Authorization': `Bearer ${token}` };
 
     // 2. Test Stats
     const statsRes = await fetch(`${API_URL}/admin/stats`, { headers });
     if (statsRes.ok) {
-      console.log('✓ Admin Stats:', await statsRes.json());
+      console.log('âœ“ Admin Stats:', await statsRes.json());
     } else {
-      console.error('✗ Admin Stats Failed:', await statsRes.text());
+      console.error('âœ— Admin Stats Failed:', await statsRes.text());
     }
 
     // 3. Test Health
     const healthRes = await fetch(`${API_URL}/admin/health`, { headers });
     if (healthRes.ok) {
-      console.log('✓ Admin Health:', await healthRes.json());
+      console.log('âœ“ Admin Health:', await healthRes.json());
     } else {
-      console.error('✗ Admin Health Failed:', await healthRes.text());
+      console.error('âœ— Admin Health Failed:', await healthRes.text());
     }
 
     // 4. Test Clients
