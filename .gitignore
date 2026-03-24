@@ -15,6 +15,7 @@ bin
 11111.pem
 # *.env (unignored)
 node_modules
+**/node_modules
 dist
 logs
 data
