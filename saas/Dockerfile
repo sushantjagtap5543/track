@@ -1,10 +1,11 @@
-FROM node:22-slim
-RUN apt-get update && apt-get install -y openssl libssl-dev && rm -rf /var/lib/apt/lists/*
+FROM node:22-alpine
+RUN apk add --no-cache openssl libc6-compat
 
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
+RUN npx prisma generate
 
 COPY . .
 
