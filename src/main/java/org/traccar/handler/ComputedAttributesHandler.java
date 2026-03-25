@@ -37,20 +37,25 @@ public class ComputedAttributesHandler extends BasePositionHandler {
 
     public static class Early extends ComputedAttributesHandler {
         @Inject
-        public Early(Config config, CacheManager cacheManager, AttributeComputationProvider attributeComputationProvider) {
+        public Early(
+                Config config, CacheManager cacheManager,
+                AttributeComputationProvider attributeComputationProvider) {
             super(config, cacheManager, attributeComputationProvider, true);
         }
     }
 
     public static class Late extends ComputedAttributesHandler {
         @Inject
-        public Late(Config config, CacheManager cacheManager, AttributeComputationProvider attributeComputationProvider) {
+        public Late(
+                Config config, CacheManager cacheManager,
+                AttributeComputationProvider attributeComputationProvider) {
             super(config, cacheManager, attributeComputationProvider, false);
         }
     }
 
     public ComputedAttributesHandler(
-            Config config, CacheManager cacheManager, AttributeComputationProvider attributeComputationProvider, boolean early) {
+            Config config, CacheManager cacheManager,
+            AttributeComputationProvider attributeComputationProvider, boolean early) {
         this.cacheManager = cacheManager;
         this.attributeComputationProvider = attributeComputationProvider;
         this.early = early;

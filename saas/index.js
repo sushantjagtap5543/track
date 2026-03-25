@@ -1,16 +1,10 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const { startWorkers } = require('./src/services/queue');
 
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: 'file:./prisma/dev.db'
-    }
-  }
-});
+const prisma = new PrismaClient();
 const app = express();
 
 // Start background workers

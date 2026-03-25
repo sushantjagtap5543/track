@@ -19,7 +19,7 @@ GeoSurePath provides a comprehensive suite of tools for both individual users an
 - **Asset Categories**: Effortlessly manage Cars, Trucks, Motorcycles, and industrial equipment with custom icons.
 
 ### 🛡️ Safety & Security
-- **Safe Parking**: A one-click security feature that creates a virtual 50-meter perimeter around your vehicle's current location. Receive instant high-priority alerts if the vehicle moves, effectively acting as an anti-theft shield.
+- **Safe Parking**: A one-click toggleable security feature that creates a virtual 15-meter perimeter around your vehicle's current location. Receive instant high-priority alerts for even minor movements, acting as a highly sensitive anti-theft shield.
 - **Real-Time Alerts**: Instant notifications for engine starts, tampering, overspeeding, and geofence breaches.
 - **Remote Control**: Send engine-stop and engine-resume commands (Relay control) directly from the dashboard.
 
@@ -105,39 +105,48 @@ graph TD
 
 ## 🌐 Live Access & Testing
 
-- **Platform URL**: [http://3.108.114.12/](http://3.108.114.12/)
-- **Registration**: [http://3.108.114.12/register](http://3.108.114.12/register)
+- **Platform URL**: `http://localhost:8082/` (Local Development) or `http://3.108.114.12/` (Production)
+- **Registration**: `http://localhost:8082/register`
+- **Default Port Details**: 
+  - Web UI: **8082**
+  - GPS Device Ports: **5000-5150** (depending on protocol like Teltonika on 5027 or GT06 on 5023)
 
 ### 🧪 Test Accounts
 Use these pre-configured credentials to explore the platform:
 
 | Role | Email | Password |
 | :--- | :--- | :--- |
-| **Administrator** | `admin@geosurepath.com` | `AdminTestPassword123!` |
-| **Client** | `client@geosurepath.com` | `ClientTestPassword123!` |
+| **Administrator** (Full Control) | `admin@geosurepath.com` | `admin` |
+| **Client** (Asset Only) | `client@geosurepath.com` | `client` |
 
 ---
 
 ## 🚀 Installation & Deployment
 
 ### Local Development / Self-Hosting
-1. **Prerequisites**: Docker, Docker Compose, and Node.js (for local tweaks).
-2. **Clone & Setup**:
+1. **Prerequisites**: Node.js and Java (JDK 21+) or Docker.
+2. **Build and Run (Local Windows)**:
    ```bash
-   git clone https://github.com/sushantjagtap5543/track.git
-   cd track
+   # Build the Web UI
+   cd traccar-web
+   npm install
+   npm run build
+   cd ..
+   # Run the server
+   ./gradlew.bat run
+   # OR
+   java -jar target/tracker-server.jar conf/traccar.xml
    ```
-3. **Environment Setup**:
-   Create a `.env` in the root and in `saas/`. Use the `.env.example` templates provided.
-4. **Deploy**:
-   ```bash
-   chmod +x install.sh
-   ./install.sh
-   ```
+3. **Login Details**:
+   Once the server starts on `http://localhost:8082`, use the **Register** button to create your first user. The *first user registered* automatically becomes the **Administrator**. You can then create your Client user for testing.
+   Forgot Password functionality is also fully integrated into the Login page (Ensure SMTP settings are configured in Server Settings).
+
+### Advanced UI Features Activated:
+- **Ignition On/Off Control**: Map interface now includes quick commands to stop/resume engine. Sends relay commands automatically synced with GPS device status.
+- **Nano Banana Vehicle Marker**: Select the premium `Nano Banana` top-view car marker from device settings (`Settings -> Device -> Category`) to change your default map icon.
 
 ### Troubleshooting
 - **Database Logs**: `docker compose logs -f db`
-- **SaaS API Status**: `docker compose logs -f saas-api`
 - **Manual DB Update** (Enable Registration):
   ```bash
   docker exec -it geosurepath_db psql -U geosurepath -d geosurepath -c "UPDATE tc_servers SET registration = true;"

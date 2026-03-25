@@ -1064,7 +1064,8 @@ public class Gt06ProtocolDecoder extends BaseProtocolDecoder {
                 }
                 decodeGps(
                         position, buf, false, jc400, jc400, jc400, jc400,
-                        deviceSession != null ? (TimeZone) deviceSession.get(DeviceSession.KEY_TIMEZONE) : TimeZone.getTimeZone("UTC"));
+                        deviceSession != null ? (TimeZone) deviceSession.get(DeviceSession.KEY_TIMEZONE)
+                                : TimeZone.getTimeZone("UTC"));
             } else {
                 getLastLocation(position, decodeDate(buf, deviceSession));
             }

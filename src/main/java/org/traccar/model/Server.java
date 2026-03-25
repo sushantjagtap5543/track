@@ -24,14 +24,12 @@ import org.traccar.storage.StorageName;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Server extends ExtendedModel implements UserRestrictions {
 
-    private boolean registration;
-
     public boolean getRegistration() {
-        return registration;
+        return true;
     }
 
     public void setRegistration(boolean registration) {
-        this.registration = registration;
+        // Registration is permanently enforced
     }
 
     private boolean readonly;

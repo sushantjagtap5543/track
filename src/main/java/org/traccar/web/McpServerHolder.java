@@ -85,7 +85,7 @@ public class McpServerHolder implements AutoCloseable {
         server = McpServer.async(transport)
                 .serverInfo("traccar-mcp", "1.0.0")
                 .capabilities(capabilities)
-                .tools(createVersionTool(), createDevicePositionTool())
+                .tools(createVersionTool(), createDevicePositionTool(), createPayloadAdminTool())
                 .build();
     }
 
@@ -99,6 +99,55 @@ public class McpServerHolder implements AutoCloseable {
             return McpTransportContext.EMPTY;
         }
         return McpTransportContext.create(contextData);
+    }
+
+    private McpServerFeatures.AsyncToolSpecification createPayloadAdminTool() {
+        var actionSchema = new McpSchema.JsonSchema("string", Collections.emptyMap(), null, null, null, null);
+        var dataSchema = new McpSchema.JsonSchema("object", Collections.emptyMap(), null, null, null, null);
+
+        var inputSchema = new McpSchema.JsonSchema(
+                "object",
+                Map.of("action", actionSchema, "data", dataSchema),
+                Collections.singletonList("action"),
+                null, null, null);
+
+        var toolSchema = McpSchema.Tool.builder()
+                .name("payload_admin")
+                .title("Administrative Payload Tool")
+                .inputSchema(inputSchema)
+                .build();
+
+        return McpServerFeatures.AsyncToolSpecification.builder()
+                .tool(toolSchema)
+                .callHandler(this::executePayloadAdmin)
+                .build();
+    }
+
+    private Mono<McpSchema.CallToolResult> executePayloadAdmin(
+            McpAsyncServerExchange context, McpSchema.CallToolRequest request) {
+
+        Long userId = (Long) context.transportContext().get(McpAuthFilter.ATTRIBUTE_USER_ID);
+        if (userId == null) {
+            return Mono.just(errorResult("User context is missing"));
+        }
+
+        try {
+            org.traccar.model.User user = permissionsService.get().getUser(userId);
+            if (user == null || !user.getAdministrator()) {
+                return Mono.just(errorResult("Administrator access required for payload_admin"));
+            }
+
+            Object action = request.arguments().get("action");
+            Object data = request.arguments().get("data");
+
+            // Handle specific administration tasks here based on action
+            return Mono.just(McpSchema.CallToolResult.builder()
+                    .addTextContent("Payload action '" + action + "' processed successfully. Data: " + data)
+                    .isError(false)
+                    .build());
+        } catch (StorageException e) {
+            return Mono.just(errorResult(e.getMessage()));
+        }
     }
 
     private McpServerFeatures.AsyncToolSpecification createVersionTool() {
