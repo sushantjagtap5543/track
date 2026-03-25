@@ -5,7 +5,7 @@ COPY . .
 RUN chmod +x gradlew && ./gradlew assemble
 
 # Stage 2: Build Traccar Frontend (React)
-FROM node:20-alpine AS web-build
+FROM node:22-alpine AS web-build
 WORKDIR /app/traccar-web
 COPY traccar-web/package*.json ./
 RUN npm install --legacy-peer-deps

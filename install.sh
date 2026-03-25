@@ -36,10 +36,12 @@ if command -v docker &> /dev/null; then
     docker compose down -v || true
 fi
 
-# 2. System Prerequisites
-info "📦 Step 2: Installing system requirements..."
-sudo apt-get update -y
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git curl wget software-properties-common iptables screen net-tools gnupg openssl ufw
+# Install Node.js 22 (LTS)
+if ! command -v node &> /dev/null || [[ $(node -v) != v22* ]]; then
+    info "📦 Installing Node.js 22 (Nodesource)..."
+    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+fi
 
 # Install Docker if not present
 if ! command -v docker &> /dev/null; then
