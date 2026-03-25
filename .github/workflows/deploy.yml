@@ -1,0 +1,36 @@
+name: AWS Lightsail Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to AWS Lightsail
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.LIGHTSAIL_IP }}
+          username: ${{ secrets.LIGHTSAIL_USERNAME }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          script: |
+            # If the repository is not cloned yet, clone it
+            if [ ! -d "track" ]; then
+              git clone https://github.com/${{ github.repository }}.git track
+            fi
+            
+            cd track
+            
+            # Fetch latest changes and reset to exactly match the remote main branch
+            git fetch --all
+            git reset --hard origin/main
+            
+            # Make sure the install script is executable
+            chmod +x install.sh
+            
+            # Run the automated deployment script
+            sudo ./install.sh

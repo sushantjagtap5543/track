@@ -1,16 +1,10 @@
-﻿// src/controllers/authController.js
+// src/controllers/authController.js
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 const geosurepathService = require('../services/geosurepath');
 
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: 'file:./prisma/dev.db'
-    }
-  }
-});
+const prisma = new PrismaClient();
 
 exports.register = async (req, res) => {
   let { name, email, phone, password, vehicleName, vehicleType, vehiclePlate, deviceImei } = req.body;

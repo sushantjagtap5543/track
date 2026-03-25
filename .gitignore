@@ -13,7 +13,12 @@ build
 .vscode
 bin
 11111.pem
-# *.env (unignored)
+# Environment files - NEVER commit secrets
+.env
+.env.local
+.env.production
+saas/.env
+# .env.example is safe to track (no real secrets)
 node_modules
 **/node_modules
 dist

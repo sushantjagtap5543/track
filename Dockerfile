@@ -18,7 +18,7 @@ WORKDIR /opt/traccar
 RUN mkdir logs
 
 # Copy backend
-# The build.gradle is configured to output to target/
+# build.gradle explicitly sets jar output to target/ (line 20) and libs to target/lib/
 COPY --from=build /app/target/*.jar ./tracker-server.jar
 COPY --from=build /app/target/lib ./lib
 COPY --from=build /app/schema ./schema
@@ -31,4 +31,4 @@ COPY --from=web-build /app/traccar-web/build ./modern
 COPY docker/traccar.xml ./conf/traccar.xml
 
 EXPOSE 8082
-ENTRYPOINT ["java", "-Xmx512m", "-Djava.net.preferIPv4Stack=true", "-jar", "tracker-server.jar", "conf/traccar.xml"]
+ENTRYPOINT ["java", "-Xmx2g", "-Djava.net.preferIPv4Stack=true", "-jar", "tracker-server.jar", "conf/traccar.xml"]

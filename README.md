@@ -1,160 +1,91 @@
-# 🛰️ GeoSurePath SaaS - Premium GPS Tracking Platform
+# 🛰️ GeoSurePath SaaS - Enterprise GPS Tracking Ecosystem
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Version](https://img.shields.io/badge/Version-1.2.0--Stable-green.svg)]()
+[![Version](https://img.shields.io/badge/Version-1.2.5--Stable-green.svg)]()
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 
-**GeoSurePath** is a state-of-the-art, high-performance SaaS platform for real-time GPS tracking and fleet management. Built on the industry-leading [Traccar](https://www.traccar.org) core, GeoSurePath enhances the experience with a premium sleek UI, robust SaaS-layer security, and advanced asset management features.
+**GeoSurePath** is a high-performance, enterprise-grade SaaS infrastructure designed for global vehicle tracking. built for massive scale, it wraps the industry-leading **Traccar** core in a modern, secure SaaS layer with advanced billing, AI-driven guardianship, and real-time safety controls.
 
 ---
 
-## ✨ Key Features
-
-GeoSurePath provides a comprehensive suite of tools for both individual users and enterprise fleet managers.
-
-### 🚗 Vehicle & Asset Management
-- **Unified Dashboard**: Monitor your entire fleet from a single, high-fidelity map interface.
-- **Custom Identifiers**: Track vehicles by **Vehicle Number Plate**, IMEI, or unique device IDs.
-- **Telemetry Data**: Real-time updates on speed, battery voltage, fuel levels, and engine status (for supported protocols).
-- **Asset Categories**: Effortlessly manage Cars, Trucks, Motorcycles, and industrial equipment with custom icons.
-
-### 🛡️ Safety & Security
-- **Safe Parking**: A one-click toggleable security feature that creates a virtual 15-meter perimeter around your vehicle's current location. Receive instant high-priority alerts for even minor movements, acting as a highly sensitive anti-theft shield.
-- **Real-Time Alerts**: Instant notifications for engine starts, tampering, overspeeding, and geofence breaches.
-- **Remote Control**: Send engine-stop and engine-resume commands (Relay control) directly from the dashboard.
-
-### 💼 SaaS Ecosystem
-- **Role-Based Access Control (RBAC)**: Distinct permissions for **Administrators** (Global view, system stats, billing) and **Clients** (Personal assets and settings).
-- **Subscription Management**: Integrated billing with usage-based or tiered plans.
-- **Detailed Reporting**: Export path history, stops, trips, and daily summaries in professional Excel formats.
-
----
-
-## 🔔 Smart Notifications & Alerts
-
-Never miss a moment with our robust multi-channel notification system.
-
-### Trigger Events
-Our system monitors and alerts you for various activities in real-time:
-- **Movement**: 🟢 Device Online, 📡 Moving, 🛑 Stopped, 🔴 Offline.
-- **Vitals**: ⚡ Battery Level (Low/Critical), 🔌 Power Cut, 🌡️ Temperature Alerts.
-- **Performance**: 🚀 Overspeeding (Custom limits), ⛽ Fuel Drop/Increase (Theft detection).
-- **Security**: 🔑 Ignition On/Off, 🚨 SOS/Panic Button, 📳 Vibration/Tamper Alert.
-- **Maintenance**: 🛠️ Odometer-based service reminders, 🕒 Engine Hour maintenance.
-
-### Delivery Channels
-Receive alerts wherever you are through:
-- **Mobile Push**: Native notifications via Firebase (FCM) and Traccar Manager.
-- **Instant Messaging**: Integration with **Telegram Bot** and **WhatsApp Business API**.
-- **Email & SMS**: Professional reports and urgent alerts delivered to your inbox or phone.
-- **Web UI**: Real-time pop-up alerts with sound on the web dashboard.
-- **Webhooks & Commands**: Trigger external APIs or execute server-side commands on specific events.
-
----
-
-## 🗺️ Advanced Geofencing (Safe Zones)
-
-Create virtual perimeters and monitor entries and exits with high precision.
-
-### Geofence Types:
-- **🔵 Circle**: Define a central point and a radius (e.g., Garage, Warehouse).
-- **🔳 Polygon**: Create complex shapes to match specific boundaries (e.g., City limits, Construction site).
-- **🛤️ Polyline (Route Tracker)**: Set a specific route path with a distance buffer. Perfect for corridor monitoring.
-
-### Key Geofence Features:
-- **Stay-In/Stay-Out**: Receive alerts when a vehicle enters restricted areas or leaves safe zones.
-- **Speed Constraints**: Limit maximum speeds specifically within certain geofences.
-- **Time-Based Geofences**: Schedule zones to be active only during certain hours or days.
-- **Bulk Assignment**: Apply a single geofence to an entire fleet or specific groups with one click.
-
----
-
-## 🎨 Premium UI/UX
-
-GeoSurePath is designed for visual excellence. The dark-mode interface features glassmorphism elements, vibrant typography, and a "Live Map" experience that feels modern and responsive.
-
-![Dashboard Mockup](file:///C:/Users/Sushant/.gemini/antigravity/brain/6359efc7-3aac-44a4-9db9-bfe276647be0/geosurepath_dashboard_mockup_1774258521147.png)
-*Professional Dark Mode Dashboard*
-
----
-
-## 🏗️ Technical Architecture
-
-The platform uses a modular, containerized architecture for maximum reliability and scalability.
+## 🏗️ Premium Infrastructure
+GeoSurePath uses a modular, high-availability architecture designed for zero-latency operations.
 
 ```mermaid
 graph TD
-    A[Nginx Reverse Proxy] --> B[SaaS API - Node.js]
-    A --> C[Traccar Core - Java/JVM]
-    B --> D[(PostgreSQL)]
-    C --> D
-    B --> E[(Redis Cache)]
-    C --> F[GPS Devices - 2000+ Protocols]
+    A[Public Traffic - HTTPS] --> B[Nginx Edge]
+    B --> C[SaaS API - Node.js/Prisma]
+    B --> D[GeoSurePath Engine - Java 21]
+    B --> E[Frontend - React 19]
+    C --> F[(PostgreSQL 15 - Primary)]
+    D --> F
+    C --> G[(Redis 7 - Queue/Cache)]
+    G --> H[BullMQ - Background Tasks]
+    D --> I[GPS Devices - 2000+ Protocols]
 ```
 
-### Stack Overview
-- **Frontend**: React + Material UI (Modern, responsive, and fast)
-- **Backend API**: Node.js + Express + Prisma ORM
-- **Tracking Engine**: Traccar Core (Industry Standard)
-- **Database**: PostgreSQL (Unified storage)
-- **Cache**: Redis (Fast status management)
-- **Reverse Proxy**: Nginx (Rate limiting & SSL termination)
-- **Protocol Support**: Compatibility with **2000+ protocols** (Teltonika, Queclink, Coban, Concox, etc.).
+### Infrastructure Stack:
+- **Core Engine**: Java 21 (Traccar Core) - Industrial protocol processing.
+- **SaaS Layer**: Node.js 20 with Express & Prisma ORM.
+- **Frontend**: React 19 + MUI - Premium Dark/Glassmorphic interface.
+- **Safety Agent**: **AI-Guardian** - Self-healing background system maintenance.
+- **Database**: PostgreSQL 15 - Optimized for high-frequency position logging.
 
 ---
 
-## 🌐 Live Access & Testing
+## 💎 Safety & Security Ecosystem
 
-- **Platform URL**: `http://localhost:8082/` (Local Development) or `http://3.108.114.12/` (Production)
-- **Registration**: `http://localhost:8082/register`
-- **Default Port Details**: 
-  - Web UI: **8082**
-  - GPS Device Ports: **5000-5150** (depending on protocol like Teltonika on 5027 or GT06 on 5023)
+### 🛡️ Intelligent Protection
+- **Safe Parking (Engine Lock)**: 1-click 15m radius micro-perimeter with auto-purge.
+- **Remote Immobilization**: Secure engine cut-off and resume commands with safety logic.
+- **AI-Guardian**: Automated database pruning (180-day retention) and server-log offloading.
+- **Ignition Pulse**: High-precision monitoring of engine status synced with telemetry events.
 
-### 🧪 Test Accounts
-Use these pre-configured credentials to explore the platform:
-
-| Role | Email | Password |
-| :--- | :--- | :--- |
-| **Administrator** (Full Control) | `admin@geosurepath.com` | `admin` |
-| **Client** (Asset Only) | `client@geosurepath.com` | `client` |
+### 🔔 Smart Notifications
+- **Auditory UI**: Custom **Web Audio API** alerts with 5 distinct context-aware tones.
+- **Omni-Channel Alerts**: Push notifications, Telegram, WhatsApp API, and SMS.
+- **Live Dash**: High-fidelity Toast notifications with low-latency event delivery.
 
 ---
 
-## 🚀 Installation & Deployment
-
-### Local Development / Self-Hosting
-1. **Prerequisites**: Node.js and Java (JDK 21+) or Docker.
-2. **Build and Run (Local Windows)**:
-   ```bash
-   # Build the Web UI
-   cd traccar-web
-   npm install
-   npm run build
-   cd ..
-   # Run the server
-   ./gradlew.bat run
-   # OR
-   java -jar target/tracker-server.jar conf/traccar.xml
-   ```
-3. **Login Details**:
-   Once the server starts on `http://localhost:8082`, use the **Register** button to create your first user. The *first user registered* automatically becomes the **Administrator**. You can then create your Client user for testing.
-   Forgot Password functionality is also fully integrated into the Login page (Ensure SMTP settings are configured in Server Settings).
-
-### Advanced UI Features Activated:
-- **Ignition On/Off Control**: Map interface now includes quick commands to stop/resume engine. Sends relay commands automatically synced with GPS device status.
-- **Nano Banana Vehicle Marker**: Select the premium `Nano Banana` top-view car marker from device settings (`Settings -> Device -> Category`) to change your default map icon.
-
-### Troubleshooting
-- **Database Logs**: `docker compose logs -f db`
-- **Manual DB Update** (Enable Registration):
-  ```bash
-  docker exec -it geosurepath_db psql -U geosurepath -d geosurepath -c "UPDATE tc_servers SET registration = true;"
-  ```
+## 💼 Enterprise SaaS Features
+- **Razorpay Integrated Billing**: Automated tiered subscription and license lifecycle management.
+- **Fleet Admin Panel**: Global health monitoring, user approval, and resource scaling.
+- **Advanced Reports**: Sub-second history loading for trips, stops, and sensor telemetry.
 
 ---
 
-## 📄 License & Legal
-GeoSurePath is licensed under the Apache License, Version 2.0. Copyright (c) 2026.
+## 🚀 Rapid Deployment (AWS Lightsail / Ubuntu)
 
-Designed with ❤️ for High-Performance Tracking.
+### 1. Zero-Touch Installation
+Run the automated installer on a fresh Ubuntu 22.04/24.04 instance:
+```bash
+wget -qO- https://raw.githubusercontent.com/sushantjagtap5543/track/main/install.sh | bash
+```
+
+### 2. Manual Docker Launch
+```bash
+git clone https://github.com/sushantjagtap5543/track.git
+# Configure secrets in .env
+docker compose up -d --build
+```
+
+---
+
+## 💾 System Maintenance
+- **Backups**: Automated 7-day rolling SQL dumps in `/opt/track/backups/`.
+- **Database Optimization**: AI-Guardian automatically manages indices and record retention.
+- **Health Checks**: Integrated Docker health probes via `pg_isready` and `redis-cli`.
+
+---
+
+## 🛡️ Best Practices
+- **Security**: Nginx level rate-limiting on `/api/auth/` and JWT-secured transit.
+- **Efficiency**: Optimized TCP/UDP port mapping (5001-5150) for industrial sensors.
+
+---
+
+## 📄 License
+This platform is licensed under the Apache License 2.0. Copyright (c) 2026 GeoSurePath.
+
+Designed with ❤️ for Enterprise Fleet Resilience.

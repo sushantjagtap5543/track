@@ -1,4 +1,4 @@
-﻿const { Queue, Worker } = require('bullmq');
+const { Queue, Worker } = require('bullmq');
 const IORedis = require('ioredis');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
@@ -57,7 +57,7 @@ const startWorkers = () => {
                     data: {
                         userId: userId,
                         type: 'STAY_DURATION_ALERT',
-                        message: `ðŸš¨ ALERT: ${vehicle.name} has been stopped for more than ${durationMinutes} minutes in the restricted area.`
+                        message: `🚨 ALERT: ${vehicle.name} has been stopped for more than ${durationMinutes} minutes in the restricted area.`
                     }
                 });
                 console.log(`[AlertWorker] Stay-duration alert triggered for ${vehicle.name}`);

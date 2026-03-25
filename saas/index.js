@@ -3,12 +3,14 @@ const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const { startWorkers } = require('./src/services/queue');
+const { startGuardian } = require('./src/services/aiGuardian');
 
 const prisma = new PrismaClient();
 const app = express();
 
 // Start background workers
 startWorkers();
+startGuardian();
 
 app.use(cors());
 app.use(express.json());
@@ -34,9 +36,6 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3001;
-
-// Start background workers
-startWorkers();
 
 const server = app.listen(PORT, () => {
   console.log(`[GeoSurePath] Server is running on port ${PORT}`);

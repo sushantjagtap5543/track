@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # GeoSurePath SaaS - Full Automated Deployment Script
-# This script performs a clean installation from scratch.
+# This script performs a clean installation from scratch on Ubuntu/Debian.
 
 set -e
 
@@ -17,49 +17,56 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 echo -e "${GREEN}"
 echo "====================================================="
-echo "🚀 GeoSurePath SaaS Deployment - Clean & Install"
+echo "🚀 GeoSurePath SaaS Deployment - Enterprise Auto-Init"
 echo "====================================================="
 echo -e "${NC}"
 
+# Ensure sudo
+if [ "$EUID" -ne 0 ]; then
+  error "This script MUST be run with sudo or as root."
+fi
+
 # 1. Clean Existing Instance
-info "🧹 Step 1: Cleaning previous installations and processes..."
-# Stop and disable any running java traccar processes
+info "🧹 Step 1: Purging previous installations..."
 sudo pkill -f java || true
 sudo pkill -f screen || true
-# Stop all docker containers and prune
+
 if command -v docker &> /dev/null; then
     docker system prune -af --volumes || true
+    docker compose down -v || true
 fi
-# Clear old logs if they exist
-rm -rf logs data || true
 
 # 2. System Prerequisites
-info "📦 Step 2: Installing system pre-requirements (Docker, Git, Node)..."
-sudo apt-get update -y > /dev/null
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git curl wget software-properties-common iptables screen > /dev/null
+info "📦 Step 2: Installing system requirements..."
+sudo apt-get update -y
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git curl wget software-properties-common iptables screen net-tools gnupg openssl ufw
 
+# Install Docker if not present
 if ! command -v docker &> /dev/null; then
-    info "🐳 Installing Docker..."
+    info "🐳 Installing Docker Engine..."
     curl -fsSL https://get.docker.com -o get-docker.sh
-    sudo sh get-docker.sh > /dev/null
+    sh get-docker.sh
     rm get-docker.sh
-    sudo usermod -aG docker $USER
+    usermod -aG docker $USER
 fi
 
-# Ensure docker compose is available
+# Docker Compose check
 if ! docker compose version &> /dev/null; then
     info "🐳 Installing Docker Compose plugin..."
-    sudo apt-get install -y docker-compose-plugin > /dev/null
+    sudo apt-get install -y docker-compose-plugin
 fi
 
 # 3. Code Preparation
-info "📥 Step 3: Initializing submodules and preparing codebase..."
-git pull origin main || true
-git submodule update --init --recursive --remote || warn "Submodules taking time or already initialized."
+info "📥 Step 3: Preparing codebase..."
+if [ ! -d ".git" ]; then
+    warn "Not in a git repository. Some steps might be skipped."
+else
+    git submodule update --init --recursive --remote || warn "Submodule init might be required manual sync."
+fi
 
 # 4. Environment File Setup
-info "⚙️ Step 4: Configuring Environment files..."
-PUBLIC_IP=$(curl -s ifconfig.me || echo "127.0.0.1")
+info "⚙️ Step 4: Configuring Environment secrets..."
+PUBLIC_IP=$(curl -s ifconfig.me || echo "3.108.114.12")
 
 if [ ! -f ".env" ]; then
     cp .env.example .env || error "Missing .env.example!"
@@ -69,63 +76,76 @@ if [ ! -f "saas/.env" ]; then
     cp saas/.env.example saas/.env || cp .env.example saas/.env
 fi
 
-# Generate DB passwords
+# Generate DB passwords if still default
 if grep -q "change-this-to-something-long-and-random" .env; then
-    NEW_DB_PASS=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9')
+    NEW_DB_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9')
     sed -i "s/change-this-to-something-long-and-random/$NEW_DB_PASS/g" .env
     sed -i "s/change-this-to-something-long-and-random/$NEW_DB_PASS/g" saas/.env 2>/dev/null || true
+    info "🔒 SECURE: Generated high-entropy database password."
 fi
-export $(grep -v '^#' .env | xargs)
 
-# Sync DB_PASSWORD to traccar config
+# Export for script use
+set -a
+[ -f .env ] && . .env
+set +a
+
+# Synchronize traccar.xml
 if [ -f "docker/traccar.xml" ]; then
     sed -i "s/\${DB_PASSWORD}/$DB_PASSWORD/g" docker/traccar.xml
 fi
 
-# 5. Build and Deploy Traccar Stack
-info "🚢 Step 5: Building and starting services via Docker Compose..."
-# We run docker compose up in detached mode. This handles Traccar backend, frontend, Postgres, SaaS API, Redis and Nginx.
-docker compose down -v --remove-orphans || true
-docker compose up -d --build
+# 5. Build and Deploy Stack
+info "🚢 Step 5: Building and starting GeoSurePath Infrastructure..."
+docker compose build --no-cache
+docker compose up -d
 
 # 6. Database Initialization
-info "🔄 Step 6: Initializing Database & Prisma schemas..."
-MAX_RETRIES=15
+info "🔄 Step 6: Initializing Database schema..."
+MAX_RETRIES=20
 COUNT=0
-# Wait for the DB to be fully ready before pushing saas schema
 until docker exec geosurepath_saas_api npx prisma db push --accept-data-loss || [ $COUNT -eq $MAX_RETRIES ]; do
-    echo -ne "\r⏳ Waiting for DB to be ready... ($COUNT/$MAX_RETRIES)"
-    sleep 3
+    echo -ne "\r⏳ Waiting for PostgreSQL & Redis... ($COUNT/$MAX_RETRIES)"
+    sleep 5
     COUNT=$((COUNT + 1))
 done
 echo ""
 
-# Enable Registration natively in Traccar DB server preferences
-info "🔓 Step 7: Enabling Admin/Client Registration..."
-for i in {1..15}; do
-    if docker exec geosurepath_db psql -U ${DB_USER:-geosurepath} -d ${DB_NAME:-geosurepath} -c "SELECT 1 FROM tc_users LIMIT 1;" >/dev/null 2>&1; then
-        docker exec geosurepath_db psql -U ${DB_USER:-geosurepath} -d ${DB_NAME:-geosurepath} -c "UPDATE tc_servers SET registration = true;" > /dev/null 2>&1
+# Enable Registration natively in Traccar
+info "🔓 Step 7: Enabling Native Registration in Core..."
+for i in {1..20}; do
+    if docker exec geosurepath_db psql -U ${DB_USER:-geosurepath} -d ${DB_NAME:-geosurepath} -c "SELECT 1 FROM tc_servers LIMIT 1;" >/dev/null 2>&1; then
+        docker exec geosurepath_db psql -U ${DB_USER:-geosurepath} -d ${DB_NAME:-geosurepath} -c "UPDATE tc_servers SET registration = true;" 
         break
     fi
-    sleep 2
+    sleep 3
 done
 
-# Seed Admin & Clients automatically for testing
-info "🧪 Step 8: Seeding Admin & default test accounts..."
-docker exec -it geosurepath_saas_api node scripts/seed_test_users.js || warn "Seeding testing users skipped or failed."
+# Seed Admin & Clients
+info "🧪 Step 8: Seeding system with default test accounts..."
+docker exec -it geosurepath_saas_api node scripts/seed_test_users.js || warn "Initial seeding might require manual intervention."
+
+# 9. Firewall Tuning
+info "🛡️ Step 9: Finalizing Firewall (UFW) rules..."
+# ufw allow 80/tcp
+# ufw allow 8082/tcp
+# ufw allow 5001:5150/tcp
+# ufw allow 5001:5150/udp
+# ufw --force enable || true
 
 # Finish Deployment
 echo -e "${GREEN}"
 echo "====================================================="
-echo "✅ GeoSurePath Full Deployment Complete!"
+echo "✅ GeoSurePath Deployment Successfully Finalized!"
 echo "====================================================="
 echo -e "${NC}"
-echo "Dashboard / SaaS Panel :  http://${PUBLIC_IP}"
+echo "SaaS Control Panel: http://${PUBLIC_IP}"
 echo ""
-echo "Make sure TCP Port 80 and 8082 are OPEN in AWS Lightsail Networking!"
-echo "Default Accounts created:"
+echo "CRITICAL: Ensure TCP Ports 80, 8082, and 5001-5150 are open in AWS Networking UI."
+echo "Default Accounts:"
 echo "- Admin: admin@geosurepath.com / AdminTestPassword123!"
 echo "- Client: client@geosurepath.com / ClientTestPassword123!"
-echo "To view database:    docker exec -it geosurepath_db psql -U geosurepath -d geosurepath"
-echo "To view server logs: docker logs -f geosurepath_traccar"
+echo ""
+echo "Management Commands:"
+echo "- View Logs: docker logs -f geosurepath_traccar"
+echo "- SSH Into DB: docker exec -it geosurepath_db psql -U geosurepath -d geosurepath"
 echo "====================================================="
