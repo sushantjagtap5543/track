@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 80" width="60" height="80">
+  <!-- Body -->
+  <rect x="10" y="15" width="40" height="50" rx="8" ry="8" fill="#F5C518" stroke="#333" stroke-width="1.5"/>
+  <!-- Roof/cabin area -->
+  <rect x="13" y="18" width="34" height="28" rx="5" fill="#2E8B57" stroke="#333" stroke-width="1"/>
+  <!-- Windshield -->
+  <rect x="16" y="21" width="28" height="12" rx="3" fill="#87CEEB" opacity="0.8"/>
+  <!-- Front axle/wheel area -->
+  <ellipse cx="30" cy="14" rx="7" ry="5" fill="#333" stroke="#555" stroke-width="1"/>
+  <!-- Rear wheels -->
+  <rect x="6" y="50" width="9" height="13" rx="3" fill="#222" stroke="#555" stroke-width="1"/>
+  <rect x="45" y="50" width="9" height="13" rx="3" fill="#222" stroke="#555" stroke-width="1"/>
+  <!-- Passenger area lines -->
+  <line x1="13" y1="48" x2="47" y2="48" stroke="#333" stroke-width="1"/>
+  <line x1="30" y1="48" x2="30" y2="63" stroke="#333" stroke-width="0.8"/>
+  <!-- Headlight -->
+  <ellipse cx="30" cy="11" rx="4" ry="2.5" fill="#FFE066" stroke="#999" stroke-width="0.5"/>
+  <!-- Exhaust/rear -->
+  <rect x="25" y="64" width="10" height="4" rx="1" fill="#888"/>
+</svg>

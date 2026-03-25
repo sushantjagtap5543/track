@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 130" width="70" height="130">
+  <!-- Body -->
+  <rect x="4" y="6" width="62" height="118" rx="7" fill="#EEEEEE" stroke="#999" stroke-width="1.5"/>
+  <!-- Blue stripe -->
+  <rect x="4" y="36" width="62" height="8" fill="#2244AA" opacity="0.7"/>
+  <!-- Front section -->
+  <rect x="7" y="8" width="56" height="28" rx="5" fill="#DDDDDD" stroke="#aaa" stroke-width="0.8"/>
+  <!-- Windshield -->
+  <rect x="11" y="12" width="48" height="18" rx="3" fill="#AADDFF" opacity="0.8" stroke="#88AACC" stroke-width="0.8"/>
+  <!-- Roof/box body -->
+  <rect x="7" y="46" width="56" height="72" rx="3" fill="#E0E0E0" stroke="#aaa" stroke-width="0.8"/>
+  <!-- Red Cross -->
+  <rect x="28" y="58" width="14" height="44" rx="2" fill="#DD2222" opacity="0.85"/>
+  <rect x="20" y="68" width="30" height="14" rx="2" fill="#DD2222" opacity="0.85"/>
+  <!-- Rear section -->
+  <rect x="7" y="118" width="56" height="4" rx="3" fill="#CCCCCC" stroke="#aaa" stroke-width="0.8"/>
+  <!-- Rear window -->
+  <rect x="11" y="106" width="48" height="14" rx="3" fill="#AADDFF" opacity="0.7" stroke="#88AACC" stroke-width="0.8"/>
+  <!-- Siren lights on roof -->
+  <rect x="22" y="6" width="12" height="5" rx="2" fill="#FF3333"/>
+  <rect x="36" y="6" width="12" height="5" rx="2" fill="#3333FF"/>
+  <!-- Front wheels -->
+  <rect x="0" y="11" width="8" height="18" rx="3" fill="#111" stroke="#444" stroke-width="1"/>
+  <rect x="62" y="11" width="8" height="18" rx="3" fill="#111" stroke="#444" stroke-width="1"/>
+  <!-- Rear wheels -->
+  <rect x="0" y="88" width="8" height="18" rx="3" fill="#111" stroke="#444" stroke-width="1"/>
+  <rect x="62" y="88" width="8" height="18" rx="3" fill="#111" stroke="#444" stroke-width="1"/>
+  <!-- Headlights -->
+  <rect x="9" y="7" width="16" height="5" rx="2" fill="#FFE870"/>
+  <rect x="45" y="7" width="16" height="5" rx="2" fill="#FFE870"/>
+  <!-- Tail lights -->
+  <rect x="9" y="120" width="14" height="4" rx="2" fill="#FF4444"/>
+  <rect x="47" y="120" width="14" height="4" rx="2" fill="#FF4444"/>
+</svg>

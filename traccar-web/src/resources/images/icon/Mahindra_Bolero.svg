@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 110" width="64" height="110">
+  <!-- Body -->
+  <rect x="6" y="8" width="52" height="94" rx="10" fill="#999" stroke="#666" stroke-width="1.5"/>
+  <!-- Hood -->
+  <rect x="9" y="10" width="46" height="25" rx="7" fill="#888" stroke="#666" stroke-width="0.8"/>
+  <!-- Windshield -->
+  <rect x="13" y="16" width="38" height="16" rx="4" fill="#BBDDEE" opacity="0.85" stroke="#88AACC" stroke-width="0.8"/>
+  <!-- Roof -->
+  <rect x="9" y="37" width="46" height="34" rx="4" fill="#888" stroke="#666" stroke-width="0.8"/>
+  <!-- Rear window -->
+  <rect x="13" y="73" width="38" height="14" rx="4" fill="#BBDDEE" opacity="0.75" stroke="#88AACC" stroke-width="0.8"/>
+  <!-- Boot -->
+  <rect x="9" y="87" width="46" height="13" rx="6" fill="#888" stroke="#666" stroke-width="0.8"/>
+  <!-- Front wheels -->
+  <rect x="0" y="12" width="10" height="20" rx="4" fill="#111" stroke="#444" stroke-width="1"/>
+  <rect x="54" y="12" width="10" height="20" rx="4" fill="#111" stroke="#444" stroke-width="1"/>
+  <!-- Rear wheels -->
+  <rect x="0" y="78" width="10" height="20" rx="4" fill="#111" stroke="#444" stroke-width="1"/>
+  <rect x="54" y="78" width="10" height="20" rx="4" fill="#111" stroke="#444" stroke-width="1"/>
+  <!-- Headlights -->
+  <rect x="11" y="9" width="14" height="5" rx="2" fill="#FFE870" stroke="#ccc" stroke-width="0.5"/>
+  <rect x="39" y="9" width="14" height="5" rx="2" fill="#FFE870" stroke="#ccc" stroke-width="0.5"/>
+  <!-- Tail lights -->
+  <rect x="11" y="98" width="14" height="5" rx="2" fill="#FF4444" stroke="#ccc" stroke-width="0.5"/>
+  <rect x="39" y="98" width="14" height="5" rx="2" fill="#FF4444" stroke="#ccc" stroke-width="0.5"/>
+  <!-- Door lines -->
+  <line x1="8" y1="62" x2="56" y2="62" stroke="#777" stroke-width="1"/>
+  <!-- Spare tyre (rear) -->
+  <circle cx="32" cy="97" r="5" fill="#555" stroke="#333" stroke-width="1"/>
+  <circle cx="32" cy="97" r="2" fill="#777"/>
+</svg>

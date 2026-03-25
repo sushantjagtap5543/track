@@ -114,6 +114,14 @@ const useStyles = makeStyles()((theme) => ({
       backgroundColor: 'rgba(46, 125, 50, 0.1)',
     },
   },
+  '@keyframes pulse-green': {
+    '0%': { transform: 'scale(0.95)', boxShadow: '0 0 0 0 rgba(76, 175, 80, 0.7)' },
+    '70%': { transform: 'scale(1)', boxShadow: '0 0 0 6px rgba(76, 175, 80, 0)' },
+    '100%': { transform: 'scale(0.95)', boxShadow: '0 0 0 0 rgba(76, 175, 80, 0)' },
+  },
+  pulse: {
+    animation: '$pulse-green 2s infinite',
+  },
 }));
 
 const DeviceRow = ({ devices, index, style }) => {
@@ -125,6 +133,7 @@ const DeviceRow = ({ devices, index, style }) => {
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const [toastMessage, setToastMessage] = useState('');
   const [pendingIgnition, setPendingIgnition] = useState(false);
+  const [pendingParking, setPendingParking] = useState(false);
 
   const item = devices[index];
   const position = useSelector((state) => state.session.positions[item.id]);
@@ -151,14 +160,16 @@ const DeviceRow = ({ devices, index, style }) => {
   };
 
   const geofences = useSelector((state) => state.geofences?.items || {});
+  // Optimized: Look for geofence by name if not yet linked in positionIds for instant feedback
   const parkingGeofence = Object.values(geofences).find(
-    (g) => g.attributes?.parking && position?.geofenceIds?.includes(g.id),
+    (g) => g.attributes?.parking && (position?.geofenceIds?.includes(g.id) || g.name.includes(item.name)),
   );
 
   const handleSafeParking = async (e, devId, pos, name) => {
     e.stopPropagation();
     try {
       if (!pos) return;
+      setPendingParking(true);
       if (parkingGeofence) {
         // Delete the safe parking geofence to disable
         const geofenceId = parkingGeofence.id;
@@ -197,6 +208,8 @@ const DeviceRow = ({ devices, index, style }) => {
       }
     } catch (error) {
       console.error('Failed to toggle safe parking:', error);
+    } finally {
+      setPendingParking(false);
     }
   };
 
@@ -285,7 +298,10 @@ const DeviceRow = ({ devices, index, style }) => {
             >
               <IconButton
                 size="small"
+                disabled={pendingParking}
                 onClick={(e) => handleSafeParking(e, item.id, position, item.name)}
+                sx={{ opacity: pendingParking ? 0.5 : 1 }}
+                className={parkingGeofence ? classes.pulse : null}
               >
                 {parkingGeofence ? (
                   <SecurityIcon fontSize="small" className={classes.success} />

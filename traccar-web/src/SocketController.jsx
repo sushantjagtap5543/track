@@ -66,8 +66,9 @@ const SocketController = () => {
           playLegacyAlarm(alarm);
         }
       }
-      setNotifications(
-        events.map((event) => {
+      setNotifications((prev) => [
+        ...prev,
+        ...events.map((event) => {
           let message = event.attributes.message;
           let severity = 'info';
           let title = 'System Update';
@@ -82,7 +83,7 @@ const SocketController = () => {
                    ? 'SECURITY ALERT: Safe Parking Shield Breached!' 
                    : 'Vehicle exited a restricted zone.'; 
                 severity = event.attributes.name?.startsWith('Safe Parking') ? 'error' : 'info';
-                title = 'Geofence Exit';
+                title = event.attributes.name?.startsWith('Safe Parking') ? '🚨 SECURITY BREACH' : 'Geofence Exit';
                 break;
               case 'alarm': message = `ALARM: ${event.attributes.alarm || 'Triggered'}`; severity = 'error'; title = 'Urgent Alert'; break;
               case 'ignitionOn': message = 'Engine has been started.'; severity = 'success'; title = 'Engine ON'; break;
@@ -91,14 +92,16 @@ const SocketController = () => {
             }
           }
           return {
-            id: event.id,
+            id: event.id + Math.random(), // Ensure unique ID for multiple popups
+            originalId: event.id,
             message: message,
             severity,
             title,
+            duration: (severity === 'error' || title.includes('SECURITY')) ? 30000 : 5000,
             show: true,
           };
         }),
-      );
+      ]);
     },
     [features, dispatch, soundEvents, soundAlarms],
   );
@@ -233,8 +236,8 @@ const SocketController = () => {
         <Snackbar
           key={notification.id}
           open={notification.show}
-          autoHideDuration={snackBarDurationLongMs}
-          onClose={() => setNotifications(notifications.filter((e) => e.id !== notification.id))}
+          autoHideDuration={notification.duration}
+          onClose={() => setNotifications((prev) => prev.filter((e) => e.id !== notification.id))}
           anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         >
           <Alert severity={notification.severity} variant="filled" sx={{ width: '100%', boxShadow: 6 }}>

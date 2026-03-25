@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 110" width="46" height="110">
+  <!-- Rear wheel -->
+  <ellipse cx="23" cy="94" rx="13" ry="14" fill="#1a1a1a" stroke="#444" stroke-width="1.5"/>
+  <ellipse cx="23" cy="94" rx="7" ry="7" fill="#333" stroke="#555" stroke-width="1"/>
+  <!-- Swingarm -->
+  <rect x="18" y="76" width="10" height="18" rx="3" fill="#222" stroke="#444" stroke-width="1"/>
+  <!-- Body/frame -->
+  <path d="M15,40 L15,76 L31,76 L31,40 Z" fill="#1a1a1a" stroke="#333" stroke-width="1"/>
+  <!-- Fuel tank (wider) -->
+  <ellipse cx="23" cy="52" rx="12" ry="16" fill="#111111" stroke="#333" stroke-width="1.2"/>
+  <!-- Engine -->
+  <rect x="16" y="60" width="14" height="14" rx="3" fill="#444" stroke="#666" stroke-width="1"/>
+  <!-- Fairing/front -->
+  <path d="M16,40 Q23,24 30,40" fill="#111" stroke="#333" stroke-width="1.2"/>
+  <!-- Headlight fairing -->
+  <rect x="17" y="30" width="12" height="12" rx="3" fill="#222" stroke="#444" stroke-width="1"/>
+  <ellipse cx="23" cy="28" rx="7" ry="5" fill="#333" stroke="#444" stroke-width="1"/>
+  <ellipse cx="23" cy="28" rx="4" ry="3" fill="#AADDFF" opacity="0.8"/>
+  <!-- Handlebar -->
+  <line x1="8" y1="34" x2="38" y2="34" stroke="#444" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Front fork -->
+  <rect x="20" y="18" width="6" height="16" rx="2" fill="#555" stroke="#777" stroke-width="0.8"/>
+  <!-- Front wheel -->
+  <ellipse cx="23" cy="12" rx="13" ry="11" fill="#1a1a1a" stroke="#444" stroke-width="1.5"/>
+  <ellipse cx="23" cy="12" rx="7" ry="6" fill="#333" stroke="#555" stroke-width="1"/>
+  <!-- Exhaust -->
+  <rect x="30" y="66" width="13" height="5" rx="2" fill="#777" stroke="#555" stroke-width="0.8"/>
+  <!-- Mirrors -->
+  <rect x="5" y="30" width="6" height="3" rx="1" fill="#222" stroke="#444" stroke-width="0.5"/>
+  <rect x="35" y="30" width="6" height="3" rx="1" fill="#222" stroke="#444" stroke-width="0.5"/>
+</svg>

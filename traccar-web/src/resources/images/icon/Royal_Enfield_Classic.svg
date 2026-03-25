@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 110" width="44" height="110">
+  <!-- Rear wheel -->
+  <ellipse cx="22" cy="92" rx="12" ry="14" fill="#222" stroke="#555" stroke-width="1.5"/>
+  <ellipse cx="22" cy="92" rx="6" ry="7" fill="#444" stroke="#777" stroke-width="1"/>
+  <!-- Rear fender -->
+  <rect x="16" y="80" width="12" height="14" rx="3" fill="#CC1111" stroke="#990000" stroke-width="1"/>
+  <!-- Engine/body -->
+  <rect x="13" y="44" width="18" height="36" rx="4" fill="#CC1111" stroke="#990000" stroke-width="1.2"/>
+  <!-- Fuel tank (wider middle) -->
+  <ellipse cx="22" cy="52" rx="11" ry="14" fill="#CC1111" stroke="#990000" stroke-width="1.2"/>
+  <!-- Engine block -->
+  <rect x="15" y="58" width="14" height="16" rx="3" fill="#888" stroke="#666" stroke-width="1"/>
+  <!-- Front fender -->
+  <rect x="16" y="20" width="12" height="16" rx="3" fill="#CC1111" stroke="#990000" stroke-width="1"/>
+  <!-- Handlebar -->
+  <line x1="6" y1="28" x2="38" y2="28" stroke="#555" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Headlight -->
+  <circle cx="22" cy="18" r="7" fill="#333" stroke="#555" stroke-width="1.2"/>
+  <circle cx="22" cy="18" r="4" fill="#FFE870" opacity="0.8"/>
+  <!-- Front wheel -->
+  <ellipse cx="22" cy="10" rx="12" ry="8" fill="#222" stroke="#555" stroke-width="1.5"/>
+  <ellipse cx="22" cy="10" rx="6" ry="4" fill="#444" stroke="#777" stroke-width="1"/>
+  <!-- Exhaust -->
+  <rect x="28" y="64" width="12" height="4" rx="2" fill="#888" stroke="#666" stroke-width="0.8"/>
+  <!-- Mirrors -->
+  <rect x="3" y="24" width="6" height="3" rx="1" fill="#333" stroke="#555" stroke-width="0.5"/>
+  <rect x="35" y="24" width="6" height="3" rx="1" fill="#333" stroke="#555" stroke-width="0.5"/>
+</svg>

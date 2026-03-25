@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 68 116" width="68" height="116">
+  <!-- Body -->
+  <rect x="5" y="7" width="58" height="102" rx="12" fill="#E8E8E8" stroke="#aaa" stroke-width="1.5"/>
+  <!-- Hood -->
+  <rect x="8" y="9" width="52" height="28" rx="8" fill="#DDDDDD" stroke="#aaa" stroke-width="0.8"/>
+  <!-- Front windshield -->
+  <rect x="12" y="16" width="44" height="18" rx="4" fill="#BBDDEE" opacity="0.85" stroke="#88AACC" stroke-width="0.8"/>
+  <!-- Roof (wider SUV style) -->
+  <rect x="8" y="39" width="52" height="32" rx="5" fill="#D8D8D8" stroke="#aaa" stroke-width="0.8"/>
+  <!-- Rear window -->
+  <rect x="12" y="73" width="44" height="16" rx="4" fill="#BBDDEE" opacity="0.75" stroke="#88AACC" stroke-width="0.8"/>
+  <!-- Boot -->
+  <rect x="8" y="89" width="52" height="18" rx="8" fill="#DDDDDD" stroke="#aaa" stroke-width="0.8"/>
+  <!-- Front wheels -->
+  <rect x="0" y="12" width="10" height="22" rx="4" fill="#111" stroke="#444" stroke-width="1"/>
+  <rect x="58" y="12" width="10" height="22" rx="4" fill="#111" stroke="#444" stroke-width="1"/>
+  <!-- Rear wheels -->
+  <rect x="0" y="82" width="10" height="22" rx="4" fill="#111" stroke="#444" stroke-width="1"/>
+  <rect x="58" y="82" width="10" height="22" rx="4" fill="#111" stroke="#444" stroke-width="1"/>
+  <!-- Headlights (angular Harrier style) -->
+  <path d="M10,9 L28,9 L28,14 L10,14 Z" fill="#FFE870" stroke="#ccc" stroke-width="0.5"/>
+  <path d="M40,9 L58,9 L58,14 L40,14 Z" fill="#FFE870" stroke="#ccc" stroke-width="0.5"/>
+  <!-- DRL lines -->
+  <line x1="10" y1="16" x2="28" y2="16" stroke="#FFE870" stroke-width="2"/>
+  <line x1="40" y1="16" x2="58" y2="16" stroke="#FFE870" stroke-width="2"/>
+  <!-- Tail lights -->
+  <path d="M10,104 L26,104 L26,108 L10,108 Z" fill="#FF4444"/>
+  <path d="M42,104 L58,104 L58,108 L42,108 Z" fill="#FF4444"/>
+  <!-- Door lines -->
+  <line x1="7" y1="68" x2="61" y2="68" stroke="#aaa" stroke-width="1"/>
+  <!-- Mirrors -->
+  <rect x="2" y="38" width="5" height="7" rx="2" fill="#DDDDDD" stroke="#999" stroke-width="1"/>
+  <rect x="61" y="38" width="5" height="7" rx="2" fill="#DDDDDD" stroke="#999" stroke-width="1"/>
+  <!-- Roof rails -->
+  <line x1="12" y1="41" x2="12" y2="69" stroke="#999" stroke-width="1.5"/>
+  <line x1="56" y1="41" x2="56" y2="69" stroke="#999" stroke-width="1.5"/>
+</svg>
