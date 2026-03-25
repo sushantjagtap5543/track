@@ -3,11 +3,34 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { alertQueue } = require('../services/queue');
+const fcmService = require('../services/fcm');
+const { authenticateToken } = require('../middleware/authMiddleware');
 
 /**
  * Endpoint to receive forwarded events from Traccar
  * Traccar sends: event (type), position (lat, lng), device (attributes)
  */
+router.post('/tokens', authenticateToken, async (req, res) => {
+    const { token, platform } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token is required' });
+
+    try {
+        await prisma.deviceToken.upsert({
+            where: { token },
+            update: { updatedAt: new Date() },
+            create: {
+                userId: req.user.userId,
+                token,
+                platform
+            }
+        });
+        res.status(200).json({ status: 'ok', message: 'Token registered' });
+    } catch (error) {
+        console.error('Error registering FCM token:', error);
+        res.status(500).json({ error: 'Failed to register token' });
+    }
+});
+
 router.post('/events', async (req, res) => {
     const { event, device } = req.body;
 
@@ -37,12 +60,22 @@ router.post('/events', async (req, res) => {
             message = `TAMPERING ALERT: Potential tampering detected on ${vehicle.name}! (${event.attributes.alarm})`;
         }
 
-        // Store notification for the user
         await prisma.notification.create({
             data: {
                 userId: vehicle.userId,
                 type: type,
                 message: message
+            }
+        });
+
+        // Trigger Push Notification
+        fcmService.sendToUser(vehicle.userId, {
+            title: `GeoSurePath: ${type.replace(/_/g, ' ')}`,
+            body: message,
+            data: {
+                vehicleId: vehicle.id,
+                type: type,
+                eventId: event.id.toString()
             }
         });
 

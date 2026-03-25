@@ -83,6 +83,24 @@ const NativeInterface = () => {
           body: JSON.stringify(updatedUser),
         });
         dispatch(sessionActions.updateUser(await response.json()));
+
+        // Sync token with SaaS API for Enterprise Push Alerts
+        try {
+          const saasToken = localStorage.getItem('token'); // SaaS JWT token
+          if (saasToken) {
+            await fetch('/api/geosurepath/tokens', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${saasToken}`
+              },
+              body: JSON.stringify({ token: notificationToken, platform: 'native' }),
+            });
+            console.log('✅ SaaS Push Token Synchronized');
+          }
+        } catch (e) {
+          console.warn('SaaS Token Sync Failed:', e.message);
+        }
       }
     }
   }, [user, notificationToken, setNotificationToken]);

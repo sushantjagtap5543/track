@@ -222,9 +222,11 @@ const SocketController = () => {
         reconnectIfNeeded();
       }
     };
+    const intervalId = setInterval(reconnectIfNeeded, 30000);
     window.addEventListener('online', reconnectIfNeeded);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
+      clearInterval(intervalId);
       window.removeEventListener('online', reconnectIfNeeded);
       document.removeEventListener('visibilitychange', onVisibility);
     };

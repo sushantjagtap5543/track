@@ -17,10 +17,15 @@
     <!-- HIGH PERFORMANCE REAL-TIME ENGINE (4,000+ DEVICES) -->
     <entry key='database.maxPoolSize'>100</entry>
     <entry key='status.ignoreOffline'>false</entry>
+    <entry key='status.updateDelay'>2</entry>
+    <entry key='status.timeout'>120</entry>
     <entry key='event.geofence.handler'>true</entry>
     <entry key='event.ignition.handler'>true</entry>
     <entry key='event.motion.handler'>true</entry>
     <entry key='event.fuel.handler'>true</entry>
+    <entry key='filter.enable'>true</entry>
+    <entry key='filter.distance'>5</entry>
+    <entry key='geocoder.processOnRequest'>true</entry>
     
     <!-- WEB SOCKET & CACHE OPTIMIZATION -->
     <entry key='web.timeout'>60000</entry>
