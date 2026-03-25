@@ -1,1 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368"><path fill-rule="evenodd" d="M350-860Q415-890 480-890Q545-890 610-860L650-800L670-740L680-660L680-140L660-80L620-40L340-40L300-80L280-140L280-660L290-740L310-800Z M355-800L340-720L620-720L605-800Q545-830 480-830Q415-830 355-800Z M395-200L380-280L580-280L565-200Q530-165 480-155Q430-165 395-200Z M320-680L320-400L640-400L640-680L320-680Z M220-760L280-760L280-650L220-650Q205-650 205-665L205-745Q205-760 220-760Z M680-760L740-760Q755-760 755-745L755-665Q755-650 740-650L680-650Z"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M10 17H5c-1.1 0-2-.9-2-2V7c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2v2"/>
+  <path d="M17 17h4c1.1 0 2-.9 2-2v-4c0-1.1-.9-2-2-2h-4"/>
+  <circle cx="7" cy="17" r="2"/>
+  <circle cx="17" cy="17" r="2"/>
+  <path d="M7 17h10"/>
+</svg>

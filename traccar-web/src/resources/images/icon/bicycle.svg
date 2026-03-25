@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#5f6368"><path fill-rule="evenodd" d="M480-880L440-750L440-150L480-80L520-150L520-750L480-880ZM400-650L300-650L300-580L400-580ZM560-650L660-650L660-580L560-580ZM400-300L300-300L300-230L400-230ZM560-300L660-300L660-230L560-230Z"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="5.5" cy="17.5" r="3.5"/>
+  <circle cx="18.5" cy="17.5" r="3.5"/>
+  <path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L14.5 10H20M12 17.5l-4-3 3-8h3l1.5 3.5"/>
+</svg>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector, connect } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Snackbar } from '@mui/material';
+import { Snackbar, Alert, AlertTitle } from '@mui/material';
 import { devicesActions, sessionActions } from './store';
 import { useCatchCallback, useEffectAsync } from './reactHelper';
 import { snackBarDurationLongMs } from './common/util/duration';
@@ -67,11 +67,37 @@ const SocketController = () => {
         }
       }
       setNotifications(
-        events.map((event) => ({
-          id: event.id,
-          message: event.attributes.message,
-          show: true,
-        })),
+        events.map((event) => {
+          let message = event.attributes.message;
+          let severity = 'info';
+          let title = 'System Update';
+
+          if (!message) {
+            switch (event.type) {
+              case 'deviceOnline': message = 'Vehicle is now online and transmitting.'; severity = 'success'; title = 'Online'; break;
+              case 'deviceOffline': message = 'Vehicle has lost connection.'; severity = 'warning'; title = 'Offline'; break;
+              case 'geofenceEnter': message = 'Vehicle entered a restricted zone.'; severity = 'info'; title = 'Geofence Enter'; break;
+              case 'geofenceExit': 
+                message = event.attributes.name?.startsWith('Safe Parking') 
+                   ? 'SECURITY ALERT: Safe Parking Shield Breached!' 
+                   : 'Vehicle exited a restricted zone.'; 
+                severity = event.attributes.name?.startsWith('Safe Parking') ? 'error' : 'info';
+                title = 'Geofence Exit';
+                break;
+              case 'alarm': message = `ALARM: ${event.attributes.alarm || 'Triggered'}`; severity = 'error'; title = 'Urgent Alert'; break;
+              case 'ignitionOn': message = 'Engine has been started.'; severity = 'success'; title = 'Engine ON'; break;
+              case 'ignitionOff': message = 'Engine has been stopped.'; severity = 'info'; title = 'Engine OFF'; break;
+              default: message = event.type.replace(/([A-Z])/g, ' $1').trim();
+            }
+          }
+          return {
+            id: event.id,
+            message: message,
+            severity,
+            title,
+            show: true,
+          };
+        }),
       );
     },
     [features, dispatch, soundEvents, soundAlarms],
@@ -112,7 +138,7 @@ const SocketController = () => {
         reconnectTimeoutRef.current = setTimeout(() => {
           reconnectTimeoutRef.current = null;
           connectSocket();
-        }, 60000);
+        }, 5000);
       }
     };
 
@@ -207,10 +233,15 @@ const SocketController = () => {
         <Snackbar
           key={notification.id}
           open={notification.show}
-          message={notification.message}
           autoHideDuration={snackBarDurationLongMs}
           onClose={() => setNotifications(notifications.filter((e) => e.id !== notification.id))}
-        />
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <Alert severity={notification.severity} variant="filled" sx={{ width: '100%', boxShadow: 6 }}>
+            <AlertTitle>{notification.title}</AlertTitle>
+            {notification.message}
+          </Alert>
+        </Snackbar>
       ))}
     </>
   );
