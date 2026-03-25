@@ -40,10 +40,19 @@ const useStyles = makeStyles()((theme) => ({
   header: {
     pointerEvents: 'auto',
     zIndex: 6,
+    background: 'rgba(255, 255, 255, 0.8) !important',
+    backdropFilter: 'blur(12px)',
+    borderRadius: '16px 16px 0 0',
+    border: '1px solid rgba(255, 255, 255, 0.3)',
   },
   footer: {
     pointerEvents: 'auto',
     zIndex: 5,
+    background: 'rgba(255, 255, 255, 0.8) !important',
+    backdropFilter: 'blur(12px)',
+    borderRadius: '0 0 16px 16px',
+    border: '1px solid rgba(255, 255, 255, 0.3)',
+    marginTop: theme.spacing(0.5),
   },
   middle: {
     flex: 1,
@@ -60,6 +69,18 @@ const useStyles = makeStyles()((theme) => ({
     zIndex: 4,
     display: 'flex',
     minHeight: 0,
+    background: 'rgba(255, 255, 255, 0.7) !important',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    borderTop: 'none',
+    borderBottom: 'none',
+    '& ::-webkit-scrollbar': {
+      width: '6px',
+    },
+    '& ::-webkit-scrollbar-thumb': {
+      backgroundColor: 'rgba(0,0,0,0.1)',
+      borderRadius: '3px',
+    },
   },
 }));
 

@@ -56,6 +56,7 @@ const MapPositions = ({
       direction: showDirection,
       ignitionOff:
         position.attributes.hasOwnProperty('ignition') && position.attributes.ignition === false,
+      isMoving: position.speed > 0.5,
     };
   };
 
@@ -183,6 +184,21 @@ const MapPositions = ({
         },
       });
 
+      // Moving vehicle wave pulse
+      map.addLayer({
+        id: `moving-pulse-${source}`,
+        type: 'circle',
+        source,
+        filter: ['all', ['!has', 'point_count'], ['==', ['get', 'isMoving'], true]],
+        paint: {
+          'circle-radius': 35 * iconScale,
+          'circle-color': 'transparent',
+          'circle-stroke-width': 4,
+          'circle-stroke-color': '#2196f3',
+          'circle-stroke-opacity': 0.3,
+        },
+      });
+
       map.on('mouseenter', source, onMouseEnter);
       map.on('mouseleave', source, onMouseLeave);
       map.on('click', source, onMarkerClickCallback);
@@ -232,6 +248,9 @@ const MapPositions = ({
         }
         if (map.getLayer(`ignition-off-pulse-${source}`)) {
           map.removeLayer(`ignition-off-pulse-${source}`);
+        }
+        if (map.getLayer(`moving-pulse-${source}`)) {
+          map.removeLayer(`moving-pulse-${source}`);
         }
         if (map.getSource(source)) {
           map.removeSource(source);

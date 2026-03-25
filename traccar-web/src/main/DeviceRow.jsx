@@ -29,6 +29,8 @@ import {
   formatPercentage,
   formatStatus,
   getStatusColor,
+  formatSpeed,
+  formatDistance,
 } from '../common/util/formatter';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { mapIconKey, mapIcons } from '../map/core/preloadImages';
@@ -241,6 +243,10 @@ const DeviceRow = ({ devices, index, style }) => {
     } else {
       status = dayjs(item.lastUpdate).fromNow();
     }
+    const speed = position.speed > 0 ? `${formatSpeed(position.speed, 'km/h', t)}` : '';
+    const fuel = position.attributes.fuel ? ` • ⛽ ${position.attributes.fuel}L` : '';
+    const distance = position.attributes.totalDistance ? ` • 🛣️ ${formatDistance(position.attributes.totalDistance, 'km', t)}` : '';
+    
     return (
       <>
         {secondaryValue && (
@@ -249,7 +255,11 @@ const DeviceRow = ({ devices, index, style }) => {
             {' • '}
           </>
         )}
-        <span className={classes[getStatusColor(item.status)]}>{status}</span>
+        <span className={classes[getStatusColor(item.status)]}>
+          {status} {speed && ` • ⚡ ${speed}`}
+          {fuel}
+          {distance}
+        </span>
       </>
     );
   };
