@@ -10,6 +10,7 @@ import {
   ListItemButton,
   Typography,
   Snackbar,
+  Box,
 } from '@mui/material';
 import BatteryFullIcon from '@mui/icons-material/BatteryFull';
 import BatteryChargingFullIcon from '@mui/icons-material/BatteryChargingFull';
@@ -295,98 +296,72 @@ const DeviceRow = ({ devices, index, style }) => {
           </Avatar>
         </ListItemAvatar>
         <ListItemText
-          primary={primaryValue}
-          secondary={secondaryText()}
-          slots={{
-            primary: Typography,
-            secondary: Typography,
-          }}
-          slotProps={{
-            primary: { noWrap: true },
-            secondary: { noWrap: true },
-          }}
-        />
-        {position && (
-          <>
-            <Tooltip title={`${t('eventAlarm')}: ${formatAlarm(position.attributes?.alarm || '', t)}`}>
-              <IconButton size="small" sx={{ opacity: position.attributes?.alarm ? 1 : 0.3 }}>
-                <ErrorIcon fontSize="small" className={position.attributes?.alarm ? classes.error : classes.neutral} />
-              </IconButton>
-            </Tooltip>
-            
-            <Tooltip
-              title={
-                parkingGeofence
-                  ? 'Disable Safe Parking'
-                  : 'Enable Safe Parking (15m Anti-Theft Shield)'
-              }
-            >
-              <IconButton
-                size="small"
-                disabled={pendingParking}
-                onClick={(e) => handleSafeParking(e, item.id, position, item.name)}
-                sx={{ opacity: pendingParking ? 0.5 : 1 }}
-                className={parkingGeofence ? classes.pulse : null}
-              >
-                {parkingGeofence ? (
-                  <SecurityIcon fontSize="small" className={classes.success} />
-                ) : (
-                  <SecurityIcon fontSize="small" className={classes.neutral} />
+          primary={
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography sx={{ fontWeight: 700, noWrap: true, textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                {primaryValue}
+              </Typography>
+              {position && (
+                 <Box sx={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                   <Tooltip title={`${t('eventAlarm')}: ${formatAlarm(position.attributes?.alarm || '', t)}`}>
+                     <IconButton size="small" sx={{ opacity: position.attributes?.alarm ? 1 : 0.3, p: 0 }}>
+                       <ErrorIcon fontSize="small" className={position.attributes?.alarm ? classes.error : classes.neutral} />
+                     </IconButton>
+                   </Tooltip>
+                   <Tooltip title={`${t('positionBatteryLevel')}: ${formatPercentage(position.attributes?.batteryLevel || 100)}`}>
+                     <IconButton size="small" sx={{ p: 0 }}>
+                       {((position.attributes?.batteryLevel || 100) > 70 ? <BatteryFullIcon fontSize="small" className={classes.success} /> : <Battery20Icon fontSize="small" className={classes.error} />)}
+                     </IconButton>
+                   </Tooltip>
+                 </Box>
+              )}
+            </Box>
+          }
+          secondary={
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px', mt: 0.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {secondaryText()}
+                </Typography>
+                {position && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                     <Tooltip title={parkingGeofence ? 'Disable Safe Parking' : 'Enable Safe Parking'}>
+                        <IconButton 
+                          size="small" 
+                          onClick={(e) => handleSafeParking(e, item.id, position, item.name)}
+                          sx={{ p: "2px", border: '1px solid', borderColor: parkingGeofence ? 'success.main' : 'divider' }}
+                        >
+                          <SecurityIcon sx={{ fontSize: 14 }} className={parkingGeofence ? classes.success : classes.neutral} />
+                        </IconButton>
+                     </Tooltip>
+                     <Tooltip title={position.attributes?.ignition ? 'Engine is Running' : 'Engine is Stopped'}>
+                        <span className={`${classes.ignitionStatus} ${position.attributes?.ignition ? classes.ignitionOn : classes.ignitionOff}`} style={{ fontSize: '0.5rem' }}>
+                          {position.attributes?.ignition ? 'ON' : 'OFF'}
+                        </span>
+                     </Tooltip>
+                     <Button
+                        variant="contained"
+                        size="small"
+                        color={position.attributes?.ignition ? "error" : "success"}
+                        onClick={(e) => handleIgnitionToggle(e, item.id, position.attributes?.ignition || false)}
+                        sx={{ 
+                          fontSize: '0.55rem', 
+                          height: '18px', 
+                          minWidth: '45px', 
+                          padding: '0 4px',
+                          fontWeight: 800,
+                          borderRadius: '12px'
+                        }}
+                        disabled={pendingIgnition}
+                     >
+                        {position.attributes?.ignition ? 'STOP' : 'START'}
+                     </Button>
+                  </Box>
                 )}
-              </IconButton>
-            </Tooltip>
-
-            <>
-              <Tooltip
-                title={`${t('positionIgnition')}: ${formatBoolean(position.attributes?.ignition || false, t)}`}
-              >
-                <span
-                  className={`${classes.ignitionStatus} ${position.attributes?.ignition ? classes.ignitionOn : classes.ignitionOff}`}
-                >
-                  <EngineIcon width={12} height={12} />
-                  {position.attributes?.ignition ? 'ENGINE ON' : 'ENGINE OFF'}
-                </span>
-              </Tooltip>
-              <Tooltip
-                title={position.attributes?.ignition ? 'Remotely Cut Engine' : 'Restore Engine Power'}
-              >
-                <IconButton
-                  size="small"
-                  disabled={pendingIgnition}
-                  className={`${classes.controlButton} ${position.attributes?.ignition ? classes.controlStop : classes.controlStart}`}
-                  onClick={(e) => handleIgnitionToggle(e, item.id, position.attributes?.ignition || false)}
-                  sx={{ opacity: pendingIgnition ? 0.5 : 1, borderRadius: '4px' }}
-                >
-                  {position.attributes?.ignition ? 'STOP' : 'RESUME'}
-                </IconButton>
-              </Tooltip>
-            </>
-
-            <Tooltip
-              title={`${t('positionBatteryLevel')}: ${formatPercentage(position.attributes?.batteryLevel || 100)}`}
-            >
-              <IconButton size="small">
-                {((position.attributes?.batteryLevel || 100) > 70 &&
-                  ((position.attributes?.charge ?? true) ? (
-                    <BatteryChargingFullIcon fontSize="small" className={classes.success} />
-                  ) : (
-                    <BatteryFullIcon fontSize="small" className={classes.success} />
-                  ))) ||
-                  ((position.attributes?.batteryLevel || 100) > 30 &&
-                    ((position.attributes?.charge ?? true) ? (
-                      <BatteryCharging60Icon fontSize="small" className={classes.warning} />
-                    ) : (
-                      <Battery60Icon fontSize="small" className={classes.warning} />
-                    ))) ||
-                  ((position.attributes?.charge ?? true) ? (
-                    <BatteryCharging20Icon fontSize="small" className={classes.error} />
-                  ) : (
-                    <Battery20Icon fontSize="small" className={classes.error} />
-                  ))}
-              </IconButton>
-            </Tooltip>
-          </>
-        )}
+              </Box>
+            </Box>
+          }
+        />
       </ListItemButton>
       <Snackbar
         open={!!toastMessage}
