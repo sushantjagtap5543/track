@@ -93,13 +93,14 @@ const BillingPage = () => {
         } catch (err) { alert(err.message); } finally { setSettling(false); }
     };
 
-    const currentPlan = bill?.plans?.find(p => p.id === selectedPlan);
-    const planCost = (currentPlan?.price || 0) * (bill?.devices?.length || 0);
+    const currentPlan = bill?.plans?.find(p => p.id === selectedPlan) || bill?.plans?.[0];
+    const deviceCount = bill?.devices?.length || 0;
+    const planCost = (currentPlan?.price || 0) * deviceCount;
     const totalFleetAmount = planCost + (bill?.totalDue || 0);
 
-    const filteredLedger = ledger.filter(u => u.email.toLowerCase().includes(searchQuery.toLowerCase()));
+    const filteredLedger = Array.isArray(ledger) ? ledger.filter(u => u.email?.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
-    if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 10 }}><CircularProgress /></Box>;
+    if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 10, bgcolor: '#0f172a', height: '100vh', alignItems: 'center' }}><CircularProgress /></Box>;
 
     return (
         <Container maxWidth="xl" sx={{ mt: 4, mb: 10 }}>

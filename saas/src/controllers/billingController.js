@@ -13,7 +13,7 @@ const generateInvoiceNumber = (sequenceId) => {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
-    const seq = String(sequenceId).padStart(4, '0');
+    const seq = String(sequenceId).slice(-4).padStart(4, '0');
     return `GSP/INV/${year}/${month}/${seq}`;
 };
 
@@ -34,7 +34,6 @@ STATUS      : ${details.status}
 -----------------------------------------
 SETTLEMENT  : ₹${details.amount} (Incl. GST)
 BILLING DATE: ${details.billingDate}
-NEXT CYCLE  : ${details.nextBillingDate}
 -----------------------------------------
 IMEIs SYNCED: ${details.devicesCount} Devices
 TIMESTAMP   : ${new Date().toISOString()}
@@ -76,7 +75,7 @@ const calculateBreakdown = (total) => {
 const calculateBillForAnyUser = async (userId) => {
     const user = await prisma.user.findUnique({
         where: { id: userId },
-        include: { vehicles: true, subscriptions: { orderBy: { id: 'desc' } } }
+        include: { vehicles: true, subscriptions: { orderBy: { createdAt: 'desc' } } }
     });
     if (!user) return null;
 
@@ -117,7 +116,12 @@ const calculateBillForAnyUser = async (userId) => {
         totalDue: parseFloat(totalDue.toFixed(2)), currency: 'INR',
         plans: PLANS.map(p => ({ ...p, costPerDay: parseFloat((p.price / p.days).toFixed(2)), breakdown: calculateBreakdown(p.price) })),
         devices: deviceDetails, history,
-        sentry: { status: accessStatus, unpaidDays: maxUnpaidDays, graceDaysRemaining: Math.max(0, 7 - maxUnpaidDays), isHardLock: accessStatus === 'OVERDUE' }
+        sentry: { 
+            status: accessStatus, 
+            unpaidDays: maxUnpaidDays, 
+            graceDaysRemaining: Math.max(0, 7 - maxUnpaidDays), 
+            isHardLock: accessStatus === 'OVERDUE' 
+        }
     };
 };
 
@@ -152,19 +156,19 @@ const getAllUsersLedger = async (req, res) => {
 const getAdminAnalytics = async (req, res) => {
     if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
     try {
-        const subscriptions = await prisma.subscription.findMany({ orderBy: { id: 'desc' } });
+        const subscriptions = await prisma.subscription.findMany({ orderBy: { createdAt: 'desc' } });
         const usersCount = await prisma.user.count();
         const devicesCount = await prisma.vehicle.count();
         const monthlyRevenue = {};
         subscriptions.forEach(sub => {
-            const m = sub.createdAt.toISOString().slice(0, 7);
-            monthlyRevenue[m] = (monthlyRevenue[m] || 0) + sub.amount;
+            const m = sub.createdAt ? sub.createdAt.toISOString().slice(0, 7) : '2026-03';
+            monthlyRevenue[m] = (monthlyRevenue[m] || 0) + sub.price;
         });
         const latestMonth = Object.keys(monthlyRevenue).sort().reverse()[0] || 'N/A';
         const config = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
         res.json({
             summary: {
-                totalRevenue: subscriptions.reduce((s, it) => s + it.amount, 0),
+                totalRevenue: subscriptions.reduce((s, it) => s + it.price, 0),
                 latestMonth, latestRevenue: latestMonth !== 'N/A' ? monthlyRevenue[latestMonth] : 0,
                 totalUsers: usersCount, totalDevices: devicesCount,
                 approxCollection: devicesCount * 200, churnRate: 2.5
@@ -192,23 +196,31 @@ const settleCash = async (req, res) => {
     if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
     const { targetUserId, planId, amount } = req.body;
     try {
-        const sub = await prisma.subscription.create({
-            data: { userId: targetUserId, planId: planId, amount: parseFloat(amount), paymentId: `CASH_${Date.now()}`, status: 'ACTIVE' }
-        });
-        const now = new Date();
-        const user = await prisma.user.findUnique({ where: { id: targetUserId }, include: { vehicles: true } });
         const plan = PLANS.find(p => p.id === planId);
-        const nextDate = new Date(now.getTime() + ((plan?.days || 30) * 24 * 60 * 60 * 1000));
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + ((plan?.days || 30) * 24 * 60 * 60 * 1000));
+        
+        const sub = await prisma.subscription.create({
+            data: { 
+                userId: targetUserId, 
+                planId: planId, 
+                price: parseFloat(amount), 
+                status: 'ACTIVE',
+                expiresAt: expiresAt
+            }
+        });
+        
+        const user = await prisma.user.findUnique({ where: { id: targetUserId }, include: { vehicles: true } });
         await prisma.vehicle.updateMany({ where: { userId: targetUserId }, data: { registrationDate: now } });
+        
         const invoiceId = generateInvoiceNumber(sub.id);
         await pushPaymentToCloud({
             invoiceId, email: user.email, amount: parseFloat(amount),
-            billingDate: now.toLocaleDateString(), nextBillingDate: nextDate.toLocaleDateString(),
+            billingDate: now.toLocaleDateString(),
             devicesCount: user.vehicles.length, status: 'SUCCESSFUL (CASH SETTLE/GAETWAY)'
         });
         res.json({ message: 'Sovereign Settle Success', invoiceId });
     } catch (err) {
-        pushPaymentToCloud({ invoiceId: 'PENDING/FAILED', status: 'FAILED TRANSACTION', error: err.message });
         res.status(500).json({ error: err.message }); 
     }
 };
