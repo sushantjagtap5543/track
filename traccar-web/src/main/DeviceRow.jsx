@@ -48,10 +48,14 @@ const useStyles = makeStyles()((theme) => ({
     backgroundColor: 'rgba(59, 130, 246, 0.15) !important',
     borderLeft: '4px solid #3b82f6',
   },
-  success: { color: theme.palette.success.main },
-  warning: { color: theme.palette.warning.main },
-  error: { color: theme.palette.error.main },
-  neutral: { color: theme.palette.neutral.main },
+  success: { color: '#22c55e' },
+  warning: { color: '#f59e0b' },
+  error: { color: '#ef4444' },
+  neutral: { color: 'rgba(255, 255, 255, 0.4)' },
+  activeSecurity: { 
+    color: '#06b6d4',
+    filter: 'drop-shadow(0 0 6px rgba(6, 182, 212, 0.8))'
+  },
   ignitionStatus: {
     display: 'flex',
     alignItems: 'center',
@@ -63,16 +67,16 @@ const useStyles = makeStyles()((theme) => ({
   },
   ignitionOn: {
     backgroundColor: 'rgba(76, 175, 80, 0.15)',
-    color: theme.palette.success.main,
-    border: `1px solid ${theme.palette.success.main}`,
+    color: '#22c55e',
+    border: `1px solid #22c55e`,
   },
   ignitionOff: {
     backgroundColor: 'rgba(211, 47, 47, 0.15)',
-    color: theme.palette.error.main,
-    border: `1px solid ${theme.palette.error.main}`,
+    color: '#ef4444',
+    border: `1px solid #ef4444`,
   },
   immobilized: {
-    borderLeft: `5px solid ${theme.palette.error.main} !important`,
+    borderLeft: `5px solid #ef4444 !important`,
     backgroundColor: 'rgba(211, 47, 47, 0.08) !important',
   },
 }));
@@ -85,10 +89,10 @@ const DeviceRow = ({ devices, index, style }) => {
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const [toastMessage, setToastMessage] = useState('');
   const [pendingIgnition, setPendingIgnition] = useState(false);
-  const [pendingParking, setPendingParking] = useState(false);
 
   const item = devices[index];
   const position = useSelector((state) => state.session.positions[item.id]);
+  const parkingGeofence = useSelector((state) => Object.values(state.geofences.items).find((it) => it.name === item.name));
 
   const handleIgnitionToggle = async (e, devId, isIgnitionOn) => {
     e.stopPropagation();
@@ -118,25 +122,41 @@ const DeviceRow = ({ devices, index, style }) => {
 
   const handleSafeParking = async (e, devId, pos, name) => {
     e.stopPropagation();
-    // Simplified parking logic for this re-render
-    setToastMessage("Parking Shield Toggled");
+    if (parkingGeofence) {
+      const response = await fetch(`/api/geofences/${parkingGeofence.id}`, { method: 'DELETE' });
+      if (response.ok) {
+        dispatch(geofencesActions.remove(parkingGeofence.id));
+        setToastMessage(`SafeZone Disabled for ${name}`);
+      }
+    } else {
+      const geofence = {
+        name: item.name,
+        area: `CIRCLE(${pos.latitude}, ${pos.longitude}, 50)`,
+        attributes: { color: '#06b6d4' }
+      };
+      const response = await fetch('/api/geofences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(geofence),
+      });
+      if (response.ok) {
+        const created = await response.json();
+        const linkResponse = await fetch('/api/permissions', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ deviceId: devId, geofenceId: created.id }),
+        });
+        if (linkResponse.ok) {
+           dispatch(geofencesActions.update([created]));
+           setToastMessage(`SafeZone Enabled for ${name}`);
+        }
+      }
+    }
   };
 
   const devicePrimary = useAttributePreference('devicePrimary', 'name');
-  const deviceSecondary = useAttributePreference('deviceSecondary', '');
+  const primaryValue = item[devicePrimary] || item.name;
 
-  const resolveFieldValue = (field) => {
-    if (field === 'geofenceIds') {
-      const geofenceIds = position?.geofenceIds;
-      return geofenceIds?.length ? <GeofencesValue geofenceIds={geofenceIds} /> : null;
-    }
-    if (field === 'motion') {
-      return <MotionBar deviceId={item.id} />;
-    }
-    return item[field];
-  };
-
-  const primaryValue = resolveFieldValue(devicePrimary);
   const secondaryText = () => {
     let status;
     if (item.status === 'online' || !item.lastUpdate) {
@@ -167,7 +187,7 @@ const DeviceRow = ({ devices, index, style }) => {
         <ListItemText
           primary={
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography sx={{ fontWeight: 700, noWrap: true, textOverflow: 'ellipsis', overflow: 'hidden' }}>
+              <Typography sx={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {primaryValue}
               </Typography>
               {position && (
@@ -193,8 +213,22 @@ const DeviceRow = ({ devices, index, style }) => {
                   {secondaryText()}
                 </Typography>
                 {position && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                     <Tooltip title={isImmobilized ? 'Engine Stopped' : 'Engine Running'}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                     <Tooltip title={parkingGeofence ? 'SafeZone Active' : 'Enable SafeZone'}>
+                        <IconButton 
+                          size="small" 
+                          onClick={(e) => handleSafeParking(e, item.id, position, item.name)}
+                          sx={{ 
+                            p: "3px", 
+                            border: '1px solid', 
+                            borderColor: parkingGeofence ? '#06b6d4' : 'rgba(255,255,255,0.1)',
+                            background: parkingGeofence ? 'rgba(6, 182, 212, 0.1)' : 'transparent'
+                          }}
+                        >
+                          <SecurityIcon sx={{ fontSize: 18 }} className={parkingGeofence ? classes.activeSecurity : classes.neutral} />
+                        </IconButton>
+                     </Tooltip>
+                     <Tooltip title={!isImmobilized ? 'Engine Running' : 'Engine Stopped'}>
                         <span className={`${classes.ignitionStatus} ${!isImmobilized ? classes.ignitionOn : classes.ignitionOff}`}>
                           {!isImmobilized ? 'ON' : 'OFF'}
                         </span>
@@ -210,8 +244,7 @@ const DeviceRow = ({ devices, index, style }) => {
                           minWidth: '50px', 
                           padding: '0 6px',
                           fontWeight: 800,
-                          borderRadius: '12px',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                          borderRadius: '12px'
                         }}
                         disabled={pendingIgnition}
                      >

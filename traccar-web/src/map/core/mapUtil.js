@@ -33,34 +33,40 @@ export const prepareIcon = (background, icon, color) => {
   const is3D = icon && icon.src && (icon.src.endsWith('.png') || icon.src.includes('clean_3d'));
   const canvas = document.createElement('canvas');
   
-  // 2.5x scale for 3D markers - make them look premium and clear as requested
-  const scale = is3D ? 2.5 : 1.0; 
-  canvas.width = background.width * devicePixelRatio * scale;
-  canvas.height = background.height * devicePixelRatio * scale;
-  canvas.style.width = `${background.width * scale}px`;
-  canvas.style.height = `${background.height * scale}px`;
+  // Use a fixed size for the simple/attractive circular marker
+  const baseSize = 42;
+  canvas.width = baseSize * devicePixelRatio;
+  canvas.height = baseSize * devicePixelRatio;
+  canvas.style.width = `${baseSize}px`;
+  canvas.style.height = `${baseSize}px`;
 
   const context = canvas.getContext('2d');
+  const size = canvas.width;
 
-  if (is3D) {
-    // 3D Marker: Render only the vehicle asset (floating, no background)
-    context.drawImage(icon, 0, 0, canvas.width, canvas.height);
-  } else {
-    // Standard Vector Pin Logic
-    context.drawImage(background, 0, 0, canvas.width, canvas.height);
+  // --- Draw Attractive Circular Background (The Halo) ---
+  context.beginPath();
+  context.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2);
+  context.fillStyle = '#ffffff'; // White border
+  context.fill();
+  
+  context.beginPath();
+  context.arc(size / 2, size / 2, size / 2 - 5, 0, Math.PI * 2);
+  context.fillStyle = color; // Core color (Green/Red/Gray)
+  context.fill();
 
-    if (icon) {
-      const iconRatio = 0.5;
-      const imageWidth = canvas.width * iconRatio;
-      const imageHeight = canvas.height * iconRatio;
-      context.drawImage(
-        canvasTintImage(icon, color),
-        (canvas.width - imageWidth) / 2,
-        (canvas.height - imageHeight) / 2 - (canvas.height * 0.08),
-        imageWidth,
-        imageHeight,
-      );
-    }
+  // Draw Inner Icon
+  if (icon) {
+    const iconRatio = is3D ? 0.75 : 0.6;
+    const imageWidth = size * iconRatio;
+    const imageHeight = size * iconRatio;
+    
+    context.drawImage(
+      icon,
+      (size - imageWidth) / 2,
+      (size - imageHeight) / 2,
+      imageWidth,
+      imageHeight
+    );
   }
 
   return canvas.toDataURL();
@@ -69,18 +75,18 @@ export const prepareIcon = (background, icon, color) => {
 export const getStatusColor = (status) => {
   switch (status) {
     case 'online':
-      return '#4caf50';
+      return '#22c55e'; // Vibrant Green
     case 'offline':
-      return '#9e9e9e';
+      return '#64748b'; // Sleek Gray
     case 'unknown':
     default:
-      return '#ffc107';
+      return '#f59e0b'; // Amber
   }
 };
 
 export const getMapColor = (device, position) => {
   if (position && position.attributes.alarm) {
-    return '#f44336';
+    return '#ef4444'; // Danger Red
   }
   return getStatusColor(device.status);
 };
