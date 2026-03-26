@@ -8,7 +8,7 @@ const PLANS = [
     { id: 'yearly', name: 'Guardian Pro (1 Year)', days: 365, price: 2000, discount: 16.7 }
 ];
 
-/** 🛡️ Core Bill Calculation with 'Smart-Grace' Sentry Logic */
+/** 🛡️ Core Bill Calculation with 'Fair-Settle' Sentry Logic */
 const calculateBillForUser = async (userId) => {
     const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -23,17 +23,23 @@ const calculateBillForUser = async (userId) => {
         const lastPaidDate = lastSub ? new Date(lastSub.createdAt) : regDate;
         
         const diffTime = Math.max(0, now - lastPaidDate);
-        const unpaidDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const totalUnpaidDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        // --- FAIR-SETTLE LOGIC: CAP DEBT AT 7 DAYS GRACE ---
+        // If the service was Hard-Locked (Blocked) for 3 months, 
+        // the client only owes for the 1-week Grace Period before the lock.
+        const BILLABLE_DAYS_DEBT = Math.min(7, totalUnpaidDays);
         
         const DAILY_RATE_BASE = 6.66;
-        const amount = unpaidDays * DAILY_RATE_BASE;
+        const amount = BILLABLE_DAYS_DEBT * DAILY_RATE_BASE;
 
         return {
             imei: v.imei,
             name: v.name,
             registrationDate: v.registrationDate,
             previousBillingDate: lastPaidDate,
-            unpaidDays,
+            unpaidDays: totalUnpaidDays, // Still show total days for audit, but charge is capped
+            billableDebtDays: BILLABLE_DAYS_DEBT,
             amount: parseFloat(amount.toFixed(2))
         };
     });
@@ -41,10 +47,7 @@ const calculateBillForUser = async (userId) => {
     const totalDue = deviceDetails.reduce((sum, d) => sum + d.amount, 0);
     const maxUnpaidDays = Math.max(0, ...deviceDetails.map(d => d.unpaidDays));
 
-    // --- SMART-GRACE LOGIC ---
-    // 0 days = Paid
-    // 1-7 days = Grace Period (Dismissible Popup)
-    // 8+ days = Hard-Lock Overdue (Unskippable Redirect)
+    // Access Status Logic
     const accessStatus = maxUnpaidDays === 0 ? 'PAID' : (maxUnpaidDays <= 7 ? 'GRACE' : 'OVERDUE');
 
     return {
@@ -100,9 +103,12 @@ const settleCash = async (req, res) => {
     const { targetUserId, planId, amount } = req.body;
     try {
         const sub = await prisma.subscription.create({ data: { userId: targetUserId, planId: planId, amount: parseFloat(amount), paymentId: `CASH_${Date.now()}`, status: 'ACTIVE' } });
+        
+        // RESET ALL VEHICLES TO 'TODAY' - New 1-year coverage starts from NOW.
         const now = new Date();
         await prisma.vehicle.updateMany({ where: { userId: targetUserId }, data: { registrationDate: now } });
-        res.json({ message: 'Cash payment settled and grace period reset', subscription: sub });
+        
+        res.json({ message: 'Fair Cash settlement finalized. Fleet reset to Today.', subscription: sub });
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
