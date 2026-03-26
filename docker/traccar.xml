@@ -14,8 +14,8 @@
     <entry key='geofence.polyline'>true</entry>
     <entry key='server.statistics'>false</entry>
 
-    <!-- HIGH PERFORMANCE REAL-TIME ENGINE (4,000+ DEVICES) -->
-    <entry key='database.maxPoolSize'>100</entry>
+    <!-- PERFORMANCE ENGINE CONFIGURATION -->
+    <entry key='database.maxPoolSize'>30</entry>
     <entry key='status.ignoreOffline'>false</entry>
     <entry key='status.updateDelay'>2</entry>
     <entry key='status.timeout'>120</entry>
