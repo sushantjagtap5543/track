@@ -91,9 +91,13 @@ const useStyles = makeStyles()((theme) => ({
     border: `1px solid ${theme.palette.success.main}`,
   },
   ignitionOff: {
-    backgroundColor: 'rgba(158, 158, 158, 0.12)',
-    color: theme.palette.neutral.main,
-    border: `1px solid ${theme.palette.neutral.main}`,
+    backgroundColor: 'rgba(211, 47, 47, 0.15)',
+    color: theme.palette.error.main,
+    border: `1px solid ${theme.palette.error.main}`,
+  },
+  immobilized: {
+    borderLeft: `5px solid ${theme.palette.error.main}`,
+    backgroundColor: 'rgba(211, 47, 47, 0.05)',
   },
   controlButton: {
     padding: '4px 8px',
@@ -282,9 +286,10 @@ const DeviceRow = ({ devices, index, style }) => {
   };
 
   return (
-    <div style={style}>
+    <div style={style} className={position?.attributes?.ignition === false ? classes.immobilized : ''}>
       <ListItemButton
         key={item.id}
+        divider
         onClick={() => dispatch(devicesActions.selectId(item.id))}
         disabled={!admin && item.disabled}
         selected={selectedDeviceId === item.id}

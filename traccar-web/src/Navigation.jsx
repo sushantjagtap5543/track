@@ -59,6 +59,7 @@ import { generateLoginToken } from './common/components/NativeInterface';
 import { useLocalization } from './common/components/LocalizationProvider';
 import fetchOrThrow from './common/util/fetchOrThrow';
 import AuditPage from './reports/AuditPage';
+import BillingPage from './other/BillingPage';
 
 const Navigation = () => {
   const dispatch = useDispatch();
@@ -125,6 +126,7 @@ const Navigation = () => {
         <Route path="replay" element={<ReplayPage />} />
         <Route path="geofences" element={<GeofencesPage />} />
         <Route path="emulator" element={<EmulatorPage />} />
+        <Route path="billing" element={<BillingPage />} />
 
         <Route path="settings">
           <Route path=":type/:id/share" element={<SharePage />} />

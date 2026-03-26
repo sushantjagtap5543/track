@@ -29,6 +29,7 @@ model User {
   role          String    @default("CLIENT")
   geosurepathUserId Int?      @unique
   isActive      Boolean   @default(true)
+  registrationDate DateTime @default(now()) // Fixed date set by admin
   loginHistory  LoginHistory[]
   vehicles      Vehicle[]
   subscriptions Subscription[]
@@ -50,6 +51,7 @@ model Vehicle {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   geosurepathDeviceId Int?     @unique
   geosurepathGeofenceId Int?   @unique
+  registrationDate DateTime @default(now()) // Billing start date for THIS device
   safeParkingOn   Boolean  @default(false)
   parkingLat      Float?
   parkingLng      Float?

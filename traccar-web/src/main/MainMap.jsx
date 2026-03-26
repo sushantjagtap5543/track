@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useDispatch, useSelector } from 'react-redux';
-import MapView from '../map/core/MapView';
+import maplibregl from 'maplibre-gl';
+import MapView, { map } from '../map/core/MapView';
 import MapSelectedDevice from '../map/main/MapSelectedDevice';
 import MapAccuracy from '../map/main/MapAccuracy';
 import MapGeofence from '../map/MapGeofence';
@@ -28,6 +29,24 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
   const eventsAvailable = useSelector((state) => !!state.events.items.length);
 
   const features = useFeatures();
+
+  // --- Auto Fleet Zoom Logic ---
+  useEffect(() => {
+    if (filteredPositions.length > 0) {
+      const bounds = filteredPositions.reduce((b, p) => {
+        return b.extend([p.longitude, p.latitude]);
+      }, new maplibregl.LngLatBounds(
+        [filteredPositions[0].longitude, filteredPositions[0].latitude],
+        [filteredPositions[0].longitude, filteredPositions[0].latitude]
+      ));
+      
+      map.fitBounds(bounds, {
+        padding: 50,
+        maxZoom: 15,
+        duration: 2000
+      });
+    }
+  }, [filteredPositions]);
 
   const onMarkerClick = useCallback(
     (_, deviceId) => {

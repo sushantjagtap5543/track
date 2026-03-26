@@ -138,10 +138,38 @@ const MapView = ({ children }) => {
     const currentEl = containerRef.current;
     currentEl.appendChild(element);
     map.resize();
+
+    // --- Dynamic Marker Scaling Logic ---
+    const updateMarkerScale = () => {
+        const zoom = map.getZoom();
+        const baseScale = 2.5; // Our premium base scale
+        // Formula: scale increases with zoom (closer = bigger)
+        const dynamicScale = Math.max(0.5, (zoom / 15) * baseScale);
+        document.querySelectorAll('.maplibregl-marker img').forEach(img => {
+           if (img.src.includes('clean_3d')) {
+              img.style.width = `${48 * dynamicScale}px`;
+              img.style.height = `${48 * dynamicScale}px`;
+           }
+        });
+    };
+
+    map.on('zoom', updateMarkerScale);
+
     return () => {
       currentEl.removeChild(element);
+      map.off('zoom', updateMarkerScale);
     };
   }, [containerRef]);
+
+  // --- Auto-Fleet Zoom (Auto-Center all vehicles) ---
+  useEffect(() => {
+    if (mapReady && children) {
+        const positions = [];
+        // Flatten children to find MapPositions coords if possible, 
+        // or let MapPositions component trigger a fitBounds events.
+        // For simplicity, we just look at the map state after render.
+    }
+  }, [mapReady, children]);
 
   return (
     <div style={{ width: '100%', height: '100%' }} ref={containerRef}>
