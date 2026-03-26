@@ -243,6 +243,15 @@ const DeviceRow = ({ devices, index, style }) => {
     } else {
       status = dayjs(item.lastUpdate).fromNow();
     }
+    
+    if (!position || !position.attributes) {
+      return (
+        <span className={classes[getStatusColor(item.status)]}>
+          {status}
+        </span>
+      );
+    }
+
     const speed = position.speed > 0 ? `${formatSpeed(position.speed, 'km/h', t)}` : '';
     const fuel = position.attributes.fuel ? ` • ⛽ ${position.attributes.fuel}L` : '';
     const distance = position.attributes.totalDistance ? ` • 🛣️ ${formatDistance(position.attributes.totalDistance, 'km', t)}` : '';
