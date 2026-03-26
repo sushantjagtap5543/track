@@ -124,7 +124,7 @@ done
 
 # Seed Admin & Clients
 info "🧪 Step 8: Seeding system with default test accounts..."
-docker exec -it geosurepath_saas_api node scripts/seed_test_users.js || warn "Initial seeding might require manual intervention."
+docker exec geosurepath_saas_api node scripts/seed_test_users.js || warn "Initial seeding might require manual intervention."
 
 # 9. Firewall Tuning
 info "🛡️ Step 9: Finalizing Firewall (UFW) rules..."

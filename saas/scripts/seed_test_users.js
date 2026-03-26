@@ -1,4 +1,4 @@
-﻿const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const dns = require('dns').promises;
 
@@ -85,7 +85,7 @@ async function registerUser(baseUrl, credentials) {
 
         const data = await response.json();
         if (!response.ok) {
-            if (data.error && (data.error.includes('already exists') || data.error.includes('duplicate'))) {
+            if (data.error && (data.error.toLowerCase().includes('already') || data.error.toLowerCase().includes('duplicate'))) {
                 console.log(`User ${credentials.email} already exists.`);
                 return { success: true, email: credentials.email };
             }
@@ -107,7 +107,11 @@ async function promoteToAdmin(prisma, email) {
             where: { email: email.toLowerCase() },
             data: { role: 'ADMIN' }
         });
-        console.log(`Successfully promoted ${email} to ADMIN.`);
+        
+        // Promote in Traccar Core DB
+        await prisma.$executeRawUnsafe(`UPDATE tc_users SET administrator = true WHERE email = $1`, email.toLowerCase());
+
+        console.log(`Successfully promoted ${email} to ADMIN in both SaaS and Core.`);
         return true;
     } catch (error) {
         console.error(`Database Error: ${error.message}`);

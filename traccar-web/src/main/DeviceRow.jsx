@@ -301,13 +301,12 @@ const DeviceRow = ({ devices, index, style }) => {
         />
         {position && (
           <>
-            {position.attributes.hasOwnProperty('alarm') && (
-              <Tooltip title={`${t('eventAlarm')}: ${formatAlarm(position.attributes.alarm, t)}`}>
-                <IconButton size="small">
-                  <ErrorIcon fontSize="small" className={classes.error} />
-                </IconButton>
-              </Tooltip>
-            )}
+            <Tooltip title={`${t('eventAlarm')}: ${formatAlarm(position.attributes?.alarm || '', t)}`}>
+              <IconButton size="small" sx={{ opacity: position.attributes?.alarm ? 1 : 0.3 }}>
+                <ErrorIcon fontSize="small" className={position.attributes?.alarm ? classes.error : classes.neutral} />
+              </IconButton>
+            </Tooltip>
+            
             <Tooltip
               title={
                 parkingGeofence
@@ -329,58 +328,56 @@ const DeviceRow = ({ devices, index, style }) => {
                 )}
               </IconButton>
             </Tooltip>
-            {position.attributes.hasOwnProperty('ignition') && (
-              <>
-                <Tooltip
-                  title={`${t('positionIgnition')}: ${formatBoolean(position.attributes.ignition, t)}`}
-                >
-                  <span
-                    className={`${classes.ignitionStatus} ${position.attributes.ignition ? classes.ignitionOn : classes.ignitionOff}`}
-                  >
-                    <EngineIcon width={12} height={12} />
-                    {position.attributes.ignition ? 'ON' : 'OFF'}
-                  </span>
-                </Tooltip>
-                <Tooltip
-                  title={position.attributes.ignition ? 'Send Engine Stop' : 'Send Engine Resume'}
-                >
-                  <IconButton
-                    size="small"
-                    disabled={pendingIgnition}
-                    className={`${classes.controlButton} ${position.attributes.ignition ? classes.controlStop : classes.controlStart}`}
-                    onClick={(e) => handleIgnitionToggle(e, item.id, position.attributes.ignition)}
-                    sx={{ opacity: pendingIgnition ? 0.5 : 1 }}
-                  >
-                    <PowerSettingsNewIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Tooltip>
-              </>
-            )}
-            {position.attributes.hasOwnProperty('batteryLevel') && (
+
+            <>
               <Tooltip
-                title={`${t('positionBatteryLevel')}: ${formatPercentage(position.attributes.batteryLevel)}`}
+                title={`${t('positionIgnition')}: ${formatBoolean(position.attributes?.ignition || false, t)}`}
               >
-                <IconButton size="small">
-                  {(position.attributes.batteryLevel > 70 &&
-                    (position.attributes.charge ? (
-                      <BatteryChargingFullIcon fontSize="small" className={classes.success} />
-                    ) : (
-                      <BatteryFullIcon fontSize="small" className={classes.success} />
-                    ))) ||
-                    (position.attributes.batteryLevel > 30 &&
-                      (position.attributes.charge ? (
-                        <BatteryCharging60Icon fontSize="small" className={classes.warning} />
-                      ) : (
-                        <Battery60Icon fontSize="small" className={classes.warning} />
-                      ))) ||
-                    (position.attributes.charge ? (
-                      <BatteryCharging20Icon fontSize="small" className={classes.error} />
-                    ) : (
-                      <Battery20Icon fontSize="small" className={classes.error} />
-                    ))}
+                <span
+                  className={`${classes.ignitionStatus} ${position.attributes?.ignition ? classes.ignitionOn : classes.ignitionOff}`}
+                >
+                  <EngineIcon width={12} height={12} />
+                  {position.attributes?.ignition ? 'ON' : 'OFF'}
+                </span>
+              </Tooltip>
+              <Tooltip
+                title={position.attributes?.ignition ? 'Send Engine Stop' : 'Send Engine Resume'}
+              >
+                <IconButton
+                  size="small"
+                  disabled={pendingIgnition}
+                  className={`${classes.controlButton} ${position.attributes?.ignition ? classes.controlStop : classes.controlStart}`}
+                  onClick={(e) => handleIgnitionToggle(e, item.id, position.attributes?.ignition || false)}
+                  sx={{ opacity: pendingIgnition ? 0.5 : 1 }}
+                >
+                  <PowerSettingsNewIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
-            )}
+            </>
+
+            <Tooltip
+              title={`${t('positionBatteryLevel')}: ${formatPercentage(position.attributes?.batteryLevel || 100)}`}
+            >
+              <IconButton size="small">
+                {((position.attributes?.batteryLevel || 100) > 70 &&
+                  ((position.attributes?.charge ?? true) ? (
+                    <BatteryChargingFullIcon fontSize="small" className={classes.success} />
+                  ) : (
+                    <BatteryFullIcon fontSize="small" className={classes.success} />
+                  ))) ||
+                  ((position.attributes?.batteryLevel || 100) > 30 &&
+                    ((position.attributes?.charge ?? true) ? (
+                      <BatteryCharging60Icon fontSize="small" className={classes.warning} />
+                    ) : (
+                      <Battery60Icon fontSize="small" className={classes.warning} />
+                    ))) ||
+                  ((position.attributes?.charge ?? true) ? (
+                    <BatteryCharging20Icon fontSize="small" className={classes.error} />
+                  ) : (
+                    <Battery20Icon fontSize="small" className={classes.error} />
+                  ))}
+              </IconButton>
+            </Tooltip>
           </>
         )}
       </ListItemButton>
