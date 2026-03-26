@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Container, Typography, Box, Paper, Grid, Button, 
-  Chip, CircularProgress, Alert, Divider, Card, CardContent
+  Chip, CircularProgress, Alert, Divider, Card, CardContent,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import ReceiptIcon from '@mui/icons-material/Receipt';
+import HistoryIcon from '@mui/icons-material/History';
 import { useTranslation } from '../common/components/LocalizationProvider';
 
 const BillingPage = () => {
@@ -40,13 +42,13 @@ const BillingPage = () => {
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 10 }}>
-            {/* --- Header Section --- */}
+            {/* --- Header Section (Same as before but with audit icon) --- */}
             <Paper elevation={3} sx={{ p: 4, borderRadius: '24px', background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)', mb: 4 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                     <Typography variant="h3" sx={{ fontWeight: 900, background: 'linear-gradient(90deg, #60a5fa 0%, #3b82f6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                         Subscription Shield
                     </Typography>
-                    <ReceiptIcon color="primary" fontSize="large" sx={{ opacity: 0.5 }} />
+                    <VerifiedIcon color="primary" fontSize="large" sx={{ opacity: 0.5 }} />
                 </Box>
 
                 {error && <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }}>{error}</Alert>}
@@ -89,7 +91,7 @@ const BillingPage = () => {
                     ))}
                 </Grid>
 
-                {/* --- Total Fleet Summary --- */}
+                {/* --- Master Fleet Summary --- */}
                 <Box sx={{ 
                     p: 4, 
                     borderRadius: '20px', 
@@ -98,7 +100,6 @@ const BillingPage = () => {
                     display: 'flex',
                     flexDirection: { xs: 'column', md: 'row' },
                     justifyContent: 'space-between',
-                    alignItems: 'center',
                     boxShadow: '0 20px 40px rgba(59, 130, 246, 0.3)'
                 }}>
                    <Box>
@@ -106,7 +107,7 @@ const BillingPage = () => {
                         <Typography variant="h2" sx={{ fontWeight: 900 }}>
                             ₹{((bill?.plans?.find(p => p.id === selectedPlan)?.price || 0) * (bill?.devices?.length || 0)).toFixed(2)}
                         </Typography>
-                        <Typography variant="caption" sx={{ opacity: 0.7 }}>Inclusive of all day-wise accruals and administrative registration dates.</Typography>
+                        <Typography variant="caption" sx={{ opacity: 0.7 }}>Inclusive of accumulated accruals since your last administrative registration.</Typography>
                    </Box>
                    <Button 
                         variant="contained" 
@@ -123,39 +124,51 @@ const BillingPage = () => {
                             '&:hover': { background: '#f8fafc', color: '#1d4ed8' }
                         }}
                     >
-                        PAY & SECURE FLEET
+                        COMPLETE PAYMENT
                     </Button>
                 </Box>
 
-                {/* --- Device Breakdown --- */}
+                {/* --- Detailed Audit Records --- */}
                 <Box sx={{ mt: 6 }}>
-                    <Typography variant="h6" sx={{ mb: 3, fontWeight: 800, opacity: 0.9, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <VerifiedIcon color="success" /> Current IMEIs in Protection
+                    <Typography variant="h5" sx={{ mb: 3, fontWeight: 800, opacity: 0.9, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <HistoryIcon color="primary" /> Device Audit Records
                     </Typography>
-                    <Grid container spacing={2}>
-                        {bill?.devices?.map((dev, i) => (
-                            <Grid item xs={12} key={i}>
-                                <Box sx={{ 
-                                    p: 2, 
-                                    borderRadius: '12px', 
-                                    background: 'rgba(255,255,255,0.03)', 
-                                    display: 'flex', 
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    border: '1px solid rgba(255,255,255,0.05)'
-                                }}>
-                                    <Box>
-                                        <Typography sx={{ fontWeight: 700 }}>{dev.name}</Typography>
-                                        <Typography variant="caption" color="text.secondary">{dev.imei}</Typography>
-                                    </Box>
-                                    <Box sx={{ textAlign: 'right' }}>
-                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>Registered</Typography>
-                                        <Typography variant="caption" color="text.secondary">{new Date(dev.registrationDate).toLocaleDateString()}</Typography>
-                                    </Box>
-                                </Box>
-                            </Grid>
-                        ))}
-                    </Grid>
+                    <TableContainer component={Paper} sx={{ background: 'transparent', boxShadow: 'none' }}>
+                        <Table>
+                            <TableHead>
+                                <TableRow sx={{ '& th': { borderBottom: '2px solid rgba(255,255,255,0.1)', color: 'text.secondary', fontWeight: 800 } }}>
+                                    <TableCell>VEHICLE NAME / IMEI</TableCell>
+                                    <TableCell align="center">REG. DATE</TableCell>
+                                    <TableCell align="center">PREV. BILLING</TableCell>
+                                    <TableCell align="right">UNPAID DAYS</TableCell>
+                                    <TableCell align="right">AMOUNT</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {bill?.devices?.map((dev, i) => (
+                                    <TableRow key={i} sx={{ '& td': { borderBottom: '1px solid rgba(255,255,255,0.05)', py: 2 } }}>
+                                        <TableCell>
+                                            <Typography sx={{ fontWeight: 800, color: 'primary.light' }}>{dev.name}</Typography>
+                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 800 }}>{dev.imei}</Typography>
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Typography variant="body2">{new Date(dev.registrationDate).toLocaleDateString()}</Typography>
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Typography variant="body2" sx={{ color: 'success.light' }}>{new Date(dev.previousBillingDate).toLocaleDateString()}</Typography>
+                                            <Typography variant="caption" sx={{ opacity: 0.5 }}>Last Sync</Typography>
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            <Chip label={dev.unpaidDays} size="small" variant="outlined" sx={{ fontWeight: 800 }} />
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            <Typography sx={{ fontWeight: 900 }}>₹{dev.amount}</Typography>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
                 </Box>
             </Paper>
         </Container>

@@ -14,20 +14,20 @@ const PLANS = [
 const calculateBillForUser = async (userId) => {
     const user = await prisma.user.findUnique({
         where: { id: userId },
-        include: { vehicles: true, subscriptions: true }
+        include: { vehicles: true, subscriptions: { orderBy: { createdAt: 'desc' } } }
     });
     if (!user) throw new Error("User not found");
 
     const now = new Date();
     const deviceDetails = user.vehicles.map(v => {
         const regDate = new Date(v.registrationDate);
-        const lastSub = user.subscriptions.sort((a,b) => b.createdAt - a.createdAt)[0];
+        // Find the last subscription specifically for this device or user
+        const lastSub = user.subscriptions[0];
         const lastPaidDate = lastSub ? new Date(lastSub.createdAt) : regDate;
         
         const unpaidTime = Math.abs(now - lastPaidDate);
         const unpaidDays = Math.ceil(unpaidTime / (1000 * 60 * 60 * 24));
         
-        // Base monthly rate for accrual calculation: ₹6.66 per day
         const DAILY_RATE_BASE = 6.66;
         const amount = unpaidDays * DAILY_RATE_BASE;
 
@@ -35,6 +35,7 @@ const calculateBillForUser = async (userId) => {
             imei: v.imei,
             name: v.name,
             registrationDate: v.registrationDate,
+            previousBillingDate: lastPaidDate, // Explicit historical record
             unpaidDays,
             amount: parseFloat(amount.toFixed(2))
         };
