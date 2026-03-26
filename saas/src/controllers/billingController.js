@@ -1,15 +1,14 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-/** 
- * 📈 GeoSurePath Master Pricing Tiers (INR)
- */
+/** 📈 GeoSurePath Master Financial Constants */
 const PLANS = [
     { id: 'monthly', name: 'Standard Monthly', days: 30, price: 200, discount: 0 },
     { id: 'half_yearly', name: 'Safe Shield (6 Months)', days: 180, price: 1000, discount: 16.7 },
     { id: 'yearly', name: 'Guardian Pro (1 Year)', days: 365, price: 2000, discount: 16.7 }
 ];
 
+/** 🎯 Core Bill Calculation for All Devices in User Account */
 const calculateBillForUser = async (userId) => {
     const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -42,7 +41,8 @@ const calculateBillForUser = async (userId) => {
     const totalDue = deviceDetails.reduce((sum, d) => sum + d.amount, 0);
 
     return {
-        userId: user.id, // For admin settled actions
+        userId: user.id,
+        userEmail: user.email,
         totalDue: parseFloat(totalDue.toFixed(2)),
         currency: 'INR',
         plans: PLANS.map(p => ({
@@ -52,6 +52,51 @@ const calculateBillForUser = async (userId) => {
         devices: deviceDetails,
         nextBillingDate: new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000))
     };
+};
+
+/** 📊 Admin Financial Insight Engine */
+const getAdminAnalytics = async (req, res) => {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
+    
+    try {
+        const subscriptions = await prisma.subscription.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
+
+        const usersCount = await prisma.user.count();
+        const devicesCount = await prisma.vehicle.count();
+
+        // Month-wise aggregation
+        const monthlyRevenue = {};
+        subscriptions.forEach(sub => {
+            const month = sub.createdAt.toISOString().slice(0, 7); // YYYY-MM
+            monthlyRevenue[month] = (monthlyRevenue[month] || 0) + sub.amount;
+        });
+
+        const latestMonth = Object.keys(monthlyRevenue).sort().reverse()[0] || 'N/A';
+        const latestAmount = latestMonth !== 'N/A' ? monthlyRevenue[latestMonth] : 0;
+        
+        // Approximate expected collection (Devices * Average Plan)
+        const approxCollection = devicesCount * 200; 
+        const pendingValue = approxCollection - latestAmount;
+        const churnRate = 2.5; // Estimated churn placeholder for UI demo as requested
+
+        res.json({
+            summary: {
+                totalRevenue: subscriptions.reduce((s, it) => s + it.amount, 0),
+                latestMonth,
+                latestRevenue: latestAmount,
+                totalUsers: usersCount,
+                totalDevices: devicesCount,
+                approxCollection,
+                pendingValue,
+                churnRate
+            },
+            monthlyBreakdown: monthlyRevenue
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 };
 
 const getMyBill = async (req, res) => {
@@ -68,7 +113,6 @@ const settleCash = async (req, res) => {
     
     const { targetUserId, planId, amount } = req.body;
     try {
-        // Record manual cash subscription
         const sub = await prisma.subscription.create({
             data: {
                 userId: targetUserId,
@@ -79,8 +123,8 @@ const settleCash = async (req, res) => {
             }
         });
         
-        // Update all vehicles registration date to 'today' to reset accrual
-        // This synchronizes them to the next cycle
+        // --- AUTO EXPIRY DATE ALIGNMENT ---
+        // We set the registrationDate to 'today' which resets the billing calculation to start from now.
         const now = new Date();
         await prisma.vehicle.updateMany({
             where: { userId: targetUserId },
@@ -107,4 +151,4 @@ const adminUpdateRegistration = async (req, res) => {
     }
 };
 
-module.exports = { getMyBill, adminUpdateRegistration, settleCash, PLANS };
+module.exports = { getMyBill, adminUpdateRegistration, settleCash, getAdminAnalytics, PLANS };
