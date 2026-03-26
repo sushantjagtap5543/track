@@ -29,8 +29,9 @@ exports.register = async (req, res) => {
     try {
       geosurepathUser = await geosurepathService.createUser(name, email, password);
     } catch (err) {
-      if (err.message && /duplicate|unique/i.test(err.message)) {
-        throw new Error('Email is already registered. Please login.', { cause: err });
+      const errorText = err.message || '';
+      if (/duplicate|unique|already exists|exists/i.test(errorText)) {
+        return res.status(400).json({ error: 'This email is already registered in our system. Please login instead.' });
       }
       throw err;
     }

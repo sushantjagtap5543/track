@@ -86,7 +86,7 @@ const NativeInterface = () => {
 
         // Sync token with SaaS API for Enterprise Push Alerts
         try {
-          const saasToken = localStorage.getItem('token'); // SaaS JWT token
+          const saasToken = localStorage.getItem('saas_token'); // Unified SaaS JWT key
           if (saasToken) {
             await fetch('/api/geosurepath/tokens', {
               method: 'POST',

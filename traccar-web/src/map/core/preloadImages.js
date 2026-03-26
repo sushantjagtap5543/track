@@ -10,19 +10,20 @@ import motorcycleSvg from '../../resources/images/icon/motorcycle.svg';
 import personSvg from '../../resources/images/icon/person.svg';
 import truckSvg from '../../resources/images/icon/truck.svg';
 import vanSvg from '../../resources/images/icon/van.svg';
-import nanoBananaPng from '../../resources/images/icon/nano_banana_marker.png';
+import clean3dCar from '../../resources/images/icon/clean_3d_car.png';
+import clean3dSuv from '../../resources/images/icon/clean_3d_suv.png';
 
 export const mapIcons = {
   bicycle: bicycleSvg,
   bus: busSvg,
-  car: nanoBananaPng,
-  default: nanoBananaPng,
+  car: clean3dCar,
+  default: clean3dCar,
   motorcycle: motorcycleSvg,
   person: personSvg,
-  suv: nanoBananaPng,
+  suv: clean3dSuv,
   truck: truckSvg,
   van: vanSvg,
-  nanobanana: nanoBananaPng,
+  nanobanana: clean3dCar,
 };
 
 export const mapIconKey = (category) => {

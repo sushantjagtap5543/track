@@ -153,6 +153,24 @@ const LoginPage = () => {
       });
       if (response.ok) {
         const user = await response.json();
+        
+        // --- SaaS API Sync ---
+        try {
+          const saasRes = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          if (saasRes.ok) {
+            const saasData = await saasRes.json();
+            window.localStorage.setItem('saas_token', saasData.token);
+            window.localStorage.setItem('saas_user', JSON.stringify(saasData));
+          }
+        } catch (saasError) {
+          console.warn('SaaS background authentication failed:', saasError);
+          // We continue anyway as core tracking might still work
+        }
+
         generateLoginToken();
         dispatch(sessionActions.updateUser(user));
         const target = window.sessionStorage.getItem('postLogin') || '/';

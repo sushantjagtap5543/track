@@ -17,11 +17,25 @@ const getAudioContext = () => {
   if (!audioContext || audioContext.state === 'closed') {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
-  if (audioContext.state === 'suspended') {
-    audioContext.resume();
-  }
   return audioContext;
 };
+
+// --- Browser Interaction Unlocker ---
+// Modern browsers block audio until FIRST interaction. This listener resumes the context.
+const unlockAudio = () => {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+        ctx.resume();
+    }
+    // Remove listener once unlocked
+    window.removeEventListener('click', unlockAudio);
+    window.removeEventListener('touchstart', unlockAudio);
+};
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('click', unlockAudio);
+    window.addEventListener('touchstart', unlockAudio);
+}
 
 /**
  * Creates a gain envelope (attack-sustain-release).
@@ -143,6 +157,29 @@ const DEGRADATION_ALARMS = new Set([
 ]);
 
 /**
+ * 🚨 Security Siren — Intense alternating high-frequency pulses
+ * Specifically for Safe Parking breaches or SOS.
+ */
+export const playSecuritySiren = () => {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+    for (let i = 0; i < 15; i += 1) {
+      const freq = i % 2 === 0 ? 1200 : 1600;
+      playTone(ctx, ctx.destination, freq, now + i * 0.1, 0.08, 'square', 0.15);
+    }
+};
+
+/**
+ * 🔔 Digital Chime — Fast premium double-ping (B5 → B6)
+ */
+export const playDigitalChime = () => {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+    playTone(ctx, ctx.destination, 987.77, now, 0.05, 'sine', 0.3); // B5
+    playTone(ctx, ctx.destination, 1975.53, now + 0.08, 0.05, 'sine', 0.2); // B6
+};
+
+/**
  * Determines which sound to play for a given event and plays it.
  * @param {object} event - The event object from the socket.
  */
@@ -152,17 +189,31 @@ export const playEventSound = (event) => {
     return;
   }
 
-  const { type } = event;
+  const { type, attributes } = event;
 
-  // Alarm events: choose between alert and warning based on sub-type
+  // 1. Critical Security Level
+  const isSecurityBreach = type === 'geofenceExit' && attributes?.name?.startsWith('Safe Parking');
+  const isSOS = type === 'alarm' && attributes?.alarm === 'sos';
+
+  if (isSecurityBreach || isSOS) {
+    playSecuritySiren();
+    return;
+  }
+
+  // 2. Alarm level
   if (type === 'alarm') {
-    const alarmType = event.attributes?.alarm;
+    const alarmType = attributes?.alarm;
     if (alarmType && DEGRADATION_ALARMS.has(alarmType)) {
       playWarning();
     } else {
-      // Default to urgent alert for critical/unknown alarm types
       playAlert();
     }
+    return;
+  }
+
+  // 3. Status level
+  if (type === 'deviceOnline' || type === 'deviceOffline') {
+    playDigitalChime();
     return;
   }
 
@@ -175,7 +226,6 @@ export const playEventSound = (event) => {
   } else if (INFO_EVENTS.has(type)) {
     playInfo();
   } else {
-    // Default for all other events (deviceMoving, deviceStopped, geofenceExit, ignition, etc.)
     playNotification();
   }
 };

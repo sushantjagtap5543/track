@@ -95,26 +95,32 @@ const useStyles = makeStyles()((theme) => ({
     border: `1px solid ${theme.palette.neutral.main}`,
   },
   controlButton: {
-    border: '1.5px solid',
-    borderRadius: '50%',
-    padding: '3px',
-    transition: 'all 0.2s ease',
+    padding: '4px 8px',
+    borderRadius: '16px',
+    fontSize: '0.65rem',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    minWidth: '60px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
     '&:hover': {
-      transform: 'scale(1.15)',
+      transform: 'translateY(-1px)',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
     },
   },
   controlStop: {
-    borderColor: theme.palette.error.main,
-    color: theme.palette.error.main,
+    backgroundColor: theme.palette.error.main,
+    color: theme.palette.common.white,
     '&:hover': {
-      backgroundColor: 'rgba(211, 47, 47, 0.1)',
+      backgroundColor: theme.palette.error.dark,
     },
   },
   controlStart: {
-    borderColor: theme.palette.success.main,
-    color: theme.palette.success.main,
+    backgroundColor: theme.palette.success.main,
+    color: theme.palette.common.white,
     '&:hover': {
-      backgroundColor: 'rgba(46, 125, 50, 0.1)',
+      backgroundColor: theme.palette.success.dark,
     },
   },
   '@keyframes pulse-green': {
@@ -338,20 +344,20 @@ const DeviceRow = ({ devices, index, style }) => {
                   className={`${classes.ignitionStatus} ${position.attributes?.ignition ? classes.ignitionOn : classes.ignitionOff}`}
                 >
                   <EngineIcon width={12} height={12} />
-                  {position.attributes?.ignition ? 'IGN: ON' : 'IGN: OFF'}
+                  {position.attributes?.ignition ? 'ENGINE ON' : 'ENGINE OFF'}
                 </span>
               </Tooltip>
               <Tooltip
-                title={position.attributes?.ignition ? 'Lock Engine (Immobilize)' : 'Unlock Engine (Allow Start)'}
+                title={position.attributes?.ignition ? 'Remotely Cut Engine' : 'Restore Engine Power'}
               >
                 <IconButton
                   size="small"
                   disabled={pendingIgnition}
                   className={`${classes.controlButton} ${position.attributes?.ignition ? classes.controlStop : classes.controlStart}`}
                   onClick={(e) => handleIgnitionToggle(e, item.id, position.attributes?.ignition || false)}
-                  sx={{ opacity: pendingIgnition ? 0.5 : 1 }}
+                  sx={{ opacity: pendingIgnition ? 0.5 : 1, borderRadius: '4px' }}
                 >
-                  {position.attributes?.ignition ? <LockIcon sx={{ fontSize: 16 }} /> : <LockOpenIcon sx={{ fontSize: 16, paddingLeft: '1px' }} />}
+                  {position.attributes?.ignition ? 'STOP' : 'RESUME'}
                 </IconButton>
               </Tooltip>
             </>

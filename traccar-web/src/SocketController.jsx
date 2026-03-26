@@ -47,18 +47,21 @@ const SocketController = () => {
       if (!features.disableEvents) {
         dispatch(eventsActions.add(events));
       }
-      if (
-        events.some(
-          (e) =>
-            soundEvents.includes(e.type) ||
-            (e.type === 'alarm' && soundAlarms.includes(e.attributes.alarm)),
-        )
-      ) {
-        // Play context-appropriate sound for the most relevant event
+      
+      const shouldPlaySound = events.some(
+        (e) =>
+          soundEvents.includes(e.type) ||
+          (e.type === 'alarm' && soundAlarms.includes(e.attributes.alarm)) ||
+          // Smart Overlay: Always sound for critical status changes if prefs are default
+          (!soundEvents && !soundAlarms && ['deviceOnline', 'deviceOffline', 'alarm', 'ignitionOn', 'ignitionOff'].includes(e.type))
+      );
+
+      if (shouldPlaySound) {
         const relevantEvent = events.find(
           (e) =>
             soundEvents.includes(e.type) ||
-            (e.type === 'alarm' && soundAlarms.includes(e.attributes.alarm)),
+            (e.type === 'alarm' && soundAlarms.includes(e.attributes.alarm)) ||
+            (!soundEvents && !soundAlarms && ['deviceOnline', 'deviceOffline', 'alarm', 'ignitionOn', 'ignitionOff'].includes(e.type))
         );
         try {
           playEventSound(relevantEvent);
