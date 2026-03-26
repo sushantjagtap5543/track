@@ -33,8 +33,8 @@ export const prepareIcon = (background, icon, color) => {
   const is3D = icon && icon.src && (icon.src.endsWith('.png') || icon.src.includes('clean_3d'));
   const canvas = document.createElement('canvas');
   
-  // 2.0x scale for 3D markers - make them look premium and clear
-  const scale = is3D ? 2.0 : 1.0; 
+  // 2.5x scale for 3D markers - make them look premium and clear as requested
+  const scale = is3D ? 2.5 : 1.0; 
   canvas.width = background.width * devicePixelRatio * scale;
   canvas.height = background.height * devicePixelRatio * scale;
   canvas.style.width = `${background.width * scale}px`;
@@ -54,7 +54,7 @@ export const prepareIcon = (background, icon, color) => {
       const imageWidth = canvas.width * iconRatio;
       const imageHeight = canvas.height * iconRatio;
       context.drawImage(
-        icon,
+        canvasTintImage(icon, color),
         (canvas.width - imageWidth) / 2,
         (canvas.height - imageHeight) / 2 - (canvas.height * 0.08),
         imageWidth,
@@ -88,4 +88,60 @@ export const getMapColor = (device, position) => {
 export const createCircle = (latitude, longitude, radius) => {
   const circle = turfCircle([longitude, latitude], radius, { units: 'meters' });
   return circle.geometry.coordinates[0].map((c) => [c[1], c[0]]);
+};
+
+export const reverseCoordinates = (it) => {
+  if (!it) {
+    return it;
+  }
+  if (Array.isArray(it)) {
+    if (it.length === 2 && typeof it[0] === 'number' && typeof it[1] === 'number') {
+      return [it[1], it[0]];
+    }
+    return it.map((it) => reverseCoordinates(it));
+  }
+  return {
+    ...it,
+    coordinates: reverseCoordinates(it.coordinates),
+  };
+};
+
+export const geofenceToFeature = (theme, item) => {
+  let geometry;
+  if (item.area.indexOf('CIRCLE') > -1) {
+    const coordinates = item.area
+      .replace(/CIRCLE|\(|\)|,/g, ' ')
+      .trim()
+      .split(/ +/);
+    const options = { steps: 32, units: 'meters' };
+    const polygon = turfCircle(
+      [Number(coordinates[1]), Number(coordinates[0])],
+      Number(coordinates[2]),
+      options,
+    );
+    geometry = polygon.geometry;
+  } else {
+    geometry = reverseCoordinates(parse(item.area));
+  }
+  return {
+    id: item.id,
+    type: 'Feature',
+    geometry,
+    properties: {
+      name: item.name,
+      color: item.attributes.color || theme.palette.geometry.main,
+      width: item.attributes.mapLineWidth || 2,
+      opacity: item.attributes.mapLineOpacity || 1,
+    },
+  };
+};
+
+export const geometryToArea = (geometry) => stringify(reverseCoordinates(geometry));
+
+export const findFonts = (map) => {
+  const { glyphs } = map.getStyle();
+  if (glyphs && glyphs.startsWith('https://tiles.openfreemap.org')) {
+    return ['Noto Sans Regular'];
+  }
+  return ['Open Sans Regular', 'Arial Unicode MS Regular'];
 };
