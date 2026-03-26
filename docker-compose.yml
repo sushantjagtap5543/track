@@ -59,6 +59,8 @@ services:
     # No direct port exposure (Nginx only)
     env_file:
       - ./saas/.env
+    volumes:
+      - ./saas/firebase-service-account.json:/app/firebase-service-account.json:ro
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-geosurepath}:${DB_PASSWORD}@db:5432/${DB_NAME:-geosurepath}?schema=saas
       - REDIS_HOST=redis
