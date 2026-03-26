@@ -1,54 +1,57 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-/**
- * 💰 GeoSurePath Master Billing Engine
- * Logic: Daily calculation per device registration, synchronized billing dates.
+/** 
+ * 📈 GeoSurePath Master Pricing Tiers (INR)
+ * Monthly: ₹200 | Half-Yearly: ₹1000 | Yearly: ₹2000
  */
-
-const DAILY_RATE_PER_DEVICE = 10; // Example: ₹10 per device per day
+const PLANS = [
+    { id: 'monthly', name: 'Standard Monthly', days: 30, price: 200, discount: 0 },
+    { id: 'half_yearly', name: 'Safe Shield (6 Months)', days: 180, price: 1000, discount: 16.7 },
+    { id: 'yearly', name: 'Guardian Pro (1 Year)', days: 365, price: 2000, discount: 16.7 }
+];
 
 const calculateBillForUser = async (userId) => {
     const user = await prisma.user.findUnique({
         where: { id: userId },
         include: { vehicles: true, subscriptions: true }
     });
-
     if (!user) throw new Error("User not found");
 
     const now = new Date();
-    let totalDue = 0;
-    const deviceDetails = [];
-
-    user.vehicles.forEach(vehicle => {
-        const regDate = new Date(vehicle.registrationDate);
-        const diffTime = Math.abs(now - regDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        // Example logic: Pay for what has been used since registration OR since last payment
+    const deviceDetails = user.vehicles.map(v => {
+        const regDate = new Date(v.registrationDate);
         const lastSub = user.subscriptions.sort((a,b) => b.createdAt - a.createdAt)[0];
         const lastPaidDate = lastSub ? new Date(lastSub.createdAt) : regDate;
         
         const unpaidTime = Math.abs(now - lastPaidDate);
         const unpaidDays = Math.ceil(unpaidTime / (1000 * 60 * 60 * 24));
+        
+        // Base monthly rate for accrual calculation: ₹6.66 per day
+        const DAILY_RATE_BASE = 6.66;
+        const amount = unpaidDays * DAILY_RATE_BASE;
 
-        const amount = unpaidDays * DAILY_RATE_PER_DEVICE;
-        totalDue += amount;
-
-        deviceDetails.push({
-            imei: vehicle.imei,
-            name: vehicle.name,
-            registrationDate: vehicle.registrationDate,
+        return {
+            imei: v.imei,
+            name: v.name,
+            registrationDate: v.registrationDate,
             unpaidDays,
-            amount
-        });
+            amount: parseFloat(amount.toFixed(2))
+        };
     });
 
+    const totalDue = deviceDetails.reduce((sum, d) => sum + d.amount, 0);
+
     return {
-        totalDue,
+        totalDue: parseFloat(totalDue.toFixed(2)),
         currency: 'INR',
+        plans: PLANS.map(p => ({
+            ...p,
+            costPerDay: parseFloat((p.price / p.days).toFixed(2)),
+            totalForFleet: parseFloat((p.price * user.vehicles.length).toFixed(2))
+        })),
         devices: deviceDetails,
-        nextBillingDate: new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()) // Synchronized monthly
+        nextBillingDate: new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000))
     };
 };
 
@@ -63,7 +66,6 @@ const getMyBill = async (req, res) => {
 
 const adminUpdateRegistration = async (req, res) => {
     if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
-    
     const { vehicleId, registrationDate } = req.body;
     try {
         const updated = await prisma.vehicle.update({
@@ -76,4 +78,4 @@ const adminUpdateRegistration = async (req, res) => {
     }
 };
 
-module.exports = { getMyBill, adminUpdateRegistration };
+module.exports = { getMyBill, adminUpdateRegistration, PLANS };
