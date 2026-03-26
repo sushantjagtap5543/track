@@ -3,7 +3,7 @@ import {
   Container, Typography, Box, Paper, Grid, Button, 
   Chip, CircularProgress, Alert, Divider, Card, CardContent,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  IconButton, Tooltip
+  IconButton
 } from '@mui/material';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import VerifiedIcon from '@mui/icons-material/Verified';
@@ -11,6 +11,10 @@ import TimelineIcon from '@mui/icons-material/Timeline';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import HistoryIcon from '@mui/icons-material/History';
 import PaymentsIcon from '@mui/icons-material/Payments';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import GroupIcon from '@mui/icons-material/Group';
+import WarningIcon from '@mui/icons-material/Warning';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { useAdministrator } from '../common/util/permissions';
 
@@ -57,7 +61,7 @@ const BillingPage = () => {
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ 
-                    targetUserId: bill.userId, // Controller will provide userId in bill
+                    targetUserId: bill.userId,
                     planId: selectedPlan,
                     amount: plan.price * bill.devices.length
                 })
@@ -83,10 +87,44 @@ const BillingPage = () => {
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 10 }}>
+            {/* --- TOP ADMIN ANALYTICS DASHBOARD --- */}
+            {admin && (
+                <Grid container spacing={3} sx={{ mb: 6 }}>
+                    <Grid item xs={12} md={3}>
+                        <Paper sx={{ p: 3, borderRadius: '20px', background: 'rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                            <AccountBalanceWalletIcon color="primary" sx={{ mb: 1 }} />
+                            <Typography variant="caption" display="block">TOTAL REVENUE (FLEET)</Typography>
+                            <Typography variant="h5" fontWeight={900}>₹{bill.totalDue}</Typography>
+                        </Paper>
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                        <Paper sx={{ p: 3, borderRadius: '20px', background: 'rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                            <GroupIcon color="secondary" sx={{ mb: 1 }} />
+                            <Typography variant="caption" display="block">ACTIVE DEVICES</Typography>
+                            <Typography variant="h5" fontWeight={900}>{bill.devices.length}</Typography>
+                        </Paper>
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                        <Paper sx={{ p: 3, borderRadius: '20px', background: 'rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                            <WarningIcon color="error" sx={{ mb: 1 }} />
+                            <Typography variant="caption" display="block">OVERDUE DAYS</Typography>
+                            <Typography variant="h5" fontWeight={900}>{Math.max(...bill.devices.map(d => d.unpaidDays))}</Typography>
+                        </Paper>
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                        <Paper sx={{ p: 3, borderRadius: '20px', background: 'rgba(6, 182, 212, 0.1)', textAlign: 'center', border: '1px solid #06b6d4' }}>
+                            <AssessmentIcon sx={{ color: '#06b6d4', mb: 1 }} />
+                            <Typography variant="caption" display="block">GROWTH RISK</Typography>
+                            <Typography variant="h5" sx={{ color: '#06b6d4' }} fontWeight={900}>STABLE</Typography>
+                        </Paper>
+                    </Grid>
+                </Grid>
+            )}
+
             <Paper elevation={3} sx={{ p: 4, borderRadius: '24px', background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)', mb: 4 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                     <Typography variant="h3" sx={{ fontWeight: 900, background: 'linear-gradient(90deg, #60a5fa 0%, #3b82f6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                        GeoSure Billing Hub
+                        Subscription Shield
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 2 }}>
                         {admin && (
@@ -98,7 +136,7 @@ const BillingPage = () => {
                                 disabled={settling}
                                 sx={{ borderRadius: '12px', fontWeight: 800 }}
                             >
-                                {settling ? 'SETTLING...' : 'FORCE CASH SETTLE (ADMIN)'}
+                                {settling ? 'SETTLING...' : 'MANUAL CASH SETTLE'}
                             </Button>
                         )}
                         <VerifiedIcon color="primary" fontSize="large" sx={{ opacity: 0.5 }} />
@@ -107,7 +145,7 @@ const BillingPage = () => {
 
                 {error && <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }}>{error}</Alert>}
 
-                <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, opacity: 0.7 }}>PROVISIONING TIERS:</Typography>
+                <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, opacity: 0.7 }}>SELECT YOUR PROTECTION FREQUENCY:</Typography>
                 
                 <Grid container spacing={3} sx={{ mb: 5 }}>
                     {bill?.plans?.map((plan) => (
@@ -153,7 +191,7 @@ const BillingPage = () => {
                     boxShadow: '0 20px 40px rgba(59, 130, 246, 0.3)'
                 }}>
                    <Box>
-                        <Typography variant="subtitle1" sx={{ opacity: 0.9 }}>AGGREGATED FLEET FEE ({bill?.devices?.length} DEVICES)</Typography>
+                        <Typography variant="subtitle1" sx={{ opacity: 0.9 }}>TOTAL FLEET COMMITMENT ({bill?.devices?.length} DEVICES)</Typography>
                         <Typography variant="h2" sx={{ fontWeight: 900 }}>₹{totalFleetAmount.toFixed(2)}</Typography>
                         <Typography variant="caption" sx={{ opacity: 0.7 }}>Inclusive of staggered registration accruals and plan coverage.</Typography>
                    </Box>
@@ -172,13 +210,13 @@ const BillingPage = () => {
                             '&:hover': { background: '#f8fafc', color: '#1d4ed8' }
                         }}
                     >
-                        PAY VIA GATEWAY
+                        PAY SUBSCRIPTION
                     </Button>
                 </Box>
 
                 <Box sx={{ mt: 6 }}>
                     <Typography variant="h5" sx={{ mb: 3, fontWeight: 800, opacity: 0.9, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <HistoryIcon color="primary" /> Fleet Audit Ledger
+                        <HistoryIcon color="primary" /> Fleet Audit Records
                     </Typography>
                     <TableContainer component={Paper} sx={{ background: 'transparent', boxShadow: 'none' }}>
                         <Table>

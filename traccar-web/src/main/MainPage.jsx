@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Paper } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useTheme } from '@mui/material/styles';
@@ -87,7 +88,29 @@ const useStyles = makeStyles()((theme) => ({
 const MainPage = () => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const theme = useTheme();
+
+  useEffect(() => {
+    // Sovereign Sentry: Mandatory Billing Redirect
+    const checkSubscription = async () => {
+      const token = localStorage.getItem('saas_token');
+      if (token) {
+        try {
+          const res = await fetch('/api/billing/my-bill', {
+             headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const bill = await res.json();
+          if (bill && bill.totalDue > 0) {
+             navigate('/billing', { replace: true });
+          }
+        } catch (e) {
+          console.error('Subscription check failed');
+        }
+      }
+    };
+    checkSubscription();
+  }, [navigate]);
 
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
 

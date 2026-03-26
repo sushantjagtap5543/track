@@ -142,7 +142,7 @@ const LoginLayout = ({ children }) => {
         className={classes.content}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 1 }}
+        transition={{ duration: 0.3 }}
       >
         <div className={classes.sidebar}>
           <motion.div
@@ -165,9 +165,9 @@ const LoginLayout = ({ children }) => {
 
         <div className={classes.formWrapper}>
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 50 }}
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, type: 'spring', stiffness: 100 }}
+            transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
             style={{ width: '100%', maxWidth: '480px' }}
           >
             <Paper className={classes.paper} elevation={0}>
