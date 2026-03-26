@@ -9,7 +9,7 @@ async function hyperSync() {
     // TRACCAR CONFIG (Standard Admin Credentials Found)
     const TRACCAR_URL = "http://geosurepath:8082";
     const TRACCAR_MASTER_AUTH = { 
-        'Authorization': 'Basic ' + Buffer.from('admin@geosurepath.com:admin').toString('base64'), 
+        'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'), 
         'Content-Type': 'application/json' 
     };
 
