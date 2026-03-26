@@ -2,7 +2,6 @@ import { useCallback, useEffect } from 'react';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useDispatch, useSelector } from 'react-redux';
-import maplibregl from 'maplibre-gl';
 import MapView, { map } from '../map/core/MapView';
 import MapSelectedDevice from '../map/main/MapSelectedDevice';
 import MapAccuracy from '../map/main/MapAccuracy';
@@ -23,27 +22,25 @@ import useFeatures from '../common/util/useFeatures';
 const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
-
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
-
   const eventsAvailable = useSelector((state) => !!state.events.items.length);
-
   const features = useFeatures();
 
-  // --- Auto Fleet Zoom Logic ---
+  // --- Auto Fleet Zoom Logic (Reliable Array Mode) ---
   useEffect(() => {
-    if (filteredPositions.length > 0) {
-      const bounds = filteredPositions.reduce((b, p) => {
-        return b.extend([p.longitude, p.latitude]);
-      }, new maplibregl.LngLatBounds(
-        [filteredPositions[0].longitude, filteredPositions[0].latitude],
-        [filteredPositions[0].longitude, filteredPositions[0].latitude]
-      ));
+    if (filteredPositions && filteredPositions.length > 0) {
+      const lngs = filteredPositions.map(p => p.longitude);
+      const lats = filteredPositions.map(p => p.latitude);
+      
+      const bounds = [
+        Math.min(...lngs), Math.min(...lats),
+        Math.max(...lngs), Math.max(...lats)
+      ];
       
       map.fitBounds(bounds, {
-        padding: 50,
+        padding: 60,
         maxZoom: 15,
-        duration: 2000
+        duration: 1500
       });
     }
   }, [filteredPositions]);
