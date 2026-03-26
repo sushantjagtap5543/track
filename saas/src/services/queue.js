@@ -1,8 +1,8 @@
 const { Queue, Worker } = require('bullmq');
 const IORedis = require('ioredis');
-const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const geosurepathService = require('./geosurepath');
+const fcmService = require('./fcm');
 
 const redisConnection = new IORedis({
   host: process.env.REDIS_HOST || '127.0.0.1',
@@ -23,6 +23,7 @@ redisConnection.on('error', (err) => {
 const emailQueue = new Queue('EmailQueue', { connection: redisConnection });
 const alertQueue = new Queue('AlertQueue', { connection: redisConnection });
 const billingQueue = new Queue('BillingQueue', { connection: redisConnection });
+const notificationQueue = new Queue('NotificationQueue', { connection: redisConnection });
 
 // Initialize Workers
 const startWorkers = () => {
@@ -65,6 +66,32 @@ const startWorkers = () => {
         } catch (error) {
             console.error('[AlertWorker] Error processing stay-duration check:', error);
         }
+    }
+  }, { connection: redisConnection });
+
+  const notificationWorker = new Worker('NotificationQueue', async job => {
+    const { userId, type, message, data } = job.data;
+    try {
+        console.log(`[NotificationWorker] Processing job for user ${userId}`);
+        
+        // 1. Create DB record
+        await prisma.notification.create({
+            data: {
+                userId,
+                type,
+                message
+            }
+        });
+
+        // 2. Send Push Notification
+        await fcmService.sendToUser(userId, {
+            title: `GeoSurePath: ${type.replace(/_/g, ' ')}`,
+            body: message,
+            data
+        });
+        
+    } catch (error) {
+        console.error('[NotificationWorker] Error processing notification:', error);
     }
   }, { connection: redisConnection });
 
@@ -125,5 +152,6 @@ module.exports = {
   emailQueue,
   alertQueue,
   billingQueue,
+  notificationQueue,
   startWorkers
 };

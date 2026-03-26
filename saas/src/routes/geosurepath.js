@@ -2,8 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { alertQueue } = require('../services/queue');
-const fcmService = require('../services/fcm');
+const { alertQueue, notificationQueue } = require('../services/queue');
 const { authenticateToken } = require('../middleware/authMiddleware');
 
 /**
@@ -48,33 +47,34 @@ router.post('/events', async (req, res) => {
         let type = "GENERIC";
         let message = `Alert for ${vehicle.name}: ${event.type}`;
 
-        // Specialized handling for Safe Parking
-        if (event.type === 'geofenceExit' && event.attributes.name && event.attributes.name.startsWith('SafeParking')) {
+        // specialized handling for Safe Parking
+        const isSafeParkingBreach = (event.type === 'geofenceExit' && (
+            (event.attributes.name && (event.attributes.name.startsWith('SafeParking') || event.attributes.name.startsWith('Safe Parking'))) ||
+            (event.geofenceId === vehicle.geosurepathGeofenceId)
+        ));
+
+        if (isSafeParkingBreach) {
             type = "SAFE_PARKING_BREACH";
             message = `SECURITY ALERT: ${vehicle.name} has moved out of its Safe Parking zone!`;
         }
 
         // Potential tampering based on alarm or ignition
-        if (event.type === 'alarm' && (event.attributes.alarm === 'tampering' || event.attributes.alarm === 'powerCut')) {
+        const isTampering = event.type === 'alarm' && 
+            ['tampering', 'powerCut', 'vibration', 'door'].includes(event.attributes.alarm);
+            
+        if (isTampering && !isSafeParkingBreach) {
             type = "TAMPERING";
             message = `TAMPERING ALERT: Potential tampering detected on ${vehicle.name}! (${event.attributes.alarm})`;
         }
 
-        await prisma.notification.create({
-            data: {
-                userId: vehicle.userId,
-                type: type,
-                message: message
-            }
-        });
-
-        // Trigger Push Notification
-        fcmService.sendToUser(vehicle.userId, {
-            title: `GeoSurePath: ${type.replace(/_/g, ' ')}`,
-            body: message,
+        // Background push notification and persistence
+        await notificationQueue.add('send-notification', {
+            userId: vehicle.userId,
+            type,
+            message,
             data: {
                 vehicleId: vehicle.id,
-                type: type,
+                type,
                 eventId: event.id.toString()
             }
         });

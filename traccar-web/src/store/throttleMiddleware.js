@@ -1,9 +1,9 @@
 import { sessionActions } from './session';
 import { devicesActions } from './devices';
 
-const threshold = 3; // per second
-const minInterval = 1500;
-const maxInterval = 30000;
+const threshold = 20; // per second (Higher for smoother UI during movement)
+const minInterval = 300; // Lowered to 300ms for fluid updates
+const maxInterval = 10000;
 const scaleFactor = 1000;
 
 // eslint-disable-next-line no-undef
