@@ -109,7 +109,7 @@ async function promoteToAdmin(prisma, email) {
         });
         
         // Promote in Traccar Core DB
-        await prisma.$executeRawUnsafe(`UPDATE tc_users SET administrator = true WHERE email = $1`, email.toLowerCase());
+        await prisma.$executeRawUnsafe(`UPDATE public.tc_users SET administrator = true WHERE email = $1`, email.toLowerCase());
 
         console.log(`Successfully promoted ${email} to ADMIN in both SaaS and Core.`);
         return true;
