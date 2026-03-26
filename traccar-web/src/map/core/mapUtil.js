@@ -37,19 +37,37 @@ export const prepareIcon = (background, icon, color) => {
   canvas.style.height = `${background.height}px`;
 
   const context = canvas.getContext('2d');
-  context.drawImage(background, 0, 0, canvas.width, canvas.height);
 
-  if (icon) {
-    const iconRatio = 0.5;
+  if (icon && icon.src && icon.src.endsWith('.png')) {
+    // 3D Marker Upgrade: Draw colored background base, but leave custom 3D car untouched
+    context.drawImage(canvasTintImage(background, color), 0, 0, canvas.width, canvas.height);
+    
+    const iconRatio = 0.65; // Scale larger to sit beautifully inside map pin
     const imageWidth = canvas.width * iconRatio;
     const imageHeight = canvas.height * iconRatio;
     context.drawImage(
-      canvasTintImage(icon, color),
+      icon,
       (canvas.width - imageWidth) / 2,
-      (canvas.height - imageHeight) / 2,
+      (canvas.height - imageHeight) / 2 - (canvas.height * 0.08), // Slight upward offset
       imageWidth,
       imageHeight,
     );
+  } else {
+    // Standard Vector Marker Logic
+    context.drawImage(background, 0, 0, canvas.width, canvas.height);
+
+    if (icon) {
+      const iconRatio = 0.5;
+      const imageWidth = canvas.width * iconRatio;
+      const imageHeight = canvas.height * iconRatio;
+      context.drawImage(
+        canvasTintImage(icon, color),
+        (canvas.width - imageWidth) / 2,
+        (canvas.height - imageHeight) / 2,
+        imageWidth,
+        imageHeight,
+      );
+    }
   }
 
   return context.getImageData(0, 0, canvas.width, canvas.height);

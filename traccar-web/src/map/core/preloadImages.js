@@ -6,26 +6,23 @@ import directionSvg from '../../resources/images/direction.svg';
 import backgroundSvg from '../../resources/images/background.svg';
 import bicycleSvg from '../../resources/images/icon/bicycle.svg';
 import busSvg from '../../resources/images/icon/bus.svg';
-import carSvg from '../../resources/images/icon/car.svg';
-import defaultSvg from '../../resources/images/icon/default.svg';
 import motorcycleSvg from '../../resources/images/icon/motorcycle.svg';
 import personSvg from '../../resources/images/icon/person.svg';
-import suvSvg from '../../resources/images/icon/suv.svg';
 import truckSvg from '../../resources/images/icon/truck.svg';
 import vanSvg from '../../resources/images/icon/van.svg';
-import nanobananaSvg from '../../resources/images/icon/nanobanana.svg';
+import nanoBananaPng from '../../resources/images/icon/nano_banana_marker.png';
 
 export const mapIcons = {
   bicycle: bicycleSvg,
   bus: busSvg,
-  car: carSvg,
-  default: defaultSvg,
+  car: nanoBananaPng,
+  default: nanoBananaPng,
   motorcycle: motorcycleSvg,
   person: personSvg,
-  suv: suvSvg,
+  suv: nanoBananaPng,
   truck: truckSvg,
   van: vanSvg,
-  nanobanana: nanobananaSvg,
+  nanobanana: nanoBananaPng,
 };
 
 export const mapIconKey = (category) => {

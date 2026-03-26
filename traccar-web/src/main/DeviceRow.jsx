@@ -19,7 +19,8 @@ import Battery20Icon from '@mui/icons-material/Battery20';
 import BatteryCharging20Icon from '@mui/icons-material/BatteryCharging20';
 import ErrorIcon from '@mui/icons-material/Error';
 import SecurityIcon from '@mui/icons-material/Security';
-import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
+import LockIcon from '@mui/icons-material/Lock';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { devicesActions, geofencesActions } from '../store';
@@ -337,11 +338,11 @@ const DeviceRow = ({ devices, index, style }) => {
                   className={`${classes.ignitionStatus} ${position.attributes?.ignition ? classes.ignitionOn : classes.ignitionOff}`}
                 >
                   <EngineIcon width={12} height={12} />
-                  {position.attributes?.ignition ? 'ON' : 'OFF'}
+                  {position.attributes?.ignition ? 'IGN: ON' : 'IGN: OFF'}
                 </span>
               </Tooltip>
               <Tooltip
-                title={position.attributes?.ignition ? 'Send Engine Stop' : 'Send Engine Resume'}
+                title={position.attributes?.ignition ? 'Lock Engine (Immobilize)' : 'Unlock Engine (Allow Start)'}
               >
                 <IconButton
                   size="small"
@@ -350,7 +351,7 @@ const DeviceRow = ({ devices, index, style }) => {
                   onClick={(e) => handleIgnitionToggle(e, item.id, position.attributes?.ignition || false)}
                   sx={{ opacity: pendingIgnition ? 0.5 : 1 }}
                 >
-                  <PowerSettingsNewIcon sx={{ fontSize: 16 }} />
+                  {position.attributes?.ignition ? <LockIcon sx={{ fontSize: 16 }} /> : <LockOpenIcon sx={{ fontSize: 16, paddingLeft: '1px' }} />}
                 </IconButton>
               </Tooltip>
             </>
