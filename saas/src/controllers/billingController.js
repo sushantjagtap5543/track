@@ -1,14 +1,44 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-/** 📈 GeoSurePath Master Pricing Tiers (INR) */
+/** 📈 GeoSurePath Master Financial Constants (Inclusive Rates) */
 const PLANS = [
     { id: 'monthly', name: 'Standard Monthly', days: 30, price: 200, discount: 0 },
     { id: 'half_yearly', name: 'Safe Shield (6 Months)', days: 180, price: 1000, discount: 16.7 },
     { id: 'yearly', name: 'Guardian Pro (1 Year)', days: 365, price: 2000, discount: 16.7 }
 ];
 
-/** 🛡️ Core Bill Calculation with 'Fair-Settle' Sentry Logic */
+/** 🎯 Professional Invoice Sequence Generator */
+const generateInvoiceNumber = (sequenceId) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const seq = String(sequenceId).padStart(4, '0');
+    return `GSP/INV/${year}/${month}/${seq}`;
+};
+
+/** ⚖️ Financial Breakdown Engine (Inclusive Logic) */
+const calculateBreakdown = (total) => {
+    // Logic: Total = Basic + Server + Cloud + GST (18%)
+    // Let's assume GST is 18%. 
+    const baseValue = total / 1.18; 
+    const gstValue = total - baseValue;
+    
+    // Decomposing the baseValue into Provisioning (Basic), Server (AWS), and Cloud (SaaS)
+    const serverCharge = baseValue * 0.15; // 15% estimated server/cloud cost
+    const cloudCharge = baseValue * 0.10; // 10% estimated maintenance cost
+    const basicAccess = baseValue - serverCharge - cloudCharge;
+
+    return {
+        basic: parseFloat(basicAccess.toFixed(2)),
+        server: parseFloat(serverCharge.toFixed(2)),
+        cloud: parseFloat(cloudCharge.toFixed(2)),
+        gst: parseFloat(gstValue.toFixed(2)),
+        total: parseFloat(total.toFixed(2))
+    };
+};
+
+/** 🛡️ Core Bill Calculation with 'Professional-Ledger' Logic */
 const calculateBillForUser = async (userId) => {
     const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -18,37 +48,38 @@ const calculateBillForUser = async (userId) => {
 
     const now = new Date();
     const deviceDetails = user.vehicles.map(v => {
-        const regDate = new Date(v.registrationDate);
+        const regDate = v.registrationDate ? new Date(v.registrationDate) : new Date();
         const lastSub = user.subscriptions[0];
         const lastPaidDate = lastSub ? new Date(lastSub.createdAt) : regDate;
         
         const diffTime = Math.max(0, now - lastPaidDate);
         const totalUnpaidDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        // --- FAIR-SETTLE LOGIC: CAP DEBT AT 7 DAYS GRACE ---
-        // If the service was Hard-Locked (Blocked) for 3 months, 
-        // the client only owes for the 1-week Grace Period before the lock.
         const BILLABLE_DAYS_DEBT = Math.min(7, totalUnpaidDays);
         
         const DAILY_RATE_BASE = 6.66;
-        const amount = BILLABLE_DAYS_DEBT * DAILY_RATE_BASE;
+        const rawAmount = BILLABLE_DAYS_DEBT * DAILY_RATE_BASE;
+        const breakdown = calculateBreakdown(rawAmount);
 
         return {
             imei: v.imei,
             name: v.name,
             registrationDate: v.registrationDate,
             previousBillingDate: lastPaidDate,
-            unpaidDays: totalUnpaidDays, // Still show total days for audit, but charge is capped
+            unpaidDays: totalUnpaidDays,
             billableDebtDays: BILLABLE_DAYS_DEBT,
-            amount: parseFloat(amount.toFixed(2))
+            amount: breakdown.total,
+            breakdown
         };
     });
 
     const totalDue = deviceDetails.reduce((sum, d) => sum + d.amount, 0);
     const maxUnpaidDays = Math.max(0, ...deviceDetails.map(d => d.unpaidDays));
-
-    // Access Status Logic
     const accessStatus = maxUnpaidDays === 0 ? 'PAID' : (maxUnpaidDays <= 7 ? 'GRACE' : 'OVERDUE');
+
+    const history = user.subscriptions.map((sub, i) => ({
+        ...sub,
+        invoiceId: generateInvoiceNumber(sub.id)
+    }));
 
     return {
         userId: user.id,
@@ -58,36 +89,42 @@ const calculateBillForUser = async (userId) => {
         plans: PLANS.map(p => ({
             ...p,
             costPerDay: parseFloat((p.price / p.days).toFixed(2)),
+            breakdown: calculateBreakdown(p.price)
         })),
         devices: deviceDetails,
+        history,
         sentry: {
             status: accessStatus,
             unpaidDays: maxUnpaidDays,
             graceDaysRemaining: Math.max(0, 7 - maxUnpaidDays),
             isHardLock: accessStatus === 'OVERDUE'
-        },
-        nextBillingDate: new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000))
+        }
     };
 };
 
 const getAdminAnalytics = async (req, res) => {
     if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
     try {
-        const subscriptions = await prisma.subscription.findMany({ orderBy: { createdAt: 'desc' } });
+        const subscriptions = await prisma.subscription.findMany({ orderBy: { id: 'desc' } });
         const usersCount = await prisma.user.count();
         const devicesCount = await prisma.vehicle.count();
         const monthlyRevenue = {};
         subscriptions.forEach(sub => {
-            const month = sub.createdAt.toISOString().slice(0, 7);
-            monthlyRevenue[month] = (monthlyRevenue[month] || 0) + sub.amount;
+            const m = sub.createdAt.toISOString().slice(0, 7);
+            monthlyRevenue[m] = (monthlyRevenue[m] || 0) + sub.amount;
         });
         const latestMonth = Object.keys(monthlyRevenue).sort().reverse()[0] || 'N/A';
-        const latestAmount = latestMonth !== 'N/A' ? monthlyRevenue[latestMonth] : 0;
-        const approxCollection = devicesCount * 200; 
-        res.json({
-            summary: { totalRevenue: subscriptions.reduce((s, it) => s + it.amount, 0), latestMonth, latestRevenue: latestAmount, totalUsers: usersCount, totalDevices: devicesCount, approxCollection, pendingValue: approxCollection - latestAmount, churnRate: 2.5 },
+        const analytics = {
+            summary: {
+                totalRevenue: subscriptions.reduce((s, it) => s + it.amount, 0),
+                latestMonth,
+                latestRevenue: latestMonth !== 'N/A' ? monthlyRevenue[latestMonth] : 0,
+                totalUsers: usersCount, totalDevices: devicesCount,
+                approxCollection: devicesCount * 200, churnRate: 2.5
+            },
             monthlyBreakdown: monthlyRevenue
-        });
+        };
+        res.json(analytics);
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
@@ -102,13 +139,12 @@ const settleCash = async (req, res) => {
     if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
     const { targetUserId, planId, amount } = req.body;
     try {
-        const sub = await prisma.subscription.create({ data: { userId: targetUserId, planId: planId, amount: parseFloat(amount), paymentId: `CASH_${Date.now()}`, status: 'ACTIVE' } });
-        
-        // RESET ALL VEHICLES TO 'TODAY' - New 1-year coverage starts from NOW.
+        const sub = await prisma.subscription.create({
+            data: { userId: targetUserId, planId: planId, amount: parseFloat(amount), paymentId: `CASH_${Date.now()}`, status: 'ACTIVE' }
+        });
         const now = new Date();
         await prisma.vehicle.updateMany({ where: { userId: targetUserId }, data: { registrationDate: now } });
-        
-        res.json({ message: 'Fair Cash settlement finalized. Fleet reset to Today.', subscription: sub });
+        res.json({ message: 'Professional Settle Success', invoiceId: generateInvoiceNumber(sub.id) });
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
@@ -117,7 +153,7 @@ const adminUpdateRegistration = async (req, res) => {
     const { vehicleId, registrationDate } = req.body;
     try {
         const updated = await prisma.vehicle.update({ where: { id: vehicleId }, data: { registrationDate: new Date(registrationDate) } });
-        res.json({ message: 'Registration date updated', vehicle: updated });
+        res.json({ message: 'RegSync Success', vehicle: updated });
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
