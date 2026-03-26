@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Paper } from '@mui/material';
+import { Paper, Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -15,11 +15,11 @@ import useFilter from './useFilter';
 import MainToolbar from './MainToolbar';
 import MainMap from './MainMap';
 import { useAttributePreference } from '../common/util/preferences';
+import WarningIcon from '@mui/icons-material/Warning';
+import PaymentsIcon from '@mui/icons-material/Payments';
 
 const useStyles = makeStyles()((theme) => ({
-  root: {
-    height: '100%',
-  },
+  root: { height: '100%' },
   sidebar: {
     pointerEvents: 'none',
     display: 'flex',
@@ -33,10 +33,7 @@ const useStyles = makeStyles()((theme) => ({
       margin: theme.spacing(1.5),
       zIndex: 3,
     },
-    [theme.breakpoints.down('md')]: {
-      height: '100%',
-      width: '100%',
-    },
+    [theme.breakpoints.down('md')]: { height: '100%', width: '100%' },
   },
   header: {
     pointerEvents: 'auto',
@@ -55,15 +52,8 @@ const useStyles = makeStyles()((theme) => ({
     border: '1px solid rgba(255, 255, 255, 0.3)',
     marginTop: theme.spacing(0.5),
   },
-  middle: {
-    flex: 1,
-    display: 'grid',
-    minHeight: 0,
-  },
-  contentMap: {
-    pointerEvents: 'auto',
-    gridArea: '1 / 1',
-  },
+  middle: { flex: 1, display: 'grid', minHeight: 0 },
+  contentMap: { pointerEvents: 'auto', gridArea: '1 / 1' },
   contentList: {
     pointerEvents: 'auto',
     gridArea: '1 / 1',
@@ -75,13 +65,8 @@ const useStyles = makeStyles()((theme) => ({
     border: '1px solid rgba(255, 255, 255, 0.2)',
     borderTop: 'none',
     borderBottom: 'none',
-    '& ::-webkit-scrollbar': {
-      width: '6px',
-    },
-    '& ::-webkit-scrollbar-thumb': {
-      backgroundColor: 'rgba(0,0,0,0.1)',
-      borderRadius: '3px',
-    },
+    '& ::-webkit-scrollbar': { width: '6px' },
+    '& ::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '3px' },
   },
 }));
 
@@ -91,9 +76,12 @@ const MainPage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
 
+  const [showGraceModal, setShowGraceModal] = useState(false);
+  const [billData, setBillData] = useState(null);
+
   useEffect(() => {
-    // Sovereign Sentry: Mandatory Billing Redirect
-    const checkSubscription = async () => {
+    /** 🛡️ SMART-GRACE SENTRY GATEWAY */
+    const checkSubscriptionCycle = async () => {
       const token = localStorage.getItem('saas_token');
       if (token) {
         try {
@@ -101,117 +89,112 @@ const MainPage = () => {
              headers: { 'Authorization': `Bearer ${token}` }
           });
           const bill = await res.json();
-          if (bill && bill.totalDue > 0) {
+          setBillData(bill);
+
+          if (bill?.sentry?.status === 'OVERDUE') {
+             // --- STAGE 2: HARD-LOCK (8+ Days) ---
              navigate('/billing', { replace: true });
+          } else if (bill?.sentry?.status === 'GRACE') {
+             // --- STAGE 1: SOFT-GRACE (1-7 Days) ---
+             const lastShown = localStorage.getItem('sentry_shown_date');
+             const today = new Date().toLocaleDateString();
+             if (lastShown !== today) {
+                setShowGraceModal(true);
+             }
           }
         } catch (e) {
-          console.error('Subscription check failed');
+          console.error('Subscription sentry failed');
         }
       }
     };
-    checkSubscription();
+    checkSubscriptionCycle();
   }, [navigate]);
 
+  const handleDismissGrace = () => {
+     localStorage.setItem('sentry_shown_date', new Date().toLocaleDateString());
+     setShowGraceModal(false);
+  };
+
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
-
   const mapOnSelect = useAttributePreference('mapOnSelect', true);
-
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const positions = useSelector((state) => state.session.positions);
   const [filteredPositions, setFilteredPositions] = useState([]);
-  const selectedPosition = filteredPositions.find(
-    (position) => selectedDeviceId && position.deviceId === selectedDeviceId,
-  );
-
+  const selectedPosition = filteredPositions.find((position) => selectedDeviceId && position.deviceId === selectedDeviceId);
   const [filteredDevices, setFilteredDevices] = useState([]);
-
   const [keyword, setKeyword] = useState('');
-  const [filter, setFilter] = usePersistedState('filter', {
-    statuses: [],
-    groups: [],
-  });
+  const [filter, setFilter] = usePersistedState('filter', { statuses: [], groups: [] });
   const [filterSort, setFilterSort] = usePersistedState('filterSort', '');
   const [filterMap, setFilterMap] = usePersistedState('filterMap', false);
-
   const [devicesOpen, setDevicesOpen] = useState(desktop);
   const [eventsOpen, setEventsOpen] = useState(false);
-
   const onEventsClick = useCallback(() => setEventsOpen(true), [setEventsOpen]);
 
   useEffect(() => {
-    if (!desktop && mapOnSelect && selectedDeviceId) {
-      setDevicesOpen(false);
-    }
+    if (!desktop && mapOnSelect && selectedDeviceId) { setDevicesOpen(false); }
   }, [desktop, mapOnSelect, selectedDeviceId]);
 
-  useFilter(
-    keyword,
-    filter,
-    filterSort,
-    filterMap,
-    positions,
-    setFilteredDevices,
-    setFilteredPositions,
-  );
+  useFilter(keyword, filter, filterSort, filterMap, positions, setFilteredDevices, setFilteredPositions);
 
   return (
     <div className={classes.root}>
       {desktop && (
-        <MainMap
-          filteredPositions={filteredPositions}
-          selectedPosition={selectedPosition}
-          onEventsClick={onEventsClick}
-        />
+        <MainMap filteredPositions={filteredPositions} selectedPosition={selectedPosition} onEventsClick={onEventsClick} />
       )}
       <div className={classes.sidebar}>
         <Paper square elevation={3} className={classes.header}>
-          <MainToolbar
-            filteredDevices={filteredDevices}
-            devicesOpen={devicesOpen}
-            setDevicesOpen={setDevicesOpen}
-            keyword={keyword}
-            setKeyword={setKeyword}
-            filter={filter}
-            setFilter={setFilter}
-            filterSort={filterSort}
-            setFilterSort={setFilterSort}
-            filterMap={filterMap}
-            setFilterMap={setFilterMap}
-          />
+          <MainToolbar filteredDevices={filteredDevices} devicesOpen={devicesOpen} setDevicesOpen={setDevicesOpen} keyword={keyword} setKeyword={setKeyword} filter={filter} setFilter={setFilter} filterSort={filterSort} setFilterSort={setFilterSort} filterMap={filterMap} setFilterMap={setFilterMap} />
         </Paper>
         <div className={classes.middle}>
           {!desktop && (
             <div className={classes.contentMap}>
-              <MainMap
-                filteredPositions={filteredPositions}
-                selectedPosition={selectedPosition}
-                onEventsClick={onEventsClick}
-              />
+              <MainMap filteredPositions={filteredPositions} selectedPosition={selectedPosition} onEventsClick={onEventsClick} />
             </div>
           )}
-          <Paper
-            square
-            className={classes.contentList}
-            style={devicesOpen ? {} : { visibility: 'hidden' }}
-          >
+          <Paper square className={classes.contentList} style={devicesOpen ? {} : { visibility: 'hidden' }}>
             <DeviceList devices={filteredDevices} />
           </Paper>
         </div>
-        {desktop && (
-          <div className={classes.footer}>
-            <BottomMenu />
-          </div>
-        )}
+        {desktop && ( <div className={classes.footer}><BottomMenu /></div> )}
       </div>
       <EventsDrawer open={eventsOpen} onClose={() => setEventsOpen(false)} />
       {selectedDeviceId && (
-        <StatusCard
-          deviceId={selectedDeviceId}
-          position={selectedPosition}
-          onClose={() => dispatch(devicesActions.selectId(null))}
-          desktopPadding={theme.dimensions.drawerWidthDesktop}
-        />
+        <StatusCard deviceId={selectedDeviceId} position={selectedPosition} onClose={() => dispatch(devicesActions.selectId(null))} desktopPadding={theme.dimensions.drawerWidthDesktop} />
       )}
+
+      {/* --- 🪙 PRE-EXPIRE DAILY GRACE POPUP --- */}
+      <Dialog 
+        open={showGraceModal} 
+        onClose={handleDismissGrace}
+        PaperProps={{ sx: { background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(20px)', border: '2px solid #3b82f6', borderRadius: '24px', p: 2, color: 'white' }}}
+      >
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 900 }}>
+             <WarningIcon color="warning" sx={{ fontSize: 50, mb: 1 }} />
+             <br />
+             SETTLEMENT REMINDER
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center' }}>
+             <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
+                  Your subscription balance is pending!
+             </Typography>
+             <Typography variant="body1" sx={{ opacity: 0.8, mb: 3 }}>
+                  Your fleet is currently in the **One-Week Grace Period**. 
+                  You have **{billData?.sentry?.graceDaysRemaining} days** of safety coverage remaining before a platform lock.
+             </Typography>
+             <Box sx={{ p: 2, background: 'rgba(255,255,255,0.05)', borderRadius: '16px' }}>
+                <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>CURRENT UNPAID BALANCE</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 900, color: 'primary.light' }}>₹{billData?.totalDue}</Typography>
+             </Box>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pb: 3, gap: 2 }}>
+             <Button variant="outlined" onClick={handleDismissGrace} sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)', borderRadius: '12px' }}>
+                PAY LATER (DISMISS)
+             </Button>
+             <Button variant="contained" onClick={() => navigate('/billing')} startIcon={<PaymentsIcon />} sx={{ borderRadius: '12px', fontWeight: 900 }}>
+                SECURE FLEET NOW
+             </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
