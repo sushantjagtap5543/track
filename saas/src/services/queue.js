@@ -1,5 +1,6 @@
 const { Queue, Worker } = require('bullmq');
 const IORedis = require('ioredis');
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const geosurepathService = require('./geosurepath');
 const fcmService = require('./fcm');
