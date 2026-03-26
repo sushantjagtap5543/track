@@ -269,20 +269,65 @@ const BillingPage = () => {
                         ))}
                     </Grid>
 
-                    <Paper sx={{ p: 4, borderRadius: '24px', background: 'rgba(59, 130, 246, 0.1)', mb: 5, border: '1px solid #3b82f6' }}>
-                        <Typography variant="h6" fontWeight={900} sx={{ mb: 2 }}>FINAL TOTAL (Incl. Debt & Tax): ₹{totalFleetAmount.toFixed(2)}</Typography>
-                        <Typography variant="body2" sx={{ opacity: 0.7, mb: 3 }}>This settlement covers your accrued debt of ₹{bill?.totalDue || 0} and provisioning for 1 unit of {selectedPlan.toUpperCase()} coverage.</Typography>
+                {/* --- DYNAMIC PRO BREAKDOWN --- */}
+                <Paper sx={{ p: 4, borderRadius: '24px', background: 'rgba(255,255,255,0.03)', mb: 5, border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <Typography variant="h6" fontWeight={800} sx={{ mb: 3 }}>FEE & TAX BREAKDOWN (INCLUSIVE)</Typography>
+                    <Grid container spacing={4}>
+                        <Grid item xs={6} md={3}>
+                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <VerifiedUserIcon color="primary" fontSize="small" />
+                                <Box>
+                                    <Typography variant="caption" display="block" sx={{ opacity: 0.5 }}>BASIC ACCESS</Typography>
+                                    <Typography fontWeight={900}>₹{((currentPlan?.breakdown?.basic || 0) * (bill?.devices?.length || 1)).toFixed(2)}</Typography>
+                                </Box>
+                            </Box>
+                        </Grid>
+                        <Grid item xs={6} md={3}>
+                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <StorageIcon color="secondary" fontSize="small" />
+                                <Box>
+                                    <Typography variant="caption" display="block" sx={{ opacity: 0.5 }}>SERVER CHARGE</Typography>
+                                    <Typography fontWeight={900}>₹{((currentPlan?.breakdown?.server || 0) * (bill?.devices?.length || 1)).toFixed(2)}</Typography>
+                                </Box>
+                            </Box>
+                        </Grid>
+                        <Grid item xs={6} md={3}>
+                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <CloudQueueIcon sx={{ color: '#06b6d4' }} fontSize="small" />
+                                <Box>
+                                    <Typography variant="caption" display="block" sx={{ opacity: 0.5 }}>CLOUD INFRA</Typography>
+                                    <Typography fontWeight={900}>₹{((currentPlan?.breakdown?.cloud || 0) * (bill?.devices?.length || 1)).toFixed(2)}</Typography>
+                                </Box>
+                            </Box>
+                        </Grid>
+                        <Grid item xs={6} md={3}>
+                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <ReceiptIcon color="success" fontSize="small" />
+                                <Box>
+                                    <Typography variant="caption" display="block" sx={{ opacity: 0.5 }}>GST (18%)</Typography>
+                                    <Typography fontWeight={900}>₹{((currentPlan?.breakdown?.gst || 0) * (bill?.devices?.length || 1) + ((bill?.totalDue || 0) * 0.18)).toFixed(2)}</Typography>
+                                </Box>
+                            </Box>
+                        </Grid>
+                    </Grid>
+                    
+                    <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.1)' }} />
+                    
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box>
+                            <Typography variant="h4" fontWeight={900} color="primary.main">TOTAL: ₹{totalFleetAmount.toFixed(2)}</Typography>
+                            <Typography variant="caption" sx={{ opacity: 0.6 }}>Includes accrued debt of ₹{bill?.totalDue || 0}</Typography>
+                        </Box>
                         <Button 
                             variant="contained" 
                             size="large" 
-                            fullWidth 
-                            disabled={totalFleetAmount === 0}
                             onClick={() => window.open(analytics?.config?.paymentLink || '#', '_blank')}
-                            sx={{ borderRadius: '16px', py: 2, fontWeight: 900, fontSize: '1.2rem' }}
+                            sx={{ borderRadius: '16px', px: 6, py: 2, fontWeight: 900, fontSize: '1.1rem' }}
                         >
                             PROCEED TO SECURE PAYMENT
                         </Button>
-                    </Paper>
+                    </Box>
+                </Paper>
 
                     <Typography variant="h5" sx={{ mb: 3, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 2 }}>
                         <VerifiedIcon color="primary" /> Professional Invoice Registry
