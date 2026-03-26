@@ -187,7 +187,7 @@ const DeviceRow = ({ devices, index, style }) => {
         <ListItemText
           primary={
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography sx={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Typography sx={{ fontWeight: 700 }}>
                 {primaryValue}
               </Typography>
               {position && (
