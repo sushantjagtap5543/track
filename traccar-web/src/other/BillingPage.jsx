@@ -56,7 +56,11 @@ const BillingPage = () => {
             const response = await fetch('/api/billing/admin/settle-cash', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ targetUserId: bill.userId, planId: selectedPlan, amount: plan.price * bill.devices.length })
+                body: JSON.stringify({ 
+                    targetUserId: bill.userId, 
+                    planId: selectedPlan, 
+                    amount: totalFleetAmount 
+                })
             });
             if (response.ok) { alert("Settlement Success. Invoice Generated."); fetchAllData(); }
             else { throw new Error("Failed to settle"); }
@@ -66,12 +70,14 @@ const BillingPage = () => {
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 10 }}><CircularProgress /></Box>;
 
     const currentPlan = bill?.plans?.find(p => p.id === selectedPlan);
-    const totalFleetAmount = (currentPlan?.price || 0) * (bill?.devices?.length || 0);
+    const planCost = (currentPlan?.price || 0) * (bill?.devices?.length || 0);
+    const totalFleetAmount = planCost + (bill?.totalDue || 0);
+    
     const fleetBreakdown = {
         basic: (currentPlan?.breakdown?.basic || 0) * (bill?.devices?.length || 0),
         server: (currentPlan?.breakdown?.server || 0) * (bill?.devices?.length || 0),
         cloud: (currentPlan?.breakdown?.cloud || 0) * (bill?.devices?.length || 0),
-        gst: (currentPlan?.breakdown?.gst || 0) * (bill?.devices?.length || 0),
+        gst: (currentPlan?.breakdown?.gst || 0) * (bill?.devices?.length || 0) + ((bill?.totalDue || 0) * 0.18), // Rough GST on debt as well
     };
 
     return (
