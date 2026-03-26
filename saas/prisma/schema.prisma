@@ -136,5 +136,12 @@ model DeviceToken {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+model AdminSetting {
+  id          String   @id @default("GLOBAL")
+  paymentLink String?
+  updatedBy   String?
+  updatedAt   DateTime @updatedAt
+}
+
   @@index([userId])
 }

@@ -72,13 +72,13 @@ const calculateBreakdown = (total) => {
     };
 };
 
-/** 🛡️ Core Bill Calculation with 'Professional-Ledger' Logic */
-const calculateBillForUser = async (userId) => {
+/** 🛡️ Internal Bill Calculator for Any User */
+const calculateBillForAnyUser = async (userId) => {
     const user = await prisma.user.findUnique({
         where: { id: userId },
         include: { vehicles: true, subscriptions: { orderBy: { id: 'desc' } } }
     });
-    if (!user) throw new Error("User not found");
+    if (!user) return null;
 
     const now = new Date();
     const deviceDetails = user.vehicles.map(v => {
@@ -121,6 +121,34 @@ const calculateBillForUser = async (userId) => {
     };
 };
 
+const getMyBill = async (req, res) => {
+    try {
+        const bill = await calculateBillForAnyUser(req.user.userId);
+        res.json(bill);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+/** 👑 Global User Ledger Engine */
+const getAllUsersLedger = async (req, res) => {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
+    try {
+        const users = await prisma.user.findMany({ select: { id: true, email: true, role: true } });
+        const ledger = await Promise.all(users.map(async (u) => {
+            const bill = await calculateBillForAnyUser(u.id);
+            return {
+                id: u.id,
+                email: u.email,
+                role: u.role,
+                fleetSize: bill?.devices?.length || 0,
+                status: bill?.sentry?.status || 'UNKNOWN',
+                totalDue: bill?.totalDue || 0,
+                unpaidDays: bill?.sentry?.unpaidDays || 0
+            };
+        }));
+        res.json(ledger);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
 const getAdminAnalytics = async (req, res) => {
     if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
     try {
@@ -133,6 +161,7 @@ const getAdminAnalytics = async (req, res) => {
             monthlyRevenue[m] = (monthlyRevenue[m] || 0) + sub.amount;
         });
         const latestMonth = Object.keys(monthlyRevenue).sort().reverse()[0] || 'N/A';
+        const config = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
         res.json({
             summary: {
                 totalRevenue: subscriptions.reduce((s, it) => s + it.amount, 0),
@@ -140,15 +169,22 @@ const getAdminAnalytics = async (req, res) => {
                 totalUsers: usersCount, totalDevices: devicesCount,
                 approxCollection: devicesCount * 200, churnRate: 2.5
             },
-            monthlyBreakdown: monthlyRevenue
+            monthlyBreakdown: monthlyRevenue,
+            config: config || { paymentLink: process.env.DEFAULT_PAYMENT_LINK || '#' }
         });
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
-const getMyBill = async (req, res) => {
+const updateGatewayConfig = async (req, res) => {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
+    const { paymentLink } = req.body;
     try {
-        const bill = await calculateBillForUser(req.user.userId);
-        res.json(bill);
+        const config = await prisma.adminSetting.upsert({
+            where: { id: 'GLOBAL' },
+            update: { paymentLink, updatedBy: req.user.userId },
+            create: { id: 'GLOBAL', paymentLink, updatedBy: req.user.userId }
+        });
+        res.json({ message: 'Gateway Configuration Updated', config });
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
@@ -159,30 +195,19 @@ const settleCash = async (req, res) => {
         const sub = await prisma.subscription.create({
             data: { userId: targetUserId, planId: planId, amount: parseFloat(amount), paymentId: `CASH_${Date.now()}`, status: 'ACTIVE' }
         });
-        
         const now = new Date();
         const user = await prisma.user.findUnique({ where: { id: targetUserId }, include: { vehicles: true } });
         const plan = PLANS.find(p => p.id === planId);
-        const nextDate = new Date(now.getTime() + (plan.days * 24 * 60 * 60 * 1000));
-        
+        const nextDate = new Date(now.getTime() + ((plan?.days || 30) * 24 * 60 * 60 * 1000));
         await prisma.vehicle.updateMany({ where: { userId: targetUserId }, data: { registrationDate: now } });
-        
         const invoiceId = generateInvoiceNumber(sub.id);
-        
-        // --- PROACTIVE CLOUD MIRRORING ON SUCCESS ---
         await pushPaymentToCloud({
-            invoiceId,
-            email: user.email,
-            amount: parseFloat(amount),
-            billingDate: now.toLocaleDateString(),
-            nextBillingDate: nextDate.toLocaleDateString(),
-            devicesCount: user.vehicles.length,
-            status: 'SUCCESSFUL (CASH SETTLE/GAETWAY)'
+            invoiceId, email: user.email, amount: parseFloat(amount),
+            billingDate: now.toLocaleDateString(), nextBillingDate: nextDate.toLocaleDateString(),
+            devicesCount: user.vehicles.length, status: 'SUCCESSFUL (CASH SETTLE/GAETWAY)'
         });
-
-        res.json({ message: 'Sovereign Settle Success. Cloud Mirror Active.', invoiceId });
+        res.json({ message: 'Sovereign Settle Success', invoiceId });
     } catch (err) {
-        // --- LOG FAILURE TO CLOUD AS REQUESTED ---
         pushPaymentToCloud({ invoiceId: 'PENDING/FAILED', status: 'FAILED TRANSACTION', error: err.message });
         res.status(500).json({ error: err.message }); 
     }
@@ -197,4 +222,4 @@ const adminUpdateRegistration = async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
-module.exports = { getMyBill, adminUpdateRegistration, settleCash, getAdminAnalytics, PLANS };
+module.exports = { getMyBill, adminUpdateRegistration, settleCash, getAdminAnalytics, getAllUsersLedger, updateGatewayConfig, PLANS };
