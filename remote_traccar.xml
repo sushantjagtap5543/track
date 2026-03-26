@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+<properties>
+
+    <entry key='database.driver'>org.postgresql.Driver</entry>
+    <entry key='database.url'>jdbc:postgresql://db:5432/geosurepath</entry>
+    <entry key='database.user'>geosurepath</entry>
+    <entry key='database.password'>9f4a8b7c2e1d0f5e7a9b3c4d6e8f</entry>
+
+    <entry key='web.path'>./modern</entry>
+    <entry key='web.port'>8082</entry>
+    <entry key='database.changelog'>./schema/changelog-master.xml</entry>
+
+    <entry key='geofence.polyline'>true</entry>
+    <entry key='server.statistics'>false</entry>
+
+    <!-- PERFORMANCE ENGINE CONFIGURATION -->
+    <entry key='database.maxPoolSize'>30</entry>
+    <entry key='status.ignoreOffline'>false</entry>
+    <entry key='status.updateDelay'>2</entry>
+    <entry key='status.timeout'>120</entry>
+    <entry key='event.geofence.handler'>true</entry>
+    <entry key='event.ignition.handler'>true</entry>
+    <entry key='event.motion.handler'>true</entry>
+    <entry key='event.fuel.handler'>true</entry>
+    <entry key='filter.enable'>true</entry>
+    <entry key='filter.distance'>5</entry>
+    <entry key='geocoder.processOnRequest'>true</entry>
+    
+    <!-- WEB SOCKET & CACHE OPTIMIZATION -->
+    <entry key='web.timeout'>60000</entry>
+    <entry key='web.debug'>false</entry>
+    <entry key='web.cacheControl'>no-store</entry>
+
+    <!-- Allow admin API to create users -->
+    <entry key='registration.enable'>true</entry>
+    <entry key='server.registration'>true</entry>
+
+    <!-- EVENT FORWARDING TO SAAS API -->
+    <entry key='event.forward.enable'>true</entry>
+    <entry key='event.forward.url'>http://saas-api:3001/api/geosurepath/events</entry>
+    <entry key='event.forward.header'>Content-Type: application/json</entry>
+</properties>

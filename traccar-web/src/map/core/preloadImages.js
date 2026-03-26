@@ -12,13 +12,14 @@ import truckSvg from '../../resources/images/icon/truck.svg';
 import vanSvg from '../../resources/images/icon/van.svg';
 import clean3dCar from '../../resources/images/icon/clean_3d_car.png';
 import clean3dSuv from '../../resources/images/icon/clean_3d_suv.png';
+import clean3dBike from '../../resources/images/icon/clean_3d_bike.png';
 
 export const mapIcons = {
   bicycle: bicycleSvg,
   bus: busSvg,
   car: clean3dCar,
   default: clean3dCar,
-  motorcycle: motorcycleSvg,
+  motorcycle: clean3dBike,
   person: personSvg,
   suv: clean3dSuv,
   truck: truckSvg,
