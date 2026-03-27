@@ -3,6 +3,42 @@ const { PrismaClient } = require('@prisma/client');
 const geosurepathService = require('../services/geosurepath');
 const prisma = new PrismaClient();
 
+// Create new vehicle (Fleet Expansion)
+exports.createVehicle = async (req, res) => {
+  const { name, imei, type, model, plate } = req.body;
+  const userId = req.user.userId;
+
+  try {
+    // 1. Create in GeoSurePath Engine
+    const geosurepathDevice = await geosurepathService.createDevice(name, imei);
+
+    // 2. Link to GeoSurePath User
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (user.geosurepathUserId) {
+        await geosurepathService.linkDeviceToUser(user.geosurepathUserId, geosurepathDevice.id);
+    }
+
+    // 3. Save to local database
+    const vehicle = await prisma.vehicle.create({
+      data: {
+        userId,
+        name,
+        imei,
+        type,
+        model,
+        plate,
+        geosurepathDeviceId: geosurepathDevice.id,
+        registrationDate: new Date()
+      }
+    });
+
+    res.status(201).json({ message: 'Vehicle added to fleet successfully', vehicle });
+  } catch (error) {
+    console.error('Create vehicle error:', error);
+    res.status(500).json({ error: 'Failed to expand fleet', details: error.message });
+  }
+};
+
 // Get user's vehicles
 exports.getVehicles = async (req, res) => {
   try {

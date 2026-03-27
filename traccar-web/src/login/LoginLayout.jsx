@@ -50,7 +50,7 @@ const useStyles = makeStyles()((theme) => ({
     flexDirection: 'column',
     justifyContent: 'center',
     flex: 1,
-    paddingRight: theme.spacing(8),
+    paddingRight: theme.spacing(4),
     [theme.breakpoints.down('md')]: {
       paddingRight: 0,
       paddingBottom: theme.spacing(4),
@@ -96,7 +96,7 @@ const useStyles = makeStyles()((theme) => ({
     boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
     display: 'flex',
     flexDirection: 'column',
-    gap: theme.spacing(3),
+    gap: theme.spacing(2),
     '& .MuiTextField-root': {
       '& .MuiOutlinedInput-root': {
         background: 'rgba(0, 0, 0, 0.2)',

@@ -31,34 +31,37 @@ const MapPositions = ({
   const mapCluster = useAttributePreference('mapCluster', true);
   const directionType = useAttributePreference('mapDirection', 'selected');
 
-  const createFeature = (devices, position, selectedPositionId) => {
-    const device = devices[position.deviceId];
-    let showDirection;
-    switch (directionType) {
-      case 'none':
-        showDirection = false;
-        break;
-      case 'all':
-        showDirection = position.course > 0;
-        break;
-      default:
-        showDirection = selectedPositionId === position.id && position.course > 0;
-        break;
-    }
-    return {
-      id: position.id,
-      deviceId: position.deviceId,
-      name: device.name,
-      fixTime: formatTime(position.fixTime, 'seconds'),
-      category: mapIconKey(device.category),
-      color: showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral',
-      rotation: position.course,
-      direction: showDirection,
-      ignitionOff:
-        position.attributes.hasOwnProperty('ignition') && position.attributes.ignition === false,
-      isMoving: position.speed > 0.5,
-    };
-  };
+  const createFeature = useCallback(
+    (devices, position, selectedPositionId) => {
+      const device = devices[position.deviceId];
+      let showDirection;
+      switch (directionType) {
+        case 'none':
+          showDirection = false;
+          break;
+        case 'all':
+          showDirection = position.course > 0;
+          break;
+        default:
+          showDirection = selectedPositionId === position.id && position.course > 0;
+          break;
+      }
+      return {
+        id: position.id,
+        deviceId: position.deviceId,
+        name: device.name,
+        fixTime: formatTime(position.fixTime, 'seconds'),
+        category: mapIconKey(device.category),
+        color: showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral',
+        rotation: position.course,
+        direction: showDirection,
+        ignitionOff:
+          position.attributes.hasOwnProperty('ignition') && position.attributes.ignition === false,
+        isMoving: position.speed > 0.5,
+      };
+    },
+    [directionType, showStatus],
+  );
 
   const onMouseEnter = () => (map.getCanvas().style.cursor = 'pointer');
   const onMouseLeave = () => (map.getCanvas().style.cursor = '');
@@ -129,10 +132,14 @@ const MapPositions = ({
             'interpolate',
             ['linear'],
             ['zoom'],
-            1, 0.4 * iconScale,
-            12, 0.8 * iconScale,
-            15, 1.2 * iconScale,
-            20, 1.8 * iconScale
+            1,
+            0.4 * iconScale,
+            12,
+            0.8 * iconScale,
+            15,
+            1.2 * iconScale,
+            20,
+            1.8 * iconScale,
           ],
           'icon-allow-overlap': true,
           'icon-rotate': 0,
@@ -142,13 +149,7 @@ const MapPositions = ({
           'text-anchor': 'top',
           'text-offset': [0, 0.5],
           'text-font': findFonts(map),
-          'text-size': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            10, 10,
-            15, 14,
-          ],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 10, 10, 15, 14],
           'symbol-sort-key': ['get', 'id'],
         },
         paint: {
@@ -271,7 +272,17 @@ const MapPositions = ({
         }
       });
     };
-  }, [mapCluster, clusters, onMarkerClickCallback, onClusterClick]);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
+  }, [
+    id,
+    selected,
+    clusters,
+    iconScale,
+    titleField,
+    onMarkerClickCallback,
+    onClusterClick,
+    onMapClickCallback,
+  ]);
 
   useEffect(() => {
     [id, selected].forEach((source) => {
@@ -292,7 +303,7 @@ const MapPositions = ({
           })),
       });
     });
-  }, [mapCluster, clusters, onMarkerClick, onClusterClick, devices, positions, selectedPosition]);
+  }, [id, selected, devices, positions, selectedDeviceId, selectedPosition, createFeature]);
 
   return null;
 };

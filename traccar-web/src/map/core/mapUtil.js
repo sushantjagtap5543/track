@@ -35,11 +35,11 @@ export const prepareIcon = (background, icon, color) => {
   context.closePath();
 
   // 3D Gradient for Pin
-  const grad = context.createRadialGradient(-radius/3, -radius/3, 0, 0, 0, radius);
+  const grad = context.createRadialGradient(-radius / 3, -radius / 3, 0, 0, 0, radius);
   grad.addColorStop(0, '#ffffff44');
   grad.addColorStop(0.3, color);
   grad.addColorStop(1, color);
-  
+
   context.fillStyle = grad;
   context.shadowBlur = 4 * devicePixelRatio;
   context.shadowColor = 'rgba(0,0,0,0.3)';
@@ -81,7 +81,6 @@ export const getStatusColor = (status, attributes = {}) => {
 export const getMapColor = (device, position) => {
   return getStatusColor(device.status, position?.attributes || {});
 };
-
 
 export const createCircle = (latitude, longitude, radius) => {
   const circle = turfCircle([longitude, latitude], radius, { units: 'meters' });

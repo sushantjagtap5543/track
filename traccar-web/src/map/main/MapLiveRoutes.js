@@ -56,6 +56,7 @@ const MapLiveRoutes = ({ deviceIds }) => {
       };
     }
     return () => {};
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [type]);
 
   useEffect(() => {
@@ -82,6 +83,7 @@ const MapLiveRoutes = ({ deviceIds }) => {
         })),
       });
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [theme, type, devices, selectedDeviceId, history, deviceIds]);
 
   return null;

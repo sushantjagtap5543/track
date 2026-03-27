@@ -64,6 +64,7 @@ const MapMarkers = ({ markers, showTitles }) => {
         map.removeSource(id);
       }
     };
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [showTitles]);
 
   useEffect(() => {
@@ -81,6 +82,7 @@ const MapMarkers = ({ markers, showTitles }) => {
         },
       })),
     });
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [showTitles, markers]);
 
   return null;

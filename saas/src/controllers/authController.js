@@ -13,6 +13,13 @@ exports.register = async (req, res) => {
   
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
   
+  // Basic Regex Validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phoneRegex = /^\+?[\d\s-]{10,15}$/;
+  if (!emailRegex.test(email)) return res.status(400).json({ error: 'Invalid email format' });
+  if (phone && !phoneRegex.test(phone)) return res.status(400).json({ error: 'Invalid phone number format' });
+  if (deviceImei && deviceImei.length < 5) return res.status(400).json({ error: 'Device IMEI too short' });
+
   email = email.toLowerCase().trim();
   name = name?.trim();
 
@@ -88,11 +95,11 @@ exports.register = async (req, res) => {
         }
       });
 
-      // 6. Create Initial 1-Year Subscription (Guardian Pro)
+      // 6. Create Initial Subscription linked to an actual Database Plan
       const plans = await getPlans();
-      const standardPlan = plans.find(p => p.id === 'yearly') || { price: 2000, days: 365 };
+      const standardPlan = plans.find(p => p.billingCycle === 'YEARLY' || p.name?.toLowerCase().includes('yearly')) || plans[0] || { price: 2000, days: 365, id: undefined };
       const now = new Date();
-      const expiresAt = new Date(now.getTime() + (standardPlan.days * 24 * 60 * 60 * 1000));
+      const expiresAt = new Date(now.getTime() + ((standardPlan.days || 365) * 24 * 60 * 60 * 1000));
       
       const subscription = await prisma.subscription.create({
         data: {
@@ -115,53 +122,56 @@ exports.register = async (req, res) => {
       // 8. Queue Welcome Email
       const billingDateStr = expiresAt.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
       
-      await emailQueue.add('welcome-email', {
-        to: email,
-        subject: 'Welcome to GeoSurePath - Your Fleet is Now Protected!',
-        html: `
-          <div style="font-family: sans-serif; color: #333; line-height: 1.6;">
-            <h2 style="color: #2563eb;">Welcome to GeoSurePath, ${name}!</h2>
-            <p>Your registration is successful. You can now track your vehicle <strong>${vehicleName}</strong> (IMEI: ${deviceImei}) in real-time.</p>
-            
-            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin-top: 0;">Login Credentials</h3>
-              <p><strong>Email ID:</strong> ${email}</p>
-              <p><strong>Password:</strong> ${password}</p>
-              <p style="font-size: 0.9em; color: #666;"><em>Please change your password after your first login for security.</em></p>
+      try {
+        await emailQueue.add('welcome-email', {
+          to: email,
+          subject: 'Welcome to GeoSurePath - Your Fleet is Now Protected!',
+          html: `
+            <div style="font-family: sans-serif; color: #333; line-height: 1.6;">
+              <h2 style="color: #2563eb;">Welcome to GeoSurePath, ${name}!</h2>
+              <p>Your registration is successful. You can now track your vehicle <strong>${vehicleName}</strong> (IMEI: ${deviceImei}) in real-time.</p>
+              
+              <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0;">Login Credentials</h3>
+                <p><strong>Email ID:</strong> ${email}</p>
+                <p style="font-size: 0.9em; color: #666;"><em>Please change your password after your first login for security.</em></p>
+              </div>
+
+              <h3>Billing Information</h3>
+              <p>Your <strong>Guardian Pro (1 Year) Plan</strong> has been activated.</p>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <tr style="border-bottom: 1px solid #eee;">
+                  <td style="padding: 10px 0;">Basic Access Fee</td>
+                  <td style="text-align: right;">₹${basicAccess.toFixed(2)}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #eee;">
+                  <td style="padding: 10px 0;">AI-Guardian Server Charge</td>
+                  <td style="text-align: right;">₹${serverCharge.toFixed(2)}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #eee;">
+                  <td style="padding: 10px 0;">Cloud Storage & API</td>
+                  <td style="text-align: right;">₹${cloudCharge.toFixed(2)}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #eee;">
+                  <td style="padding: 10px 0;">GST (18%)</td>
+                  <td style="text-align: right;">₹${gstValue.toFixed(2)}</td>
+                </tr>
+                <tr style="font-weight: bold; font-size: 1.2em;">
+                  <td style="padding: 15px 0;">Total Amount Paid</td>
+                  <td style="text-align: right;">₹${total.toFixed(2)}</td>
+                </tr>
+              </table>
+
+              <p><strong>Next Billing Date:</strong> <span style="color: #dc2626; font-weight: bold;">${billingDateStr}</span></p>
+
+              <p>If you have any questions, reply to this email or visit our support portal.</p>
+              <p>Safe Travels,<br><strong>Team GeoSurePath</strong></p>
             </div>
-
-            <h3>Billing Information</h3>
-            <p>Your <strong>Guardian Pro (1 Year) Plan</strong> has been activated.</p>
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-              <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px 0;">Basic Access Fee</td>
-                <td style="text-align: right;">₹${basicAccess.toFixed(2)}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px 0;">AI-Guardian Server Charge</td>
-                <td style="text-align: right;">₹${serverCharge.toFixed(2)}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px 0;">Cloud Storage & API</td>
-                <td style="text-align: right;">₹${cloudCharge.toFixed(2)}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px 0;">GST (18%)</td>
-                <td style="text-align: right;">₹${gstValue.toFixed(2)}</td>
-              </tr>
-              <tr style="font-weight: bold; font-size: 1.2em;">
-                <td style="padding: 15px 0;">Total Amount Paid</td>
-                <td style="text-align: right;">₹${total.toFixed(2)}</td>
-              </tr>
-            </table>
-
-            <p><strong>Next Billing Date:</strong> <span style="color: #dc2626; font-weight: bold;">${billingDateStr}</span></p>
-
-            <p>If you have any questions, reply to this email or visit our support portal.</p>
-            <p>Safe Travels,<br><strong>Team GeoSurePath</strong></p>
-          </div>
-        `
-      });
+          `
+        });
+      } catch (emailErr) {
+        console.warn('Welcome email queuing failed - user created but no email sent:', emailErr.message);
+      }
 
       res.status(201).json({ 
         message: 'Registration successful. Welcome email has been sent.', 

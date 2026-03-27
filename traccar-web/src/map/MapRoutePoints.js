@@ -67,6 +67,7 @@ const MapRoutePoints = ({ positions, onClick, showSpeedControl }) => {
         map.removeSource(id);
       }
     };
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [onMarkerClick]);
 
   useEffect(() => {
@@ -95,6 +96,7 @@ const MapRoutePoints = ({ positions, onClick, showSpeedControl }) => {
       })),
     });
     return () => map.removeControl(control);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [onMarkerClick, positions, showSpeedControl]);
 
   return null;

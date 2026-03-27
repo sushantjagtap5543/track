@@ -10,9 +10,9 @@ async function getPlans() {
     CACHED_PLANS = dbPlans.map(p => ({
         id: p.id,
         name: p.name,
-        days: p.id === 'monthly' ? 30 : (p.id === 'half_yearly' ? 180 : 365),
+        days: p.billingCycle === 'MONTHLY' ? 30 : 365,
         price: p.pricePerDevice,
-        discount: p.id === 'yearly' ? 16.7 : 0,
+        discount: p.billingCycle === 'YEARLY' ? 16.7 : 0,
         billingCycle: p.billingCycle
     }));
     return CACHED_PLANS;
@@ -56,9 +56,11 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null) => {
     const deviceDetails = (user.vehicles || []).map(v => {
         const regDate = v.registrationDate ? new Date(v.registrationDate) : new Date(user.createdAt);
         const lastSub = user.subscriptions?.[0];
-        const lastPaidDate = lastSub ? new Date(lastSub.createdAt) : regDate;
         
-        const diffTime = Math.max(0, now - lastPaidDate);
+        // Debt only accrues AFTER the final paid expiration date.
+        const activeUntil = (lastSub && lastSub.expiresAt) ? new Date(lastSub.expiresAt) : regDate;
+        
+        const diffTime = Math.max(0, now - activeUntil);
         const totalUnpaidDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         const BILLABLE_DAYS_DEBT = Math.min(7, totalUnpaidDays);
         
@@ -166,9 +168,34 @@ const settleCash = async (req, res) => {
         const plan = plans.find(p => p.id === planId);
         const now = new Date();
         const expiresAt = new Date(now.getTime() + ((plan?.days || 30) * 24 * 60 * 60 * 1000));
-        await prisma.subscription.create({ data: { userId: targetUserId, planId: planId, price: parseFloat(amount), status: 'ACTIVE', expiresAt } });
+        
+        // 1. Create Subscription
+        await prisma.subscription.create({ data: { userId: targetUserId, planId, price: parseFloat(amount), status: 'ACTIVE', expiresAt } });
+        
+        // 2. Reactivate User & Update Reg Date (Billing Start)
+        const user = await prisma.user.update({ 
+            where: { id: targetUserId }, 
+            data: { isActive: true } 
+        });
         await prisma.vehicle.updateMany({ where: { userId: targetUserId }, data: { registrationDate: now } });
-        res.json({ message: 'Sovereign Settle Success' });
+
+        // 3. Real-time Engine Re-sync
+        if (user.geosurepathUserId) {
+            const geosurepathService = require('../services/geosurepath');
+            await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false }).catch(e => console.error('Settle re-sync failed:', e.message));
+        }
+
+        // 4. Audit Log
+        await prisma.auditLog.create({
+            data: {
+                adminId: req.user.userId,
+                userId: targetUserId,
+                action: 'MANUAL_SETTLE',
+                details: `Amount: ₹${amount}, Plan: ${plan?.name}, Expiry: ${expiresAt.toISOString()}`
+            }
+        });
+
+        res.json({ message: 'Sovereign Settle Success. User re-activated.' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 

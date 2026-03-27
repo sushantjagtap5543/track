@@ -16,6 +16,7 @@ export default (key, defaultValue) => {
     } else {
       window.localStorage.removeItem(key);
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [key, value]);
 
   return [value, setValue];

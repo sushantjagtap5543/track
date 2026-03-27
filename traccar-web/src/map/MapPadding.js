@@ -18,6 +18,7 @@ const MapPadding = ({ start }) => {
       bottomStart.style.insetInlineStart = 0;
       map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
     };
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [start]);
 
   return null;

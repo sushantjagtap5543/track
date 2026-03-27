@@ -1,6 +1,16 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Button, TextField, Typography, Snackbar, IconButton, Link } from '@mui/material';
+import {
+  Button,
+  TextField,
+  Typography,
+  Snackbar,
+  IconButton,
+  Link,
+  FormControlLabel,
+  Checkbox,
+  CircularProgress,
+} from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useNavigate } from 'react-router-dom';
 import LoginLayout from './LoginLayout';
@@ -15,19 +25,17 @@ const useStyles = makeStyles()((theme) => ({
   container: {
     display: 'flex',
     flexDirection: 'column',
-    gap: theme.spacing(3),
+    gap: theme.spacing(2),
   },
   header: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    marginBottom: theme.spacing(1),
   },
   title: {
     color: '#fff',
     fontWeight: 600,
     fontSize: '2rem',
-    marginBottom: theme.spacing(1),
   },
   subText: {
     color: '#ffffff',
@@ -53,12 +61,10 @@ const useStyles = makeStyles()((theme) => ({
     fontWeight: 600,
     textTransform: 'none',
     boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
-    marginTop: theme.spacing(1),
   },
   footer: {
     display: 'flex',
     justifyContent: 'center',
-    marginTop: theme.spacing(2),
   },
   loginLink: {
     color: theme.palette.primary.light,
@@ -84,6 +90,9 @@ const RegisterPage = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [totpKey, setTotpKey] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
@@ -96,12 +105,20 @@ const RegisterPage = () => {
 
   const handleSubmit = useCatch(async (event) => {
     event.preventDefault();
-    await fetchOrThrow('/api/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, totpKey }),
-    });
-    setSnackbarOpen(true);
+    if (password !== confirmPassword) {
+      throw new Error('Passwords do not match');
+    }
+    setLoading(true);
+    try {
+      await fetchOrThrow('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, totpKey }),
+      });
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+    }
   });
 
   return (
@@ -148,6 +165,41 @@ const RegisterPage = () => {
           autoComplete="new-password"
           onChange={(event) => setPassword(event.target.value)}
         />
+        <TextField
+          required
+          fullWidth
+          label="Confirm Password"
+          name="confirmPassword"
+          value={confirmPassword}
+          type="password"
+          autoComplete="new-password"
+          error={!!confirmPassword && password !== confirmPassword}
+          helperText={
+            !!confirmPassword && password !== confirmPassword ? 'Passwords do not match' : ''
+          }
+          onChange={(event) => setConfirmPassword(event.target.value)}
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              sx={{ color: 'rgba(255,255,255,0.7)', '&.Mui-checked': { color: '#fff' } }}
+            />
+          }
+          label={
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+              I agree to the{' '}
+              <Link
+                href="/terms.html"
+                target="_blank"
+                sx={{ color: 'primary.light', fontWeight: 700 }}
+              >
+                Terms and Conditions
+              </Link>
+            </Typography>
+          }
+        />
         {totpForce && (
           <TextField
             required
@@ -168,10 +220,18 @@ const RegisterPage = () => {
           className={classes.registerButton}
           onClick={handleSubmit}
           type="submit"
-          disabled={!name || !password || !(server.newServer || /(.+)@(.+)\.(.{2,})/.test(email))}
+          disabled={
+            loading ||
+            !acceptedTerms ||
+            !name ||
+            !password ||
+            password !== confirmPassword ||
+            !(server.newServer || /(.+)@(.+)\.(.{2,})/.test(email))
+          }
           fullWidth
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
         >
-          {t('loginRegister')}
+          {loading ? 'Registering...' : t('loginRegister')}
         </Button>
 
         <div className={classes.footer}>

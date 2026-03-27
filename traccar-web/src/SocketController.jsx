@@ -56,7 +56,9 @@ const SocketController = () => {
             !soundAlarms &&
             ['deviceOnline', 'deviceOffline', 'alarm', 'ignitionOn', 'ignitionOff'].includes(
               e.type,
-            )),
+            )) || 
+          // SECURITY FIX: Always sound alarm for Safe Parking breach regardless of system settings
+          (e.type === 'geofenceExit' && e.attributes.name?.startsWith('Safe Parking')),
       );
 
       if (shouldPlaySound) {
@@ -68,7 +70,8 @@ const SocketController = () => {
               !soundAlarms &&
               ['deviceOnline', 'deviceOffline', 'alarm', 'ignitionOn', 'ignitionOff'].includes(
                 e.type,
-              )),
+              )) ||
+            (e.type === 'geofenceExit' && e.attributes.name?.startsWith('Safe Parking')),
         );
         try {
           playEventSound(relevantEvent);
@@ -143,7 +146,7 @@ const SocketController = () => {
     [features, dispatch, soundEvents, soundAlarms],
   );
 
-  const connectSocket = () => {
+  const connectSocket = useCallback(() => {
     clearReconnectTimeout();
     if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) {
       socketRef.current.close();
@@ -197,7 +200,7 @@ const SocketController = () => {
         dispatch(sessionActions.updateLogs(data.logs));
       }
     };
-  };
+  }, [dispatch, navigate, handleEvents]);
 
   useEffect(() => {
     socketRef.current?.send(JSON.stringify({ logs: includeLogs }));
@@ -215,7 +218,7 @@ const SocketController = () => {
       };
     }
     return null;
-  }, [authenticated]);
+  }, [authenticated, connectSocket, dispatch]);
 
   const handleNativeNotification = useCatchCallback(
     async (message) => {
@@ -267,7 +270,7 @@ const SocketController = () => {
       window.removeEventListener('online', reconnectIfNeeded);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [authenticated]);
+  }, [authenticated, connectSocket]);
 
   return (
     <>

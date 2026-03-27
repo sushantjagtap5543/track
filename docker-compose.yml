@@ -19,6 +19,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: geosurepath_redis
+    command: redis-server --appendonly yes
     restart: always
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -34,6 +35,13 @@ services:
       dockerfile: Dockerfile
     container_name: geosurepath_traccar
     restart: always
+    environment:
+      - DB_PASSWORD=${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     depends_on:
       db:
         condition: service_healthy
@@ -49,13 +57,19 @@ services:
     build: ./saas
     container_name: geosurepath_saas_api
     restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
       geosurepath:
-        condition: service_started
+        condition: service_healthy
+    command: ["sh", "-c", "npx prisma migrate deploy && node index.js"]
     # No direct port exposure (Nginx only)
     env_file:
       - ./saas/.env
@@ -76,9 +90,9 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       saas-api:
-        condition: service_started
+        condition: service_healthy
       geosurepath:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   db_data:

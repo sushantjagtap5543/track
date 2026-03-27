@@ -36,8 +36,10 @@ model User {
   payments      Payment[]
   notifications Notification[]
   deviceTokens  DeviceToken[]
+  graceExtensionUntil DateTime? // Manual VIP extension by Admin
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  auditLogs     AuditLog[]
 }
 
 model Vehicle {
@@ -59,6 +61,7 @@ model Vehicle {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   alertRules      AlertRule[]
+  @@index([userId])
 }
 
 model Subscription {
@@ -107,6 +110,7 @@ model Payment {
   transactionId String?
   paymentMethod String?
   createdAt     DateTime @default(now())
+  @@index([userId])
 }
 
 model LoginHistory {
@@ -117,6 +121,7 @@ model LoginHistory {
   device    String?
   success   Boolean
   createdAt DateTime @default(now())
+  @@index([userId])
 }
 model Notification {
   id        String   @id @default(uuid())
@@ -144,6 +149,18 @@ model AdminSetting {
   paymentLink String?
   updatedBy   String?
   updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  adminId     String?
+  userId      String?
+  action      String   // e.g. "LOCK_USER", "EXTEND_GRACE", "MANUAL_INVOICE"
+  details     String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id])
+  @@index([userId])
 }
 
 // Global user index for all relevant models

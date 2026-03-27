@@ -1,4 +1,4 @@
-﻿// src/routes/admin.js
+// src/routes/admin.js
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
@@ -11,6 +11,8 @@ router.use(requireRole('ADMIN'));
 router.get('/health', adminController.getSystemHealth);
 router.get('/stats', adminController.getStats);
 router.get('/advanced-stats', adminController.getAdvancedStats);
+router.get('/audit-logs', adminController.getAuditLogs);
 router.post('/client-status', adminController.updateClientStatus);
+router.post('/adjust-expiry', adminController.adjustExpiry);
 
 module.exports = router;

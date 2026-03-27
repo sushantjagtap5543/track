@@ -1,0 +1,94 @@
+﻿
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\common\util\usePersistedState.js
+  19:6  warning  React Hook useEffect has a missing dependency: 'defaultValue'. Either include it or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\login\LoginPage.jsx
+  222:6  warning  React Hook useEffect has a missing dependency: 'handleTokenLogin'. Either include it or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\MapCurrentLocation.js
+  19:6  warning  React Hook useEffect has a missing dependency: 'theme.direction'. Either include it or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\MapGeofence.js
+   93:6  warning  React Hook useEffect has a missing dependency: 'id'. Either include it or remove the dependency array                @eslint-react/exhaustive-deps
+  104:6  warning  React Hook useEffect has missing dependencies: 'id' and 'theme'. Either include them or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\MapMarkers.js
+  67:6  warning  React Hook useEffect has missing dependencies: 'iconScale' and 'id'. Either include them or remove the dependency array  @eslint-react/exhaustive-deps
+  84:6  warning  React Hook useEffect has a missing dependency: 'id'. Either include it or remove the dependency array                    @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\MapPadding.js
+  21:6  warning  React Hook useEffect has a missing dependency: 'theme.direction'. Either include it or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\MapPositions.js
+  275:6  warning  React Hook useEffect has a missing dependency: 'mapCluster'. Either include it or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\MapRouteCoordinates.js
+  78:6  warning  React Hook useEffect has a missing dependency: 'id'. Either include it or remove the dependency array               @eslint-react/exhaustive-deps
+  94:6  warning  React Hook useEffect has missing dependencies: 'id' and 'name'. Either include them or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\MapRoutePath.js
+  64:6  warning  React Hook useEffect has a missing dependency: 'id'. Either include it or remove the dependency array  @eslint-react/exhaustive-deps
+  91:6  warning  React Hook useEffect has a missing dependency: 'id'. Either include it or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\MapRoutePoints.js
+  70:6  warning  React Hook useEffect has a missing dependency: 'id'. Either include it or remove the dependency array                                             @eslint-react/exhaustive-deps
+  98:6  warning  React Hook useEffect has missing dependencies: 'id', 'speedUnit', 't', and 'theme.direction'. Either include them or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\MapScale.js
+  17:6  warning  React Hook useEffect has a missing dependency: 'theme.direction'. Either include it or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\core\useMapStyles.js
+  350:5  warning  React Hook useMemo has a missing dependency: 'googleKey'. Either include it or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\draw\MapGeofenceEdit.js
+  117:6  warning  React Hook useEffect has missing dependencies: 'draw' and 'theme.direction'. Either include them or remove the dependency array  @eslint-react/exhaustive-deps
+  139:6  warning  React Hook useEffect has missing dependencies: 'draw' and 't'. Either include them or remove the dependency array                @eslint-react/exhaustive-deps
+  184:6  warning  React Hook useEffect has missing dependencies: 'draw' and 'theme'. Either include them or remove the dependency array            @eslint-react/exhaustive-deps
+  200:6  warning  React Hook useEffect has a missing dependency: 'draw'. Either include it or remove the dependency array                          @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\geocoder\MapGeocoder.js
+  53:6  warning  React Hook useEffect has a missing dependency: 'theme.direction'. Either include it or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\main\MapAccuracy.js
+  39:6  warning  React Hook useEffect has missing dependencies: 'id' and 'theme.palette.geometry.main'. Either include them or remove the dependency array  @eslint-react/exhaustive-deps
+  50:6  warning  React Hook useEffect has a missing dependency: 'id'. Either include it or remove the dependency array                                      @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\main\MapLiveRoutes.js
+  59:6  warning  React Hook useEffect has a missing dependency: 'id'. Either include it or remove the dependency array                                          @eslint-react/exhaustive-deps
+  85:6  warning  React Hook useEffect has missing dependencies: 'id', 'mapLineOpacity', and 'mapLineWidth'. Either include them or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\main\MapSelectedDevice.js
+  40:6  warning  React Hook useEffect has a missing dependency: 'previousPosition'. Either include it or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\main\PoiMap.js
+  82:6  warning  React Hook useEffect has missing dependencies: 'id' and 'theme.palette.geometry.main'. Either include them or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\map\notification\MapNotification.js
+  43:6  warning  React Hook useEffect has missing dependencies: 'control' and 'theme.direction'. Either include them or remove the dependency array  @eslint-react/exhaustive-deps
+  47:6  warning  React Hook useEffect has a missing dependency: 'control'. Either include it or remove the dependency array                          @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\other\BillingPage.jsx
+   51:9  warning  useState should be destructured into a value and setter pair, e.g., const [state, setState] = useState(...)     @eslint-react/use-state
+  104:6  warning  React Hook useEffect has a missing dependency: 'fetchMyBill'. Either include it or remove the dependency array  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\reactHelper.js
+  29:6   warning  React Hook useEffect has a missing dependency: 'effect'. Either include it or remove the dependency array. If 'effect' changes too often, find the parent component that defines it and wrap that definition in useCallback  @eslint-react/exhaustive-deps
+  29:7   warning  React Hook useEffect has a spread element in its dependency array. This means we can't statically verify whether you've passed the correct dependencies                                                                      @eslint-react/exhaustive-deps
+  40:10  warning  React Hook useCallback received a function whose dependencies are unknown. Pass an inline function instead                                                                                                                   @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\reports\components\ReportFilter.jsx
+  55:5   warning  To prevent re-computation, consider using lazy initial state for useState calls that involve function calls. Ex: 'useState(() => getValue())'                                                                                @eslint-react/use-state
+  57:44  warning  To prevent re-computation, consider using lazy initial state for useState calls that involve function calls. Ex: 'useState(() => getValue())'                                                                                @eslint-react/use-state
+  94:6   warning  React Hook useEffect has a missing dependency: 'onShow'. Either include it or remove the dependency array. If 'onShow' changes too often, find the parent component that defines it and wrap that definition in useCallback  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\settings\MaintenancePage.jsx
+  83:6  warning  React Hook useEffect has missing dependencies: 'distanceUnit', 'labels', 'positionAttributes', 'speedUnit', and 't'. Either include them or remove the dependency array. You can also do a functional update 'setLabels(l => ...)' if you only need 'labels' in the 'setLabels' call  @eslint-react/exhaustive-deps
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\settings\PreferencesPage.jsx
+  72:5  warning  To prevent re-computation, consider using lazy initial state for useState calls that involve function calls. Ex: 'useState(() => getValue())'  @eslint-react/use-state
+
+C:\Users\Sushant\Desktop\Github\track\traccar-web\src\settings\SharePage.jsx
+  34:5  warning  To prevent re-computation, consider using lazy initial state for useState calls that involve function calls. Ex: 'useState(() => getValue())'  @eslint-react/use-state
+
+✖ 41 problems (0 errors, 41 warnings)
+

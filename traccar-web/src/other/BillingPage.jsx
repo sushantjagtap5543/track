@@ -44,19 +44,22 @@ const BillingPage = () => {
   const [bill, setBill] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [ledger, setLedger] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [settling, setSettling] = useState(false);
   const [gatewayLink, setGatewayLink] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('monthly');
-  const [, setError] = useState(null);
+  // eslint-disable-next-line no-unused-vars
+  const [error, setError] = useState(null);
 
   const fetchAnalyticsAndLedger = async () => {
     try {
       const token = localStorage.getItem('saas_token');
       if (!token) return;
-      const [aRes, lRes] = await Promise.all([
+      const [aRes, lRes, logRes] = await Promise.all([
         fetch('/api/billing/admin-analytics', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/billing/admin/ledger', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/admin/audit-logs', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       if (aRes.ok) {
@@ -67,6 +70,10 @@ const BillingPage = () => {
       if (lRes.ok) {
         const lData = await lRes.json();
         setLedger(Array.isArray(lData) ? lData : []);
+      }
+      if (logRes.ok) {
+        const logData = await logRes.json();
+        setAuditLogs(Array.isArray(logData) ? logData : []);
       }
     } catch (err) {
       console.error('Admin Analytics Error:', err);
@@ -100,7 +107,9 @@ const BillingPage = () => {
 
   useEffect(() => {
     fetchMyBill();
+
     if (admin) fetchAnalyticsAndLedger();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [admin]);
 
   const handleUpdateGateway = async () => {
@@ -130,6 +139,32 @@ const BillingPage = () => {
       if (res.ok) {
         alert('Sovereign Settle Applied.');
         fetchAnalyticsAndLedger();
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSettling(false);
+    }
+  };
+
+  const handleAdjustExpiry = async (targetId, email) => {
+    const days = window.prompt(`Extend Grace Period for ${email}?\nEnter number of days (e.g. 15):`);
+    if (!days || isNaN(days) || parseInt(days) < 1) return;
+    
+    setSettling(true);
+    try {
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch('/api/admin/adjust-expiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId: targetId, extensionDays: parseInt(days) }),
+      });
+      if (res.ok) {
+        alert(`VIP Expiry Extended by ${days} days.`);
+        fetchAnalyticsAndLedger();
+      } else {
+        const errData = await res.json();
+        alert(errData.error || 'Operation failed');
       }
     } catch (err) {
       alert(err.message);
@@ -199,6 +234,7 @@ const BillingPage = () => {
             <Tab icon={<AssessmentIcon />} label="PLATFORM ANALYTICS" />
             <Tab icon={<GroupIcon />} label="USER LEDGER" />
             <Tab icon={<ReceiptIcon />} label="FLEET SETTLEMENT" />
+            <Tab icon={<StorageIcon />} label="DATABASE & LOGS" />
             <Tab icon={<SettingsIcon />} label="COMMAND SETTINGS" />
           </Tabs>
         </Paper>
@@ -414,14 +450,25 @@ const BillingPage = () => {
                       ₹{u.totalDue?.toFixed(2)}
                     </TableCell>
                     <TableCell align="center">
-                      <Button
-                        variant="contained"
-                        onClick={() => handleSettleForUser(u.id, 'monthly', u.totalDue)}
-                        sx={{ borderRadius: '8px', fontWeight: 900, fontSize: '0.7rem' }}
-                        disabled={u.totalDue <= 0 || settling}
-                      >
-                        FORCE SETTLE
-                      </Button>
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                        <Button
+                          variant="contained"
+                          onClick={() => handleSettleForUser(u.id, 'monthly', u.totalDue)}
+                          sx={{ borderRadius: '8px', fontWeight: 900, fontSize: '0.7rem' }}
+                          disabled={u.totalDue <= 0 || settling}
+                        >
+                          FORCE SETTLE
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="warning"
+                          onClick={() => handleAdjustExpiry(u.id, u.email)}
+                          sx={{ borderRadius: '8px', fontWeight: 900, fontSize: '0.7rem' }}
+                          disabled={settling}
+                        >
+                          EXTEND GRACE
+                        </Button>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -657,8 +704,56 @@ const BillingPage = () => {
         </Paper>
       )}
 
-      {/* --- TAB 3: COMMAND SETTINGS --- */}
+      {/* --- TAB 3: DATABASE & LOGS --- */}
       {admin && tabIndex === 3 && (
+        <Paper
+          sx={{
+            p: 4,
+            borderRadius: '24px',
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid rgba(255,255,255,0.05)',
+          }}
+        >
+          <Typography variant="h5" fontWeight={900} sx={{ mb: 4 }}>
+            SOVEREIGN AUDIT LEDGER (SECURE DB LOGS)
+          </Typography>
+          <TableContainer sx={{ maxHeight: 600 }}>
+            <Table stickyHeader>
+              <TableHead>
+                <TableRow sx={{ '& th': { bgcolor: '#0f172a', fontWeight: 900, color: 'rgba(255,255,255,0.5)' } }}>
+                  <TableCell>TIMESTAMP</TableCell>
+                  <TableCell>ADMIN ID</TableCell>
+                  <TableCell>ACTION</TableCell>
+                  <TableCell>AFFECTED CLIENT</TableCell>
+                  <TableCell>DETAILS</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {auditLogs.length > 0 ? (
+                  auditLogs.map((log) => (
+                    <TableRow key={log.id} sx={{ '&:hover': { background: 'rgba(255,255,255,0.05)' } }}>
+                      <TableCell sx={{ opacity: 0.6, fontSize: '0.8rem' }}>{new Date(log.createdAt).toLocaleString()}</TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', opacity: 0.5, fontSize: '0.7rem' }}>{log.adminId}</TableCell>
+                      <TableCell>
+                        <Chip label={log.action} size="small" sx={{ fontWeight: 800, bgcolor: 'rgba(59,130,246,0.2)', color: '#3b82f6' }} />
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>{log.user?.email || log.userId}</TableCell>
+                      <TableCell sx={{ opacity: 0.8, fontSize: '0.85rem' }}>{log.details}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center" sx={{ opacity: 0.5, py: 5 }}>No audit logs discovered in database.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
+
+      {/* --- TAB 4: COMMAND SETTINGS --- */}
+      {admin && tabIndex === 4 && (
         <Paper
           sx={{
             p: 4,

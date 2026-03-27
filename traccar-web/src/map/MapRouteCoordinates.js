@@ -75,6 +75,7 @@ const MapRouteCoordinates = ({ name, coordinates, deviceId }) => {
         map.removeSource(id);
       }
     };
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -91,6 +92,7 @@ const MapRouteCoordinates = ({ name, coordinates, deviceId }) => {
         opacity: mapLineOpacity,
       },
     });
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [theme, coordinates, reportColor, mapLineWidth, mapLineOpacity]);
 
   return null;

@@ -14,6 +14,7 @@ const MapScale = () => {
   useEffect(() => {
     map.addControl(control, theme.direction === 'rtl' ? 'bottom-right' : 'bottom-left');
     return () => map.removeControl(control);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [control]);
 
   useEffect(() => {

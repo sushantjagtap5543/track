@@ -13,6 +13,7 @@ import {
   Box,
   Button,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import BatteryFullIcon from '@mui/icons-material/BatteryFull';
 import Battery20Icon from '@mui/icons-material/Battery20';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -28,7 +29,7 @@ import { snackBarDurationShortMs } from '../common/util/duration';
 
 dayjs.extend(relativeTime);
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()((theme) => ({
   icon: {
     width: '25px',
     height: '25px',
@@ -49,7 +50,7 @@ const useStyles = makeStyles()(() => ({
   ignitionStatus: {
     display: 'flex',
     alignItems: 'center',
-    gap: '2px',
+    gap: theme.spacing(0.25),
     padding: '2px 6px',
     borderRadius: '4px',
     fontWeight: 800,
@@ -73,6 +74,7 @@ const useStyles = makeStyles()(() => ({
 
 const DeviceRow = ({ devices, index, style }) => {
   const { classes } = useStyles();
+  const theme = useTheme();
   const dispatch = useDispatch();
   const t = useTranslation();
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
@@ -121,7 +123,7 @@ const DeviceRow = ({ devices, index, style }) => {
       }
     } else {
       const geofence = {
-        name: item.name,
+        name: `Safe Parking - ${name || item.name}`,
         area: `CIRCLE(${pos.latitude}, ${pos.longitude}, 50)`,
         attributes: { color: '#06b6d4' },
       };
@@ -180,7 +182,7 @@ const DeviceRow = ({ devices, index, style }) => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography sx={{ fontWeight: 700 }}>{primaryValue}</Typography>
               {position && (
-                <Box sx={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', gap: theme.spacing(0.5), alignItems: 'center' }}>
                   <Tooltip
                     title={`${t('eventAlarm')}: ${formatAlarm(position.attributes?.alarm || '', t)}`}
                   >
@@ -210,13 +212,15 @@ const DeviceRow = ({ devices, index, style }) => {
             </Box>
           }
           secondary={
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px', mt: 0.5 }}>
+            <Box
+              sx={{ display: 'flex', flexDirection: 'column', gap: theme.spacing(0.5), mt: 0.5 }}
+            >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   {secondaryText()}
                 </Typography>
                 {position && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
                     <Tooltip title={parkingGeofence ? 'SafeZone Active' : 'Enable SafeZone'}>
                       <IconButton
                         size="small"

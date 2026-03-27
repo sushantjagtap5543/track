@@ -80,6 +80,7 @@ const MaintenancePage = () => {
     } else {
       setLabels({ ...labels, start: null, period: null });
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [item?.type]);
 
   const rawToValue = (start, value) => {

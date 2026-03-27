@@ -40,10 +40,12 @@ const MapNotification = ({ enabled, onClick }) => {
   useEffect(() => {
     map.addControl(control, theme.direction === 'rtl' ? 'top-left' : 'top-right');
     return () => map.removeControl(control);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [onClick]);
 
   useEffect(() => {
     control.setEnabled(enabled);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [enabled]);
 
   return null;

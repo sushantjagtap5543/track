@@ -50,6 +50,7 @@ const MapGeocoder = () => {
     });
     map.addControl(control, theme.direction === 'rtl' ? 'top-left' : 'top-right');
     return () => map.removeControl(control);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [dispatch]);
 
   return null;

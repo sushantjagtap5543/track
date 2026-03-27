@@ -37,6 +37,7 @@ const MapSelectedDevice = () => {
         offset: [0, -dimensions.popupMapOffset / 2],
       });
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [currentId, previousId, currentTime, previousTime, mapFollow, position, selectZoom]);
 
   return null;

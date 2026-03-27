@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Button, TextField, Typography, Snackbar, IconButton, Link } from '@mui/material';
+import {
+  Button,
+  TextField,
+  Typography,
+  Snackbar,
+  IconButton,
+  Link,
+  CircularProgress,
+} from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -14,19 +22,17 @@ const useStyles = makeStyles()((theme) => ({
   container: {
     display: 'flex',
     flexDirection: 'column',
-    gap: theme.spacing(3),
+    gap: theme.spacing(2),
   },
   header: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    marginBottom: theme.spacing(1),
   },
   title: {
     color: '#ffffff',
     fontWeight: 700,
     fontSize: '2.2rem',
-    marginBottom: theme.spacing(1),
     textShadow: '0 2px 4px rgba(0,0,0,0.5)',
   },
   subText: {
@@ -53,12 +59,10 @@ const useStyles = makeStyles()((theme) => ({
     fontWeight: 600,
     textTransform: 'none',
     boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
-    marginTop: theme.spacing(1),
   },
   footer: {
     display: 'flex',
     justifyContent: 'center',
-    marginTop: theme.spacing(2),
   },
   loginLink: {
     color: theme.palette.primary.main,
@@ -82,24 +86,30 @@ const ResetPasswordPage = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   const handleSubmit = useCatch(async (event) => {
     event.preventDefault();
-    if (!token) {
-      await fetchOrThrow('/api/password/reset', {
-        method: 'POST',
-        body: new URLSearchParams(`email=${encodeURIComponent(email)}`),
-      });
-    } else {
-      await fetchOrThrow('/api/password/update', {
-        method: 'POST',
-        body: new URLSearchParams(
-          `token=${encodeURIComponent(token)}&password=${encodeURIComponent(password)}`,
-        ),
-      });
+    setLoading(true);
+    try {
+      if (!token) {
+        await fetchOrThrow('/api/password/reset', {
+          method: 'POST',
+          body: new URLSearchParams(`email=${encodeURIComponent(email)}`),
+        });
+      } else {
+        await fetchOrThrow('/api/password/update', {
+          method: 'POST',
+          body: new URLSearchParams(
+            `token=${encodeURIComponent(token)}&password=${encodeURIComponent(password)}`,
+          ),
+        });
+      }
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
     }
-    setSnackbarOpen(true);
   });
 
   return (
@@ -108,7 +118,7 @@ const ResetPasswordPage = () => {
         <BackIcon />
       </IconButton>
 
-      <div className={classes.container}>
+      <form className={classes.container} onSubmit={handleSubmit}>
         <div className={classes.header}>
           <Typography className={classes.title}>{t('loginReset')}</Typography>
           <Typography className={classes.subText}>
@@ -146,11 +156,11 @@ const ResetPasswordPage = () => {
           color="primary"
           className={classes.resetButton}
           type="submit"
-          onClick={handleSubmit}
-          disabled={!/(.+)@(.+)\.(.{2,})/.test(email) && !password}
+          disabled={loading || (!/(.+)@(.+)\.(.{2,})/.test(email) && !password)}
           fullWidth
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
         >
-          {t('loginReset')}
+          {loading ? 'Processing...' : t('loginReset')}
         </Button>
 
         <div className={classes.footer}>
@@ -171,7 +181,7 @@ const ResetPasswordPage = () => {
             </Link>
           </Typography>
         </div>
-      </div>
+      </form>
       <Snackbar
         open={snackbarOpen}
         onClose={() => navigate('/login')}

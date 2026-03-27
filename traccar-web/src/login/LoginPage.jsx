@@ -12,6 +12,7 @@ import {
   Box,
   InputAdornment,
   Typography,
+  CircularProgress,
 } from '@mui/material';
 import CountryFlag from 'react-country-flag';
 import { makeStyles } from 'tss-react/mui';
@@ -42,17 +43,14 @@ const useStyles = makeStyles()((theme) => ({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: theme.spacing(1),
-    marginBottom: theme.spacing(2),
   },
   titleSection: {
-    marginBottom: theme.spacing(3),
     textAlign: 'center',
   },
   welcomeText: {
     color: '#fff',
     fontWeight: 600,
     fontSize: '2rem',
-    marginBottom: theme.spacing(1),
   },
   subText: {
     color: '#ffffff',
@@ -63,14 +61,13 @@ const useStyles = makeStyles()((theme) => ({
   container: {
     display: 'flex',
     flexDirection: 'column',
-    gap: theme.spacing(3),
+    gap: theme.spacing(2),
   },
   extraContainer: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: theme.spacing(2),
-    marginTop: theme.spacing(2),
+    gap: theme.spacing(1),
   },
   loginButton: {
     borderRadius: theme.spacing(1.5),
@@ -121,6 +118,8 @@ const LoginPage = () => {
   const [email, setEmail] = usePersistedState('loginEmail', '');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorText, setErrorText] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showServerTooltip, setShowServerTooltip] = useState(false);
   const [showQr, setShowQr] = useState(false);
@@ -145,6 +144,8 @@ const LoginPage = () => {
   const handlePasswordLogin = async (event) => {
     event.preventDefault();
     setFailed(false);
+    setErrorText('');
+    setLoading(true);
     try {
       const query = `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
       const response = await fetch('/api/session', {
@@ -187,11 +188,17 @@ const LoginPage = () => {
       } else if (response.status === 401 && response.headers.get('WWW-Authenticate') === 'TOTP') {
         setCodeEnabled(true);
       } else {
-        throw Error(await response.text());
+        const text = await response.text();
+        setErrorText(text || 'Invalid username or password');
+        setFailed(true);
+        setPassword('');
       }
-    } catch {
+    } catch (e) {
+      setErrorText(e.message || 'Login failed. Please try again.');
       setFailed(true);
       setPassword('');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -212,6 +219,7 @@ const LoginPage = () => {
     const listener = (token) => handleTokenLogin(token);
     handleLoginTokenListeners.add(listener);
     return () => handleLoginTokenListeners.delete(listener);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -268,7 +276,7 @@ const LoginPage = () => {
         </Typography>
       </div>
 
-      <div className={classes.container}>
+      <form className={classes.container} onSubmit={handlePasswordLogin}>
         {!openIdForced && (
           <>
             <TextField
@@ -281,7 +289,7 @@ const LoginPage = () => {
               autoComplete="email"
               autoFocus={!email}
               onChange={(e) => setEmail(e.target.value)}
-              helperText={failed && 'Invalid username or password'}
+              helperText={failed && errorText}
             />
             <TextField
               required
@@ -324,15 +332,15 @@ const LoginPage = () => {
               />
             )}
             <Button
-              onClick={handlePasswordLogin}
               type="submit"
               variant="contained"
               color="primary"
               className={classes.loginButton}
-              disabled={!email || !password || (codeEnabled && !code)}
+              disabled={loading || !email || !password || (codeEnabled && !code)}
               fullWidth
+              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
             >
-              {t('loginLogin')}
+              {loading ? 'Authenticating...' : t('loginLogin')}
             </Button>
           </>
         )}
@@ -397,7 +405,7 @@ const LoginPage = () => {
             </Link>
           </div>
         )}
-      </div>
+      </form>
 
       <QrCodeDialog open={showQr} onClose={() => setShowQr(false)} />
 

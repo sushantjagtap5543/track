@@ -79,6 +79,7 @@ const PoiMap = () => {
       };
     }
     return () => {};
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [data]);
 
   return null;

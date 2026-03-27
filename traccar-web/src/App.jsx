@@ -74,7 +74,6 @@ const App = () => {
     return null;
   }, []);
 
-
   if (user == null) {
     return <Loader />;
   }

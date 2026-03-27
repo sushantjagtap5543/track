@@ -73,6 +73,17 @@ exports.updateClientStatus = async (req, res) => {
     }
 
     res.json({ message: `Client ${isActive ? 'activated' : 'suspended'} successfully`, user });
+
+    // 5. Audit Log (Async)
+    await prisma.auditLog.create({
+        data: {
+          adminId: req.user.userId,
+          userId: clientId,
+          action: isActive ? 'ACTIVATE_USER' : 'SUSPEND_USER',
+          details: `User status changed by admin. Sync attempt made.`
+        }
+    }).catch(e => console.error('Audit failed:', e.message));
+
   } catch (_error) {
     res.status(500).json({ error: 'Failed to update client status' });
   }
@@ -122,5 +133,60 @@ exports.getAdvancedStats = async (req, res) => {
   } catch (error) {
     console.error('Advanced stats error:', error);
     res.status(500).json({ error: 'Failed to fetch advanced analytics' });
+  }
+};
+
+// Get Sovereign Audit Logs
+exports.getAuditLogs = async (req, res) => {
+  try {
+    const logs = await prisma.auditLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: { user: { select: { email: true } } }
+    });
+    res.json(logs);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch audit ledger' });
+  }
+};
+
+// Adjust Expiry / Extend Grace (VIP Override)
+exports.adjustExpiry = async (req, res) => {
+  const { userId, extensionDays } = req.body;
+  
+  if (!extensionDays || extensionDays < 1) {
+    return res.status(400).json({ error: 'Extension days must be a positive number.' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const newGraceDate = new Date();
+    newGraceDate.setDate(newGraceDate.getDate() + parseInt(extensionDays));
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { graceExtensionUntil: newGraceDate, isActive: true }
+    });
+
+    // Automatically re-activate Traccar engine
+    if (user.geosurepathUserId) {
+        await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false });
+    }
+
+    // Log the override
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        userId: userId,
+        action: 'EXTEND_GRACE',
+        details: `VIP Access extended for ${extensionDays} days. Expires: ${newGraceDate.toISOString()}`
+      }
+    });
+
+    res.json({ message: `VIP Override active. Account secured for another ${extensionDays} days.` });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to adjust expiry.' });
   }
 };

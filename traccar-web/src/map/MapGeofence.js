@@ -70,16 +70,9 @@ const MapGeofence = () => {
         filter: ['all', ['==', '$type', 'Polygon']],
         paint: {
           'fill-color': ['get', 'color'],
-          'fill-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            10, 0.05,
-            16, 0.15
-          ],
+          'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.05, 16, 0.15],
         },
       });
-
 
       return () => {
         if (map.getLayer('geofences-fill')) {
@@ -97,6 +90,7 @@ const MapGeofence = () => {
       };
     }
     return () => {};
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [mapGeofences]);
 
   useEffect(() => {
@@ -108,6 +102,7 @@ const MapGeofence = () => {
           .map((geofence) => geofenceToFeature(theme, geofence)),
       });
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [mapGeofences, geofences]);
 
   return null;

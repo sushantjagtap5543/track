@@ -114,6 +114,7 @@ const MapGeofenceEdit = ({ selectedGeofenceId }) => {
     const position = theme.direction === 'rtl' ? 'top-right' : 'top-left';
     addControlWithSourcePatch(map, draw, position);
     return () => map.removeControl(draw);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [refreshGeofences]);
 
   useEffect(() => {
@@ -136,6 +137,7 @@ const MapGeofenceEdit = ({ selectedGeofenceId }) => {
 
     map.on('draw.create', listener);
     return () => map.off('draw.create', listener);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [dispatch, navigate]);
 
   useEffect(() => {
@@ -181,6 +183,7 @@ const MapGeofenceEdit = ({ selectedGeofenceId }) => {
     Object.values(geofences).forEach((geofence) => {
       draw.add(geofenceToFeature(theme, geofence));
     });
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [geofences]);
 
   useEffect(() => {
@@ -197,6 +200,7 @@ const MapGeofenceEdit = ({ selectedGeofenceId }) => {
       const canvas = map.getCanvas();
       map.fitBounds(bounds, { padding: Math.min(canvas.width, canvas.height) * 0.1 });
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [selectedGeofenceId]);
 
   return null;

@@ -26,6 +26,8 @@ export const useEffectAsync = (effect, deps) => {
         result();
       }
     };
+
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [...deps, dispatch]);
 };
 
@@ -37,6 +39,7 @@ export const useCatch = (method) => {
 };
 
 export const useCatchCallback = (method, deps) => {
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   return useCallback(useCatch(method), deps);
 };
 

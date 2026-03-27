@@ -1,4 +1,4 @@
-﻿// src/routes/vehicles.js
+// src/routes/vehicles.js
 const express = require('express');
 const router = express.Router();
 const vehicleController = require('../controllers/vehicleController');
@@ -8,6 +8,7 @@ router.use(authenticateToken);
 
 // Get client's vehicles
 router.get('/', vehicleController.getVehicles);
+router.post('/create-fleet', vehicleController.createVehicle);
 
 // Engine controls
 router.post('/engine', vehicleController.toggleEngine);

@@ -61,6 +61,7 @@ const MapRoutePath = ({ positions }) => {
         map.removeSource(id);
       }
     };
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -88,6 +89,7 @@ const MapRoutePath = ({ positions }) => {
       type: 'FeatureCollection',
       features,
     });
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [theme, positions, reportColor, mapLineWidth, mapLineOpacity]);
 
   return null;

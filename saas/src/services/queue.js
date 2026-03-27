@@ -28,138 +28,114 @@ const notificationQueue = new Queue('NotificationQueue', { connection: redisConn
 
 const emailService = require('./email');
 
+const activeWorkers = [];
+
 // Initialize Workers
 const startWorkers = () => {
   console.log('[GeoSurePath] Starting background workers...');
 
-  const emailWorker = new Worker('EmailQueue', async job => {
+  // 1. Email Worker
+  activeWorkers.push(new Worker('EmailQueue', async job => {
     console.log(`[EmailWorker] Processing job ${job.id}: Sending email to ${job.data.to}`);
     const { to, subject, text, html } = job.data;
     try {
       await emailService.sendEmail({ to, subject, text, html });
     } catch (error) {
       console.error(`[EmailWorker] Failed for job ${job.id}:`, error.message);
-      throw error; // Re-throw to allow BullMQ retry
+      throw error;
     }
-  }, { connection: redisConnection });
+  }, { connection: redisConnection }));
 
-  const _alertWorker = new Worker('AlertQueue', async job => {
-    console.log(`[AlertWorker] Processing alert job ${job.name}: ${job.id}`);
-    
+  // 2. Alert Worker
+  activeWorkers.push(new Worker('AlertQueue', async job => {
     if (job.name === 'check-stay-duration') {
         const { vehicleId, userId, durationMinutes } = job.data;
-        
         try {
-            // 1. Fetch current position from GeoSurePath
             const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
             if (!vehicle) return;
-
             const position = await geosurepathService.getLatestPosition(vehicle.geosurepathDeviceId);
-            
-            // 2. Business Logic: Is it still stopped in the same area?
-            // Note: Traccar's /api/positions might not show 'geofenceId' directly in the position object unless linked.
-            // But we can check speed and if it's within the radius (or check if it's still in geofence via Traccar events).
-            // Simplified: If speed is 0 and it's been 30 mins, we assume it's stayed there if no 'exit' occurred.
-            
             if (position && position.speed === 0) {
                 await prisma.notification.create({
                     data: {
-                        userId: userId,
+                        userId,
                         type: 'STAY_DURATION_ALERT',
-                        message: `🚨 ALERT: ${vehicle.name} has been stopped for more than ${durationMinutes} minutes in the restricted area.`
+                        message: `🚨 ALERT: ${vehicle.name} has been stopped for > ${durationMinutes} minutes.`
                     }
                 });
-                console.log(`[AlertWorker] Stay-duration alert triggered for ${vehicle.name}`);
             }
-        } catch (error) {
-            console.error('[AlertWorker] Error processing stay-duration check:', error);
-        }
+        } catch (error) { console.error('[AlertWorker] Error:', error); }
     }
-  }, { connection: redisConnection });
+  }, { connection: redisConnection }));
 
-  const _notificationWorker = new Worker('NotificationQueue', async job => {
+  // 3. Notification Worker (Push)
+  activeWorkers.push(new Worker('NotificationQueue', async job => {
     const { userId, type, message, data } = job.data;
     try {
-        console.log(`[NotificationWorker] Processing job for user ${userId}`);
-        
-        // 1. Create DB record
-        await prisma.notification.create({
-            data: {
-                userId,
-                type,
-                message
-            }
-        });
+        await prisma.notification.create({ data: { userId, type, message } });
+        await fcmService.sendToUser(userId, { title: `GeoSurePath: ${type}`, body: message, data });
+    } catch (error) { console.error('[NotificationWorker] Error:', error); }
+  }, { connection: redisConnection }));
 
-        // 2. Send Push Notification
-        await fcmService.sendToUser(userId, {
-            title: `GeoSurePath: ${type.replace(/_/g, ' ')}`,
-            body: message,
-            data
-        });
-        
-    } catch (error) {
-        console.error('[NotificationWorker] Error processing notification:', error);
-    }
-  }, { connection: redisConnection });
-
-  const _billingWorker = new Worker('BillingQueue', async job => {
+  // 4. Billing Worker (Subscription Management & Retention)
+  activeWorkers.push(new Worker('BillingQueue', async job => {
     if (job.name === 'check-expirations') {
-        console.log('[BillingWorker] Running periodic subscription expiration check...');
+        console.log('[BillingWorker] Scanning subscription status...');
         const now = new Date();
-        
-        // 1. Find all active subscriptions that have expired
-        const expiredSubscriptions = await prisma.subscription.findMany({
+        const threeDaysOut = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
+
+        // a. Warning (3 Days remaining)
+        const expiringSoon = await prisma.subscription.findMany({
             where: {
                 status: 'ACTIVE',
-                expiresAt: { lt: now }
+                expiresAt: { lte: threeDaysOut, gt: now }
             },
             include: { user: true }
         });
 
-        console.log(`[BillingWorker] Found ${expiredSubscriptions.length} expired subscriptions.`);
+        for (const sub of expiringSoon) {
+            await emailService.sendEmail({
+                to: sub.user.email,
+                subject: '⚠️ Fleet Protection Warning: 3 Days Remaining',
+                html: `<h3>GeoSurePath Fleet Warning</h3><p>Your plan expires in 3 days. Settle your dues to avoid lock.</p>`
+            }).catch(e => console.error('Exp mail failed:', e.message));
+        }
 
-        for (const sub of expiredSubscriptions) {
-            try {
-                // 2. Update Subscription Status to EXPIRED
-                await prisma.subscription.update({
-                    where: { id: sub.id },
-                    data: { status: 'EXPIRED' }
-                });
+        // b. Hard Expiry (Pass Expiration)
+        const expired = await prisma.subscription.findMany({
+            where: { status: 'ACTIVE', expiresAt: { lt: now } },
+            include: { user: true }
+        });
 
-                // 3. Deactivate User Account in SaaS
-                await prisma.user.update({
-                    where: { id: sub.userId },
-                    data: { isActive: false }
-                });
-
-                // 4. Sync with Traccar Engine (Disable User)
-                if (sub.user.geosurepathUserId) {
-                    await geosurepathService.updateUser(sub.user.geosurepathUserId, { disabled: true });
-                    console.log(`[BillingWorker] User ${sub.user.email} suspended due to expiration.`);
-                }
-            } catch (err) {
-                console.error(`[BillingWorker] Error deactivating user ${sub.user.email}:`, err.message);
+        for (const sub of expired) {
+            await prisma.subscription.update({ where: { id: sub.id }, data: { status: 'EXPIRED' } });
+            await prisma.user.update({ where: { id: sub.userId }, data: { isActive: false } });
+            if (sub.user.geosurepathUserId) {
+                await geosurepathService.updateUser(sub.user.geosurepathUserId, { disabled: true });
+                console.log(`[BillingWorker] User ${sub.user.email} hard-locked.`);
             }
         }
     }
-  }, { connection: redisConnection });
+  }, { connection: redisConnection }));
 
   // Schedule periodic expiration check (Run every hour)
   billingQueue.add('check-expirations', {}, {
     repeat: { cron: '0 * * * *' },
-    jobId: 'periodic-expiration-check' // Prevents duplicate jobs on restart
-  }).catch(e => console.error('[BillingWorker] Failed to schedule expiration check:', e));
+    jobId: 'periodic-expiration-check'
+  }).catch(e => console.error('[BillingWorker] Failed to schedule:', e));
+};
 
-  // Event listeners for workers
-  emailWorker.on('completed', job => console.log(`[EmailWorker] Job ${job.id} completed.`));
-  emailWorker.on('failed', (job, err) => console.error(`[EmailWorker] Job ${job.id} failed:`, err));
+const stopWorkers = async () => {
+  console.log('[GeoSurePath] Closing background workers...');
+  await Promise.all(activeWorkers.map(w => w.close()));
+  await redisConnection.quit();
 };
 
 module.exports = {
+  redisConnection,
   emailQueue,
   alertQueue,
   billingQueue,
   notificationQueue,
-  startWorkers
+  startWorkers,
+  stopWorkers
 };

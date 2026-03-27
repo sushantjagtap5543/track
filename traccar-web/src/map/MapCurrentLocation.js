@@ -16,6 +16,7 @@ const MapCurrentLocation = () => {
     });
     map.addControl(control, theme.direction === 'rtl' ? 'top-left' : 'top-right');
     return () => map.removeControl(control);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
   return null;

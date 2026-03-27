@@ -22,7 +22,8 @@ const DeviceList = ({ devices }) => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
 
-  const [, setTime] = useState(() => Date.now());
+  // eslint-disable-next-line no-unused-vars
+  const [time, setTime] = useState(() => Date.now());
 
   useEffect(() => {
     const interval = setInterval(() => setTime(Date.now()), 5000);
@@ -34,7 +35,7 @@ const DeviceList = ({ devices }) => {
   useEffectAsync(async () => {
     const response = await fetchOrThrow('/api/devices');
     dispatch(devicesActions.refresh(await response.json()));
-  }, []);
+  }, [dispatch]);
 
   return (
     <List

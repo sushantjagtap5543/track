@@ -28,7 +28,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import PendingIcon from '@mui/icons-material/Pending';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
 
-
 import { useTranslation } from './LocalizationProvider';
 import RemoveDialog from './RemoveDialog';
 import PositionValue from './PositionValue';
@@ -260,7 +259,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                       onClick={handleGeofence}
                       sx={{
                         background: 'rgba(59, 130, 246, 0.1)',
-                        '&:hover': { background: 'rgba(59, 130, 246, 0.2)' }
+                        '&:hover': { background: 'rgba(59, 130, 246, 0.2)' },
                       }}
                     >
                       <VpnLockIcon />
@@ -268,7 +267,6 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                   </Tooltip>
                 )}
                 <Tooltip title={t('reportReplay')}>
-
                   <IconButton
                     onClick={() => navigate(`/replay?deviceId=${deviceId}`)}
                     disabled={disableActions || !position}

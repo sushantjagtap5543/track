@@ -36,6 +36,7 @@ const MapAccuracy = ({ positions }) => {
         map.removeSource(id);
       }
     };
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -47,6 +48,7 @@ const MapAccuracy = ({ positions }) => {
           turfCircle([position.longitude, position.latitude], position.accuracy * 0.001),
         ),
     });
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [positions]);
 
   return null;

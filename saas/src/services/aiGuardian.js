@@ -4,8 +4,80 @@ const os = require('os');
 const cron = require('node-cron');
 const { PrismaClient } = require('@prisma/client');
 const { callAI } = require('./ai');
+const geosurepathService = require('./geosurepath');
+const { emailQueue } = require('./queue');
 
 const prisma = new PrismaClient();
+
+// --- 0. Billing Enforcement Shield ---
+async function enforceBillingShield() {
+  console.log('🤖 AI-Guardian: Scanning for expired subscriptions...');
+  try {
+    const users = await prisma.user.findMany({
+      include: { subscriptions: { orderBy: { expiresAt: 'desc' }, take: 1 } }
+    });
+
+    for (const user of users) {
+      if (!user.geosurepathUserId) continue;
+
+      const latestSub = user.subscriptions[0];
+      if (!latestSub) continue;
+      
+      const now = new Date();
+      const expirationDate = new Date(latestSub.expiresAt);
+      
+      // Dynamic Grace Period & Manual VIP Extension
+      const systemGraceDays = parseInt(process.env.GRACE_PERIOD_DAYS) || 7;
+      const gracePeriodMs = systemGraceDays * 24 * 60 * 60 * 1000;
+      
+      const isExpired = now > new Date(expirationDate.getTime() + gracePeriodMs);
+      
+      // VIP Check: Admin manual extension overrides system expiry
+      const isVipExtensionActive = user.graceExtensionUntil && (now < new Date(user.graceExtensionUntil));
+      
+      const shouldBeDisabled = (isExpired && !isVipExtensionActive) || !user.isActive;
+
+      // 1. Proactive Retention Alert (3 Days Warning)
+      const diffDays = Math.ceil((expirationDate - now) / (1000 * 60 * 60 * 24));
+      if (diffDays === 3) {
+        await emailQueue.add(`exp-warning-${user.id}`, {
+          to: user.email,
+          subject: '⚠️ Fleet Protection Warning: 3 Days Remaining',
+          html: `<h3>GeoSurePath Fleet Protection Warning</h3>
+                 <p>Your protection plan for your vehicles is expiring in <strong>3 days</strong>.</p>
+                 <p>To avoid a hard-lock of your hardware devices, please settle your dues on the billing dashboard.</p>`
+        }, { jobId: `exp-3day-${user.id}-${expirationDate.toISOString()}` });
+      }
+
+      // 2. Traccar Engine Sync
+      try {
+        await geosurepathService.updateUser(user.geosurepathUserId, { disabled: shouldBeDisabled });
+        if (shouldBeDisabled && user.isActive) {
+           console.log(`🚫 AI-Guardian: Hard-Locked expired user ${user.email} in Traccar.`);
+           
+           // Lock the local database profile to prevent duplicate loops
+           await prisma.user.update({
+             where: { id: user.id },
+             data: { isActive: false }
+           });
+
+           // Send hard-lock notification (once)
+           await emailQueue.add(`hard-lock-${user.id}`, {
+             to: user.email,
+             subject: '🚨 CRITICAL: Fleet Hard-Locked',
+             html: `<h3>GeoSurePath Hard-Lock Notification</h3>
+                    <p>Your hardware access has been suspended due to an overdue settlement.</p>
+                    <p>Settle your bill immediately to restore tracking.</p>`
+           }, { jobId: `hard-lock-${user.id}-${expirationDate.toISOString()}` });
+        }
+      } catch (syncErr) {
+        console.error(`❌ AI-Guardian: Sync failed for ${user.email}:`, syncErr.message);
+      }
+    }
+  } catch (err) {
+    console.error('❌ AI-Guardian: Billing enforcement error:', err.message);
+  }
+}
 
 // The Free Webhook URL to upload to your Google Drive directly
 const GOOGLE_DRIVE_WEBHOOK_URL = process.env.GOOGLE_WEBHOOK_URL || null;
@@ -60,8 +132,13 @@ async function backupAndDeleteOldLogs() {
     try {
       const content = fs.readFileSync(filePath, 'utf8');
       
+      // Apply privacy mask (Hide Potential IMEIs/Coordinates)
+      const sanitizedContent = content
+        .replace(/\b\d{15}\b/g, '***-IMEI-***')
+        .replace(/(\d+\.\d{4,})\b/g, '$1***');
+      
       // Upload the small log fragment natively
-      const success = await uploadSmallChunkToDrive(`ServerLog_${file}`, content);
+      const success = await uploadSmallChunkToDrive(`ServerLog_${file}`, sanitizedContent);
       
       // Delete the file ONLY IF we successfully uploaded it OR if user intentionally disables upload
       if (success || !GOOGLE_DRIVE_WEBHOOK_URL) { 
@@ -201,6 +278,12 @@ function startGuardian() {
   cron.schedule('0 2 * * *', async () => {
     await backupAndDeleteOldLogs();
     await pruneAndBackupDatabase();
+    await enforceBillingShield();
+  });
+
+  // Billing Shield Sync (Every Hour)
+  cron.schedule('0 * * * *', async () => {
+    await enforceBillingShield();
   });
 
   // Daily Summary Report at 8:00 AM

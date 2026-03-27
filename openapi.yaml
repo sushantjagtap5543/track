@@ -73,6 +73,12 @@ tags:
     description: Checking server health status
   - name: Orders
     description: Order management
+  - name: SaaS Auth
+    description: SaaS-specific user authentication and registration
+  - name: SaaS Billing
+    description: SaaS Fleet subscription and invoice management
+  - name: SaaS Admin
+    description: SaaS Platform administrative controls
 paths:
   /health:
     get:

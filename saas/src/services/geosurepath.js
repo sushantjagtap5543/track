@@ -1,4 +1,4 @@
-﻿// src/services/geosurepath.js
+// src/services/geosurepath.js
 const { GEOSUREPATH_URL, GEOSUREPATH_ADMIN_EMAIL, GEOSUREPATH_ADMIN_PASSWORD } = process.env;
 
 /**
@@ -38,7 +38,9 @@ let sessionCookie = null;
 const getAuthHeaders = () => {
   const headers = {
     'Authorization': 'Basic ' + Buffer.from(`${GEOSUREPATH_ADMIN_EMAIL}:${GEOSUREPATH_ADMIN_PASSWORD}`).toString('base64'),
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'User-Agent': 'GeoSurePath-Sovereign-Guardian/1.0',
+    'X-Sovereign-Source': 'SaaS-API'
   };
   if (sessionCookie) {
     headers['Cookie'] = sessionCookie;
@@ -61,7 +63,11 @@ const ensureSession = async () => {
 
     const response = await fetch(`${GEOSUREPATH_URL}/api/session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: { 
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'GeoSurePath-Sovereign-Guardian/1.0',
+            'X-Sovereign-Source': 'SaaS-API'
+        },
         body: params
     });
 
@@ -83,6 +89,7 @@ const ensureSession = async () => {
  * Creates a new user in GeoSurePath
  */
 const createUser = async (name, email, password) => {
+  await ensureSession();
   const response = await fetch(`${GEOSUREPATH_URL}/api/users`, {
     method: 'POST',
     headers: getAuthHeaders(),
