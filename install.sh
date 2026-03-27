@@ -5,10 +5,8 @@
 #          the latest 18+ Alerts, 3D Dynamic Markers, & Billing Hub.
 # -------------------------------------------------------------------
 
-echo "🛑 Stopping and Removing ALL old GeoSurePath containers & networks..."
-docker-compose down --rmi all --volumes --remove-orphans || true
-docker container prune -f
-docker network prune -f
+echo "🛑 Stopping and Removing current GeoSurePath containers..."
+docker-compose down --remove-orphans || true
 
 echo "📥 Resyncing with GitHub Main Branch (Strict)..."
 git fetch origin
@@ -24,11 +22,11 @@ if ! grep -q "GOOGLE_WEBHOOK_URL" saas/.env; then
   echo "GOOGLE_WEBHOOK_URL=https://script.google.com/macros/s/AKfycbxS9O0IUuNOfT7huOOf4MdJoaK3e40mtu1pRksHoMUKHvtdLZgtVWRzxFEiqYgZrAhjrQ/exec" >> saas/.env
 fi
 
-echo "🔨 Executing HYPER-REBUILD (No Cache/Deep Build)..."
-docker-compose build --no-cache
+echo "🔨 Executing FAST-BUILD (Using Cache)..."
+docker-compose build
 
-echo "🚀 Launching Production Stack (Force Recreate)..."
-docker-compose up -d --force-recreate
+echo "🚀 Launching Production Stack..."
+docker-compose up -d
 
 echo "🗄️ Synchronizing Sovereign Database Schema..."
 docker-compose exec -T saas-api npx prisma db push --accept-data-loss
