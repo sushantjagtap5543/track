@@ -36,11 +36,11 @@ const startWorkers = () => {
     // ...
   }, { connection: redisConnection });
 
-  const alertWorker = new Worker('AlertQueue', async job => {
+  const _alertWorker = new Worker('AlertQueue', async job => {
     console.log(`[AlertWorker] Processing alert job ${job.name}: ${job.id}`);
     
     if (job.name === 'check-stay-duration') {
-        const { vehicleId, geofenceId, userId, durationMinutes } = job.data;
+        const { vehicleId, userId, durationMinutes } = job.data;
         
         try {
             // 1. Fetch current position from GeoSurePath
@@ -70,7 +70,7 @@ const startWorkers = () => {
     }
   }, { connection: redisConnection });
 
-  const notificationWorker = new Worker('NotificationQueue', async job => {
+  const _notificationWorker = new Worker('NotificationQueue', async job => {
     const { userId, type, message, data } = job.data;
     try {
         console.log(`[NotificationWorker] Processing job for user ${userId}`);
@@ -96,7 +96,7 @@ const startWorkers = () => {
     }
   }, { connection: redisConnection });
 
-  const billingWorker = new Worker('BillingQueue', async job => {
+  const _billingWorker = new Worker('BillingQueue', async job => {
     if (job.name === 'check-expirations') {
         console.log('[BillingWorker] Running periodic subscription expiration check...');
         const now = new Date();

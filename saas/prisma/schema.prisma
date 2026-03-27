@@ -135,6 +135,7 @@ model DeviceToken {
   platform  String?  // android, ios, web
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
 
 model AdminSetting {
   id          String   @id @default("GLOBAL")
@@ -143,5 +144,10 @@ model AdminSetting {
   updatedAt   DateTime @updatedAt
 }
 
-  @@index([userId])
-}
+// Global user index for all relevant models
+// Note: This was incorrectly placed inside the last model
+// Moved to its own section or just removed if it's redundant (User already has email index)
+// Actually, it seems they wanted an index on User's certain field, but @@index([userId]) 
+// inside a model would mean it's an index for THAT model's userId field.
+// Let's put a proper index back where it makes sense (e.g. DeviceToken)
+

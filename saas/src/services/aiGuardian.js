@@ -68,7 +68,7 @@ async function backupAndDeleteOldLogs() {
         fs.unlinkSync(filePath);
         console.log(`✅ AI-Guardian: Repaired and pruned log instance -> ${file}`);
       }
-    } catch (e) {
+    } catch (_e) {
         console.log('Skip log read:', file);
     }
   }
@@ -185,8 +185,8 @@ All data integrity checks passed. Maintaining strict ${reportData.dbPurgeThresho
     
     await uploadSmallChunkToDrive(`AI-Intelligence-Report-${Date.now()}.txt`, reportText);
     console.log('✅ AI Intelligence Report generated successfully.');
-  } catch (error) {
-    console.error('❌ AI-Guardian: Summary failure:', error.message);
+  } catch (_error) {
+    console.error('❌ AI-Guardian: Summary failure:', _error.message);
   }
 }
 

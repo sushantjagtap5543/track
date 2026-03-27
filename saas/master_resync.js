@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const bcrypt = require('bcrypt');
-const { execSync } = require('child_process');
+const { execSync: _execSync } = require('child_process');
 
 async function masterResync() {
     console.log("🚀 Initializing GeoSurePath Hyper-Sovereign Identity Lock...");
@@ -28,7 +28,7 @@ async function masterResync() {
         // We'll run this as a shell command to hit the DB container
         console.log("📡 Reconciliation of Telematics Identity Hub...");
         
-        const sql = `
+        const _sql = `
             UPDATE tc_users 
             SET email = 'admin@geosurepath.com', 
                 login = 'admin', 

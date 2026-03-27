@@ -1,5 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcrypt');
+const _bcrypt = require('bcrypt');
 const dns = require('dns').promises;
 
 // Testing accounts configuration
@@ -36,7 +36,7 @@ async function getBaseUrl() {
         await fetch(`${PUBLIC_IP}/api/health`, { signal: controller.signal });
         clearTimeout(timeout);
         return PUBLIC_IP;
-    } catch (e) {
+    } catch (_e) {
         console.log(`Note: Public IP ${PUBLIC_IP} not reachable, falling back to localhost.`);
     }
 
@@ -47,7 +47,7 @@ async function getBaseUrl() {
         await fetch('http://localhost:3001/api/health', { signal: controller.signal });
         clearTimeout(timeout);
         return 'http://localhost:3001';
-    } catch (e) {
+    } catch (_e) {
         // Silently fail if public IP or localhost:3001 are not reachable
     }
 
@@ -61,7 +61,7 @@ async function isInsideDocker() {
     try {
         await dns.lookup('db');
         return true;
-    } catch (e) {
+    } catch (_e) {
         return false;
     }
 }
@@ -140,7 +140,7 @@ async function main() {
     try {
         // 2. Register Accounts
         const adminRes = await registerUser(baseUrl, ADMIN_CREDENTIALS);
-        const clientRes = await registerUser(baseUrl, CLIENT_CREDENTIALS);
+        const _clientRes = await registerUser(baseUrl, CLIENT_CREDENTIALS);
 
         // 3. Promote Admin
         if (adminRes.success) {

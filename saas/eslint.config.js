@@ -1,4 +1,4 @@
-﻿const js = require("@eslint/js");
+const js = require("@eslint/js");
 
 module.exports = [
     js.configs.recommended,
@@ -17,9 +17,14 @@ module.exports = [
             }
         },
         rules: {
-            "no-unused-vars": "warn",
+            "no-unused-vars": ["warn", { 
+                "argsIgnorePattern": "^_",
+                "varsIgnorePattern": "^_",
+                "caughtErrorsIgnorePattern": "^_"
+            }],
             "no-console": "off",
             "no-undef": "off" // CommonJS require/module/process
         }
+
     }
 ];

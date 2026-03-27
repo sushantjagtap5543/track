@@ -1,4 +1,4 @@
-﻿// src/controllers/adminController.js
+// src/controllers/adminController.js
 const os = require('os');
 const { PrismaClient } = require('@prisma/client');
 const geosurepathService = require('../services/geosurepath');
@@ -27,7 +27,7 @@ exports.getSystemHealth = async (req, res) => {
       systemUptime: uptime,
       processUptime: processUptime
     });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Failed to fetch system health' });
   }
 };
@@ -46,7 +46,7 @@ exports.getStats = async (req, res) => {
     const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
 
     res.json({ totalClients, totalVehicles, totalRevenue });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Failed to fetch platform stats' });
   }
 };
@@ -73,7 +73,7 @@ exports.updateClientStatus = async (req, res) => {
     }
 
     res.json({ message: `Client ${isActive ? 'activated' : 'suspended'} successfully`, user });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Failed to update client status' });
   }
 };

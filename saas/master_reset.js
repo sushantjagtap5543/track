@@ -11,7 +11,7 @@ async function masterReset() {
 
     try {
         // 1. SAAS DATABASE (POSTGRES - SAAS SCHEMA)
-        const user = await prisma.user.upsert({
+        const _user = await prisma.user.upsert({
             where: { email: EMAIL },
             update: { password: hashed, role: 'ADMIN' },
             create: { email: EMAIL, name: "Master Admin", password: hashed, role: 'ADMIN' }

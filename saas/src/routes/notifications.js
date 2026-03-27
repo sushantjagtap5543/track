@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
@@ -15,7 +15,7 @@ router.get('/', authenticateToken, async (req, res) => {
             take: 20
         });
         res.json(notifications);
-    } catch (error) {
+    } catch (_error) {
         res.status(500).json({ error: 'Failed to fetch notifications' });
     }
 });
@@ -30,7 +30,7 @@ router.put('/:id/read', authenticateToken, async (req, res) => {
             data: { isRead: true }
         });
         res.json({ message: 'Marked as read' });
-    } catch (error) {
+    } catch (_error) {
         res.status(500).json({ error: 'Failed' });
     }
 });

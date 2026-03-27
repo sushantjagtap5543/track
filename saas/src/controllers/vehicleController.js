@@ -1,4 +1,4 @@
-﻿// src/controllers/vehicleController.js
+// src/controllers/vehicleController.js
 const { PrismaClient } = require('@prisma/client');
 const geosurepathService = require('../services/geosurepath');
 const prisma = new PrismaClient();
@@ -10,7 +10,7 @@ exports.getVehicles = async (req, res) => {
       where: { userId: req.user.userId }
     });
     res.json(vehicles);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Failed to fetch vehicles' });
   }
 };
@@ -117,7 +117,7 @@ exports.createAlertRule = async (req, res) => {
     });
 
     res.json(alertRule);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Failed to create alert rule' });
   }
 };
@@ -131,7 +131,7 @@ exports.getAlertRules = async (req, res) => {
       where: { vehicleId, vehicle: { userId: req.user.userId } }
     });
     res.json(rules);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Failed to fetch alert rules' });
   }
 };
@@ -154,7 +154,7 @@ exports.deleteAlertRule = async (req, res) => {
     });
 
     res.json({ message: 'Alert rule deleted successfully' });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Failed to delete alert rule' });
   }
 };

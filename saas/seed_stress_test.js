@@ -83,7 +83,7 @@ async function seedStressTest() {
                     deviceId: traccarDeviceID
                 }, { headers: AUTH_HEADER });
             }
-        } catch (err) {
+        } catch (_err) {
             // Already exists or network error
             console.warn(`⚠️ User/Device ${userEmail} might already exist in Traccar. Skipping provisioning.`);
         }

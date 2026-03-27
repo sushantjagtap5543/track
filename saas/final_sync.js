@@ -1,7 +1,7 @@
 const axios = require('axios');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const bcrypt = require('bcrypt');
+const _bcrypt = require('bcrypt');
 
 async function finalSync() {
     console.log("🚀 Initializing Zero-Gap Identity Reconciliation...");
@@ -36,7 +36,7 @@ async function finalSync() {
             }, { headers: TRACCAR_AUTH });
             console.log("✅ Traccar Identity Harmonized.");
         }
-    } catch (err) {
+    } catch (_err) {
         console.error("❌ Sync Gap discovered (falling back to manual DB patch).");
     } finally { process.exit(0); }
 }
