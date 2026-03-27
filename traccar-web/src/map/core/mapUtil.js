@@ -63,24 +63,25 @@ export const prepareIcon = (background, icon, color) => {
   return canvas.toDataURL();
 };
 
-export const getStatusColor = (status) => {
+export const getStatusColor = (status, attributes = {}) => {
+  if (attributes.alarm) {
+    return '#ef4444'; // Alarm Red
+  }
   switch (status) {
     case 'online':
-      return '#22c55e'; // Vibrant Green
+      return '#3b82f6'; // Moving Blue
     case 'offline':
-      return '#64748b'; // Sleek Gray
+      return '#64748b'; // Stopped Gray
     case 'unknown':
     default:
-      return '#f59e0b'; // Amber
+      return '#f59e0b'; // Idle Amber
   }
 };
 
 export const getMapColor = (device, position) => {
-  if (position && position.attributes.alarm) {
-    return '#ef4444'; // Danger Red
-  }
-  return getStatusColor(device.status);
+  return getStatusColor(device.status, position?.attributes || {});
 };
+
 
 export const createCircle = (latitude, longitude, radius) => {
   const circle = turfCircle([longitude, latitude], radius, { units: 'meters' });

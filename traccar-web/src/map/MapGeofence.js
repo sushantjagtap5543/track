@@ -44,6 +44,7 @@ const MapGeofence = () => {
           'line-opacity': ['get', 'opacity'],
         },
       });
+      // Geofence Title (Clean Overlay)
       map.addLayer({
         source: id,
         id: 'geofences-title',
@@ -51,13 +52,34 @@ const MapGeofence = () => {
         layout: {
           'text-field': '{name}',
           'text-font': findFonts(map),
-          'text-size': 12,
+          'text-size': 13,
+          'text-anchor': 'center',
         },
         paint: {
+          'text-color': ['get', 'color'],
           'text-halo-color': 'white',
-          'text-halo-width': 1,
+          'text-halo-width': 2,
         },
       });
+
+      // Geofence Soft Pulse (Optional feature if desired)
+      map.addLayer({
+        source: id,
+        id: 'geofences-pulse',
+        type: 'fill',
+        filter: ['all', ['==', '$type', 'Polygon']],
+        paint: {
+          'fill-color': ['get', 'color'],
+          'fill-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            10, 0.05,
+            16, 0.15
+          ],
+        },
+      });
+
 
       return () => {
         if (map.getLayer('geofences-fill')) {

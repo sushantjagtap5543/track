@@ -1,12 +1,25 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-/** 📈 GeoSurePath Master Financial Constants */
-const PLANS = [
-    { id: 'monthly', name: 'Standard Monthly', days: 30, price: 200, discount: 0 },
-    { id: 'half_yearly', name: 'Safe Shield (6 Months)', days: 180, price: 1000, discount: 16.7 },
-    { id: 'yearly', name: 'Guardian Pro (1 Year)', days: 365, price: 2000, discount: 16.7 }
-];
+/** 📈 GeoSurePath Master Financial Constants (Now Database-Driven) */
+let CACHED_PLANS = [];
+
+async function getPlans() {
+    if (CACHED_PLANS.length > 0) return CACHED_PLANS;
+    const dbPlans = await prisma.plan.findMany();
+    CACHED_PLANS = dbPlans.map(p => ({
+        id: p.id,
+        name: p.name,
+        days: p.id === 'monthly' ? 30 : (p.id === 'half_yearly' ? 180 : 365),
+        price: p.pricePerDevice,
+        discount: p.id === 'yearly' ? 16.7 : 0,
+        billingCycle: p.billingCycle
+    }));
+    return CACHED_PLANS;
+}
+
+// Clear cache when admin updates plans
+const refreshPlans = () => { CACHED_PLANS = []; };
 
 const generateInvoiceNumber = (sequenceId) => {
     const now = new Date();
@@ -64,10 +77,12 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null) => {
     const maxUnpaidDays = Math.max(0, ...deviceDetails.map(d => d.unpaidDays));
     const accessStatus = (maxUnpaidDays <= 0) ? 'PAID' : (maxUnpaidDays <= 7 ? 'GRACE' : 'OVERDUE');
 
+    const plans = await getPlans();
+
     return {
         userId: user.id, userEmail: user.email,
         totalDue: parseFloat(totalDue.toFixed(2)), currency: 'INR',
-        plans: PLANS.map(p => ({ ...p, costPerDay: parseFloat((p.price / p.days).toFixed(2)), breakdown: calculateBreakdown(p.price) })),
+        plans: plans.map(p => ({ ...p, costPerDay: parseFloat((p.price / p.days).toFixed(2)), breakdown: calculateBreakdown(p.price) })),
         devices: deviceDetails,
         history: (user.subscriptions || []).map(sub => ({ ...sub, invoiceId: generateInvoiceNumber(sub.id) })),
         sentry: { status: accessStatus, unpaidDays: maxUnpaidDays, graceDaysRemaining: Math.max(0, 7 - maxUnpaidDays), isHardLock: accessStatus === 'OVERDUE' }
@@ -147,12 +162,26 @@ const settleCash = async (req, res) => {
     if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
     const { targetUserId, planId, amount } = req.body;
     try {
-        const plan = PLANS.find(p => p.id === planId);
+        const plans = await getPlans();
+        const plan = plans.find(p => p.id === planId);
         const now = new Date();
         const expiresAt = new Date(now.getTime() + ((plan?.days || 30) * 24 * 60 * 60 * 1000));
         await prisma.subscription.create({ data: { userId: targetUserId, planId: planId, price: parseFloat(amount), status: 'ACTIVE', expiresAt } });
         await prisma.vehicle.updateMany({ where: { userId: targetUserId }, data: { registrationDate: now } });
         res.json({ message: 'Sovereign Settle Success' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+const updatePlan = async (req, res) => {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
+    const { planId, name, pricePerDevice, billingCycle } = req.body;
+    try {
+        await prisma.plan.update({
+            where: { id: planId },
+            data: { name, pricePerDevice, billingCycle }
+        });
+        refreshPlans();
+        res.json({ message: 'Plan Harmonization Complete. Propagated globally.' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
@@ -165,4 +194,4 @@ const adminUpdateRegistration = async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
-module.exports = { getMyBill, adminUpdateRegistration, settleCash, getAdminAnalytics, getAllUsersLedger, updateGatewayConfig, PLANS };
+module.exports = { getMyBill, adminUpdateRegistration, settleCash, getAdminAnalytics, getAllUsersLedger, updateGatewayConfig, updatePlan, getPlans };

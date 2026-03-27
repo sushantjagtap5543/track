@@ -85,6 +85,7 @@ public class WrapperInboundHandler implements ChannelInboundHandler {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         handler.exceptionCaught(ctx, cause);
     }

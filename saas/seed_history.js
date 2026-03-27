@@ -40,7 +40,7 @@ async function generateData() {
                     traccarDeviceID = existing.id;
                     console.log(`✅ Found existing device with ID: ${traccarDeviceID}`);
                 } else {
-                    throw new Error("Failed to create or find device: " + e.message);
+                    throw new Error("Failed to create or find device: " + e.message, { cause: e });
                 }
             } else {
                 throw e;
@@ -70,7 +70,7 @@ async function generateData() {
                     deviceId: traccarDeviceID 
                 }, { headers: AUTH });
             }
-        } catch (e) {
+        } catch (_e) {
             // Already linked
         }
 

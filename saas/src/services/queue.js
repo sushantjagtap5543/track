@@ -26,14 +26,21 @@ const alertQueue = new Queue('AlertQueue', { connection: redisConnection });
 const billingQueue = new Queue('BillingQueue', { connection: redisConnection });
 const notificationQueue = new Queue('NotificationQueue', { connection: redisConnection });
 
+const emailService = require('./email');
+
 // Initialize Workers
 const startWorkers = () => {
   console.log('[GeoSurePath] Starting background workers...');
 
   const emailWorker = new Worker('EmailQueue', async job => {
     console.log(`[EmailWorker] Processing job ${job.id}: Sending email to ${job.data.to}`);
-    // Nodemailer logic here
-    // ...
+    const { to, subject, text, html } = job.data;
+    try {
+      await emailService.sendEmail({ to, subject, text, html });
+    } catch (error) {
+      console.error(`[EmailWorker] Failed for job ${job.id}:`, error.message);
+      throw error; // Re-throw to allow BullMQ retry
+    }
   }, { connection: redisConnection });
 
   const _alertWorker = new Worker('AlertQueue', async job => {

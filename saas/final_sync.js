@@ -1,7 +1,7 @@
 const axios = require('axios');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const _bcrypt = require('bcrypt');
+const bcrypt = require('bcrypt');
 
 async function finalSync() {
     console.log("🚀 Initializing Zero-Gap Identity Reconciliation...");
