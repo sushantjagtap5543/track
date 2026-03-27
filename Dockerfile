@@ -15,7 +15,7 @@ RUN npm run build
 # Stage 3: Run Traccar
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /opt/traccar
-RUN mkdir logs
+RUN apk add --no-cache curl && mkdir logs
 
 # Copy backend
 # build.gradle explicitly sets jar output to target/ (line 20) and libs to target/lib/

@@ -15,8 +15,8 @@ else
 fi
 
 echo "🛑 Stopping and Removing current GeoSurePath containers..."
-# Note: To wipe ALL data (WARNING: DESTRUCTIVE), add --volumes to the line below
-$DC down --remove-orphans || true
+# 🔥 DEEP WIPE: This clears old DB data and volumes to refresh passwords/schema
+$DC down --remove-orphans --volumes || true
 
 # 🧹 [BATCH CLEAN]
 echo "🧹 Pruning unused Docker layers and builder cache..."
@@ -55,13 +55,13 @@ sudo systemctl disable traccar || true
 # 🔨 [PURE BUILD]
 echo "🔨 Executing PURE BUILD (This will re-download all package dependencies)..."
 # Note: --no-cache ensures all 'npm install' steps are fresh. 
-# This will take ~15-20 minutes.
 $DC build --pull --no-cache
 
 # 🚀 [SEQUENTIAL STARTUP]
 echo "📂 [1/4] Starting Postgres & Redis Layer..."
+# Note: Since we wiped volumes, the fresh DB will use the new password from .env
 $DC up -d db redis
-sleep 20 # Allow Postgres 15 to initialize
+sleep 25 # Allow Postgres 15 to initialize
 
 echo "📂 [2/4] Starting Core Tracking Engine (GeoSurePath)..."
 $DC up -d geosurepath
@@ -76,6 +76,6 @@ $DC up -d nginx
 
 # ✅ [FINALIZE]
 $DC restart saas-api
-echo "✅ DEEP-CLEAN RE-INSTALL COMPLETE!"
-echo "🌐 Platform: http://$(curl -s ifconfig.me)"
+echo "✅ DEEP-CLEAN RE-INSTALL COMPLETE! PASSWORD SYNCED."
+echo "🌐 Platform: http://$(curl -4 -s ifconfig.me) (or http://3.108.114.12)"
 echo "💡 IMPORTANT: Please perform a 'Hard Refresh' (Ctrl + F5) in your browser."
