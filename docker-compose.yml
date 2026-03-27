@@ -36,7 +36,10 @@ services:
     container_name: geosurepath_traccar
     restart: always
     environment:
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DATABASE_URL=jdbc:postgresql://db:5432/geosurepath
+      - DATABASE_USER=geosurepath
+      - DATABASE_PASSWORD=${DB_PASSWORD}
+      - CONFIG_USE_ENVIRONMENT_VARIABLES=true
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/api/health"]
       interval: 10s

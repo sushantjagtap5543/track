@@ -54,6 +54,7 @@ sudo systemctl disable traccar || true
 
 # 🔨 [PURE BUILD]
 echo "🔨 Executing PURE BUILD (This will re-download all package dependencies)..."
+# Note: --no-cache ensures all 'npm install' steps are fresh. 
 $DC build --pull --no-cache
 
 # 🚀 [SEQUENTIAL STARTUP]
@@ -64,20 +65,32 @@ sleep 25 # Allow Postgres 15 to initialize
 echo "📂 [2/4] Starting Core Tracking Engine (GeoSurePath)..."
 $DC up -d geosurepath
 
-echo "⏳ Waiting for Tracking Engine to become Healthy..."
+echo "⏳ Waiting for Tracking Engine to become Healthy (Timeout 2m)..."
+TIMER=0
 while [ "$($DC inspect --format '{{.State.Health.Status}}' geosurepath_traccar 2>/dev/null)" != "healthy" ]; do
+  if [ $TIMER -gt 120 ]; then
+    echo "❌ Engine Health Timeout! Check 'docker logs geosurepath_traccar'"
+    exit 1
+  fi
   echo -n "."
   sleep 5
+  TIMER=$((TIMER + 5))
 done
 echo "✅ Core Engine is Online."
 
 echo "📂 [3/4] Starting SaaS API..."
 $DC up -d saas-api
 
-echo "⏳ Waiting for SaaS API to become Healthy..."
+echo "⏳ Waiting for SaaS API to become Healthy (Timeout 1m)..."
+TIMER=0
 while [ "$($DC inspect --format '{{.State.Health.Status}}' geosurepath_saas_api 2>/dev/null)" != "healthy" ]; do
+  if [ $TIMER -gt 60 ]; then
+    echo "❌ SaaS API Health Timeout! Check 'docker logs geosurepath_saas_api'"
+    exit 1
+  fi
   echo -n "."
-  sleep 5
+  sleep 4
+  TIMER=$((TIMER + 4))
 done
 echo "✅ SaaS API is Online."
 
