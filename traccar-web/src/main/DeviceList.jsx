@@ -22,7 +22,7 @@ const DeviceList = ({ devices }) => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
 
-  const [, setTime] = useState(Date.now());
+  const [, setTime] = useState(() => Date.now());
 
   useEffect(() => {
     const interval = setInterval(() => setTime(Date.now()), 5000);

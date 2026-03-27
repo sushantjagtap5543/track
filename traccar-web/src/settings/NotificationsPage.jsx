@@ -17,7 +17,7 @@ const NotificationsPage = () => {
   const { classes } = useSettingsStyles();
   const t = useTranslation();
 
-  const [timestamp, setTimestamp] = useState(Date.now());
+  const [timestamp, setTimestamp] = useState(() => Date.now());
   const [items, setItems] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [loading, setLoading] = useState(false);

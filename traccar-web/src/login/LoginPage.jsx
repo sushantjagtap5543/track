@@ -153,7 +153,7 @@ const LoginPage = () => {
       });
       if (response.ok) {
         const user = await response.json();
-        
+
         // --- SaaS API Sync ---
         try {
           const saasRes = await fetch('/api/auth/login', {
@@ -165,14 +165,14 @@ const LoginPage = () => {
             const saasData = await saasRes.json();
             window.localStorage.setItem('saas_token', saasData.token);
             window.localStorage.setItem('saas_user', JSON.stringify(saasData));
-            
+
             // Check for overdue bill
             const billRes = await fetch('/api/billing/my-bill', {
-               headers: { 'Authorization': `Bearer ${saasData.token}` }
+              headers: { Authorization: `Bearer ${saasData.token}` },
             });
             const bill = await billRes.json();
             if (bill.totalDue > 0) {
-               window.sessionStorage.setItem('postLogin', '/billing');
+              window.sessionStorage.setItem('postLogin', '/billing');
             }
           }
         } catch (saasError) {
@@ -354,14 +354,14 @@ const LoginPage = () => {
             <Button
               onClick={() => navigate('/billing')}
               variant="outlined"
-              sx={{ 
-                color: '#fff', 
-                borderColor: 'rgba(255,255,255,0.3)', 
-                borderRadius: '30px', 
+              sx={{
+                color: '#fff',
+                borderColor: 'rgba(255,255,255,0.3)',
+                borderRadius: '30px',
                 px: 3,
                 fontSize: '0.8rem',
                 mb: 1,
-                '&:hover': { borderColor: '#fff', background: 'rgba(255,255,255,0.05)' }
+                '&:hover': { borderColor: '#fff', background: 'rgba(255,255,255,0.05)' },
               }}
             >
               Pay Subscription Bill

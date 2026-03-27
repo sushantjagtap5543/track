@@ -21,7 +21,7 @@ const MaintenacesPage = () => {
 
   const positionAttributes = usePositionAttributes(t);
 
-  const [timestamp, setTimestamp] = useState(Date.now());
+  const [timestamp, setTimestamp] = useState(() => Date.now());
   const [items, setItems] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [loading, setLoading] = useState(false);

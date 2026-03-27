@@ -6,7 +6,6 @@ import directionSvg from '../../resources/images/direction.svg';
 import backgroundSvg from '../../resources/images/background.svg';
 import bicycleSvg from '../../resources/images/icon/bicycle.svg';
 import busSvg from '../../resources/images/icon/bus.svg';
-import motorcycleSvg from '../../resources/images/icon/motorcycle.svg';
 import personSvg from '../../resources/images/icon/person.svg';
 import truckSvg from '../../resources/images/icon/truck.svg';
 import vanSvg from '../../resources/images/icon/van.svg';

@@ -23,18 +23,18 @@ const getAudioContext = () => {
 // --- Browser Interaction Unlocker ---
 // Modern browsers block audio until FIRST interaction. This listener resumes the context.
 const unlockAudio = () => {
-    const ctx = getAudioContext();
-    if (ctx.state === 'suspended') {
-        ctx.resume();
-    }
-    // Remove listener once unlocked
-    window.removeEventListener('click', unlockAudio);
-    window.removeEventListener('touchstart', unlockAudio);
+  const ctx = getAudioContext();
+  if (ctx.state === 'suspended') {
+    ctx.resume();
+  }
+  // Remove listener once unlocked
+  window.removeEventListener('click', unlockAudio);
+  window.removeEventListener('touchstart', unlockAudio);
 };
 
 if (typeof window !== 'undefined') {
-    window.addEventListener('click', unlockAudio);
-    window.addEventListener('touchstart', unlockAudio);
+  window.addEventListener('click', unlockAudio);
+  window.addEventListener('touchstart', unlockAudio);
 }
 
 /**
@@ -161,22 +161,22 @@ const DEGRADATION_ALARMS = new Set([
  * Specifically for Safe Parking breaches or SOS.
  */
 export const playSecuritySiren = () => {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    for (let i = 0; i < 15; i += 1) {
-      const freq = i % 2 === 0 ? 1200 : 1600;
-      playTone(ctx, ctx.destination, freq, now + i * 0.1, 0.08, 'square', 0.15);
-    }
+  const ctx = getAudioContext();
+  const now = ctx.currentTime;
+  for (let i = 0; i < 15; i += 1) {
+    const freq = i % 2 === 0 ? 1200 : 1600;
+    playTone(ctx, ctx.destination, freq, now + i * 0.1, 0.08, 'square', 0.15);
+  }
 };
 
 /**
  * 🔔 Digital Chime — Fast premium double-ping (B5 → B6)
  */
 export const playDigitalChime = () => {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
-    playTone(ctx, ctx.destination, 987.77, now, 0.05, 'sine', 0.3); // B5
-    playTone(ctx, ctx.destination, 1975.53, now + 0.08, 0.05, 'sine', 0.2); // B6
+  const ctx = getAudioContext();
+  const now = ctx.currentTime;
+  playTone(ctx, ctx.destination, 987.77, now, 0.05, 'sine', 0.3); // B5
+  playTone(ctx, ctx.destination, 1975.53, now + 0.08, 0.05, 'sine', 0.2); // B6
 };
 
 /**

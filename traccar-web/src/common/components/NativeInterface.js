@@ -90,9 +90,9 @@ const NativeInterface = () => {
           if (saasToken) {
             await fetch('/api/geosurepath/tokens', {
               method: 'POST',
-              headers: { 
+              headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${saasToken}`
+                Authorization: `Bearer ${saasToken}`,
               },
               body: JSON.stringify({ token: notificationToken, platform: 'native' }),
             });

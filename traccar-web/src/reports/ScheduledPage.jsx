@@ -24,7 +24,7 @@ const ScheduledPage = () => {
 
   const calendars = useSelector((state) => state.calendars.items);
 
-  const [timestamp, setTimestamp] = useState(Date.now());
+  const [timestamp, setTimestamp] = useState(() => Date.now());
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [removingId, setRemovingId] = useState();

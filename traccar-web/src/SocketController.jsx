@@ -2,9 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector, connect } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Snackbar, Alert, AlertTitle } from '@mui/material';
-import { devicesActions, sessionActions } from './store';
+import { sessionActions, devicesActions } from './store';
 import { useCatchCallback, useEffectAsync } from './reactHelper';
-import { snackBarDurationLongMs } from './common/util/duration';
 import alarm from './resources/alarm.mp3';
 import { playEventSound, playLegacyAlarm } from './resources/sounds/SoundGenerator';
 import { eventsActions } from './store/events';
@@ -47,13 +46,17 @@ const SocketController = () => {
       if (!features.disableEvents) {
         dispatch(eventsActions.add(events));
       }
-      
+
       const shouldPlaySound = events.some(
         (e) =>
           soundEvents.includes(e.type) ||
           (e.type === 'alarm' && soundAlarms.includes(e.attributes.alarm)) ||
           // Smart Overlay: Always sound for critical status changes if prefs are default
-          (!soundEvents && !soundAlarms && ['deviceOnline', 'deviceOffline', 'alarm', 'ignitionOn', 'ignitionOff'].includes(e.type))
+          (!soundEvents &&
+            !soundAlarms &&
+            ['deviceOnline', 'deviceOffline', 'alarm', 'ignitionOn', 'ignitionOff'].includes(
+              e.type,
+            )),
       );
 
       if (shouldPlaySound) {
@@ -61,7 +64,11 @@ const SocketController = () => {
           (e) =>
             soundEvents.includes(e.type) ||
             (e.type === 'alarm' && soundAlarms.includes(e.attributes.alarm)) ||
-            (!soundEvents && !soundAlarms && ['deviceOnline', 'deviceOffline', 'alarm', 'ignitionOn', 'ignitionOff'].includes(e.type))
+            (!soundEvents &&
+              !soundAlarms &&
+              ['deviceOnline', 'deviceOffline', 'alarm', 'ignitionOn', 'ignitionOff'].includes(
+                e.type,
+              )),
         );
         try {
           playEventSound(relevantEvent);
@@ -78,20 +85,47 @@ const SocketController = () => {
 
           if (!message) {
             switch (event.type) {
-              case 'deviceOnline': message = 'Vehicle is now online and transmitting.'; severity = 'success'; title = 'Online'; break;
-              case 'deviceOffline': message = 'Vehicle has lost connection.'; severity = 'warning'; title = 'Offline'; break;
-              case 'geofenceEnter': message = 'Vehicle entered a restricted zone.'; severity = 'info'; title = 'Geofence Enter'; break;
-              case 'geofenceExit': 
-                message = event.attributes.name?.startsWith('Safe Parking') 
-                   ? 'SECURITY ALERT: Safe Parking Shield Breached!' 
-                   : 'Vehicle exited a restricted zone.'; 
-                severity = event.attributes.name?.startsWith('Safe Parking') ? 'error' : 'info';
-                title = event.attributes.name?.startsWith('Safe Parking') ? '🚨 SECURITY BREACH' : 'Geofence Exit';
+              case 'deviceOnline':
+                message = 'Vehicle is now online and transmitting.';
+                severity = 'success';
+                title = 'Online';
                 break;
-              case 'alarm': message = `ALARM: ${event.attributes.alarm || 'Triggered'}`; severity = 'error'; title = 'Urgent Alert'; break;
-              case 'ignitionOn': message = 'Engine has been started.'; severity = 'success'; title = 'Engine ON'; break;
-              case 'ignitionOff': message = 'Engine has been stopped.'; severity = 'info'; title = 'Engine OFF'; break;
-              default: message = event.type.replace(/([A-Z])/g, ' $1').trim();
+              case 'deviceOffline':
+                message = 'Vehicle has lost connection.';
+                severity = 'warning';
+                title = 'Offline';
+                break;
+              case 'geofenceEnter':
+                message = 'Vehicle entered a restricted zone.';
+                severity = 'info';
+                title = 'Geofence Enter';
+                break;
+              case 'geofenceExit':
+                message = event.attributes.name?.startsWith('Safe Parking')
+                  ? 'SECURITY ALERT: Safe Parking Shield Breached!'
+                  : 'Vehicle exited a restricted zone.';
+                severity = event.attributes.name?.startsWith('Safe Parking') ? 'error' : 'info';
+                title = event.attributes.name?.startsWith('Safe Parking')
+                  ? '🚨 SECURITY BREACH'
+                  : 'Geofence Exit';
+                break;
+              case 'alarm':
+                message = `ALARM: ${event.attributes.alarm || 'Triggered'}`;
+                severity = 'error';
+                title = 'Urgent Alert';
+                break;
+              case 'ignitionOn':
+                message = 'Engine has been started.';
+                severity = 'success';
+                title = 'Engine ON';
+                break;
+              case 'ignitionOff':
+                message = 'Engine has been stopped.';
+                severity = 'info';
+                title = 'Engine OFF';
+                break;
+              default:
+                message = event.type.replace(/([A-Z])/g, ' $1').trim();
             }
           }
           return {
@@ -100,7 +134,7 @@ const SocketController = () => {
             message: message,
             severity,
             title,
-            duration: (severity === 'error' || title.includes('SECURITY')) ? 30000 : 5000,
+            duration: severity === 'error' || title.includes('SECURITY') ? 30000 : 5000,
             show: true,
           };
         }),
@@ -245,7 +279,11 @@ const SocketController = () => {
           onClose={() => setNotifications((prev) => prev.filter((e) => e.id !== notification.id))}
           anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         >
-          <Alert severity={notification.severity} variant="filled" sx={{ width: '100%', boxShadow: 6 }}>
+          <Alert
+            severity={notification.severity}
+            variant="filled"
+            sx={{ width: '100%', boxShadow: 6 }}
+          >
             <AlertTitle>{notification.title}</AlertTitle>
             {notification.message}
           </Alert>

@@ -29,18 +29,15 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
   // --- Auto Fleet Zoom Logic (Reliable Array Mode) ---
   useEffect(() => {
     if (filteredPositions && filteredPositions.length > 0) {
-      const lngs = filteredPositions.map(p => p.longitude);
-      const lats = filteredPositions.map(p => p.latitude);
-      
-      const bounds = [
-        Math.min(...lngs), Math.min(...lats),
-        Math.max(...lngs), Math.max(...lats)
-      ];
-      
+      const lngs = filteredPositions.map((p) => p.longitude);
+      const lats = filteredPositions.map((p) => p.latitude);
+
+      const bounds = [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)];
+
       map.fitBounds(bounds, {
         padding: 60,
         maxZoom: 15,
-        duration: 1500
+        duration: 1500,
       });
     }
   }, [filteredPositions]);

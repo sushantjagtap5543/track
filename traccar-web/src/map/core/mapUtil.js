@@ -8,66 +8,57 @@ export const loadImage = (url) =>
     image.src = url;
   });
 
-const canvasTintImage = (image, color) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = image.width * devicePixelRatio;
-  canvas.height = image.height * devicePixelRatio;
-  canvas.style.width = `${image.width}px`;
-  canvas.style.height = `${image.height}px`;
-
-  const context = canvas.getContext('2d');
-
-  context.save();
-  context.fillStyle = color;
-  context.globalAlpha = 1;
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.globalCompositeOperation = 'destination-atop';
-  context.globalAlpha = 1;
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  context.restore();
-
-  return canvas;
-};
-
 export const prepareIcon = (background, icon, color) => {
-  const is3D = icon && icon.src && (icon.src.endsWith('.png') || icon.src.includes('clean_3d'));
   const canvas = document.createElement('canvas');
-  
-  // Use a fixed size for the simple/attractive circular marker
-  const baseSize = 42;
-  canvas.width = baseSize * devicePixelRatio;
-  canvas.height = baseSize * devicePixelRatio;
-  canvas.style.width = `${baseSize}px`;
-  canvas.style.height = `${baseSize}px`;
+  const size = 48 * devicePixelRatio;
+  canvas.width = size;
+  canvas.height = size;
 
   const context = canvas.getContext('2d');
-  const size = canvas.width;
+  const mid = size / 2;
+  const radius = size * 0.35;
 
-  // --- Draw Attractive Circular Background (The Halo) ---
+  // --- Draw Realistic Pin/Teardrop Shape ---
+  context.save();
+  context.translate(mid, mid * 0.85); // Shift up slightly to make room for tip
+
+  // Drop Shadow
   context.beginPath();
-  context.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2);
-  context.fillStyle = '#ffffff'; // White border
+  context.ellipse(0, mid * 0.6, 6 * devicePixelRatio, 2 * devicePixelRatio, 0, 0, Math.PI * 2);
+  context.fillStyle = 'rgba(0,0,0,0.2)';
   context.fill();
+
+  // Pin Body (Teardrop)
+  context.beginPath();
+  context.arc(0, 0, radius, 0.15 * Math.PI, 0.85 * Math.PI, true);
+  context.lineTo(0, radius * 1.5);
+  context.closePath();
+
+  // 3D Gradient for Pin
+  const grad = context.createRadialGradient(-radius/3, -radius/3, 0, 0, 0, radius);
+  grad.addColorStop(0, '#ffffff44');
+  grad.addColorStop(0.3, color);
+  grad.addColorStop(1, color);
   
-  context.beginPath();
-  context.arc(size / 2, size / 2, size / 2 - 5, 0, Math.PI * 2);
-  context.fillStyle = color; // Core color (Green/Red/Gray)
+  context.fillStyle = grad;
+  context.shadowBlur = 4 * devicePixelRatio;
+  context.shadowColor = 'rgba(0,0,0,0.3)';
   context.fill();
 
-  // Draw Inner Icon
-  if (icon) {
-    const iconRatio = is3D ? 0.75 : 0.6;
-    const imageWidth = size * iconRatio;
-    const imageHeight = size * iconRatio;
-    
-    context.drawImage(
-      icon,
-      (size - imageWidth) / 2,
-      (size - imageHeight) / 2,
-      imageWidth,
-      imageHeight
-    );
-  }
+  // White Border
+  context.strokeStyle = 'white';
+  context.lineWidth = 2 * devicePixelRatio;
+  context.stroke();
+
+  // Inner White Circle (The "Hole")
+  context.beginPath();
+  context.arc(0, 0, radius * 0.5, 0, Math.PI * 2);
+  context.fillStyle = 'white';
+  context.shadowBlur = 2 * devicePixelRatio;
+  context.shadowColor = 'rgba(0,0,0,0.1)';
+  context.fill();
+
+  context.restore();
 
   return canvas.toDataURL();
 };
