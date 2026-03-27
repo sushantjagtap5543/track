@@ -209,3 +209,41 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({ error: 'Failed to update password', details: error.message });
   }
 };
+
+exports.syncSession = async (req, res) => {
+  try {
+    const cookie = req.headers.cookie;
+    if (!cookie) return res.status(401).json({ error: 'No active session cookie found.' });
+
+    // The SaaS API verifies the session by calling Traccar internal IP directly
+    const response = await fetch(`${process.env.GEOSUREPATH_URL}/api/session`, {
+      method: 'GET',
+      headers: { cookie }
+    });
+
+    if (!response.ok) return res.status(401).json({ error: 'Parent session invalid or expired.' });
+
+    const traccarUser = await response.json();
+    const email = traccarUser.email.toLowerCase().trim();
+
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [{ email }, { phone: email }]
+      }
+    });
+
+    if (!user) return res.status(404).json({ error: 'SaaS profile not linked to this session.' });
+
+    const token = jwt.sign(
+      { userId: user.id, role: user.role, geosurepathUserId: user.geosurepathUserId },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRATION || '7d' }
+    );
+
+    res.json({ message: 'Session hyper-synchronized successfully.', token, email: user.email, role: user.role, geosurepathUserId: user.geosurepathUserId });
+
+  } catch (error) {
+    console.error('Session Sync Error:', error.message);
+    res.status(500).json({ error: 'Hyper-Sync failed', details: error.message });
+  }
+};

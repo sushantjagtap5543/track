@@ -52,7 +52,20 @@ const App = () => {
     if (!user) {
       const response = await fetch('/api/session');
       if (response.ok) {
-        dispatch(sessionActions.updateUser(await response.json()));
+        const traccarUser = await response.json();
+        dispatch(sessionActions.updateUser(traccarUser));
+
+        // --- Hyper-Sync SaaS Token ---
+        try {
+          const saasSync = await fetch('/api/auth/sync');
+          if (saasSync.ok) {
+            const saasData = await saasSync.json();
+            window.localStorage.setItem('saas_token', saasData.token);
+            window.localStorage.setItem('saas_user', JSON.stringify(saasData));
+          }
+        } catch (e) {
+          console.warn('SaaS Session Hyper-Sync failed:', e);
+        }
       } else {
         window.sessionStorage.setItem('postLogin', pathname + search);
         navigate(newServer ? '/register' : '/login', { replace: true });
@@ -60,6 +73,7 @@ const App = () => {
     }
     return null;
   }, []);
+
 
   if (user == null) {
     return <Loader />;
