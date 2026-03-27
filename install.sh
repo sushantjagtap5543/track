@@ -10,9 +10,13 @@ docker-compose down --rmi all --volumes --remove-orphans || true
 docker container prune -f
 docker network prune -f
 
-echo "📥 Resyncing with GitHub Main Branch (Strict)..."
+echo "📥 Resyncing with GitHub Master Branch (Strict)..."
 git fetch origin
-git reset --hard origin/main
+git reset --hard origin/master
+
+echo "🛑 Stopping any native traccar services..."
+sudo systemctl stop traccar || true
+sudo systemctl disable traccar || true
 
 echo "🛡️ Injecting High-Security Environment Secrets..."
 # Ensure the Google Hook is injected if missing
