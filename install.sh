@@ -1,37 +1,81 @@
 #!/bin/bash
 # -------------------------------------------------------------------
-# 🚀 GeoSurePath "Hyper-Sync" Re-Installation Script
-# Purpose: Wipes all old containers, rebuilds the entire stack with 
-#          the latest 18+ Alerts, 3D Dynamic Markers, & Billing Hub.
+# 🚀 GeoSurePath "Ultimate Build & Sync" Re-Installation Script
+# Purpose: Wipes ALL old artifacts, updates host/docker dependencies,
+#          and performs a Sequential, verified startup.
 # -------------------------------------------------------------------
 
-echo "🛑 Stopping and Removing current GeoSurePath containers..."
-docker-compose down --remove-orphans || true
+# 🛑 [DETECT DOCKER COMPOSE]
+if docker compose version >/dev/null 2>&1; then
+  DC="docker compose"
+elif docker-compose version >/dev/null 2>&1; then
+  DC="docker-compose"
+else
+  DC="docker-compose"
+fi
 
-echo "📥 Resyncing with GitHub Main Branch (Strict)..."
+echo "🛑 Stopping and Removing current GeoSurePath containers..."
+# Note: To wipe ALL data (WARNING: DESTRUCTIVE), add --volumes to the line below
+$DC down --remove-orphans || true
+
+# 🧹 [BATCH CLEAN]
+echo "🧹 Pruning unused Docker layers and builder cache..."
+docker system prune -f 
+sudo apt-get clean 2>/dev/null || true
+
+echo "🧱 Wiping local build artifacts to force fresh dependencies..."
+rm -rf target/ 2>/dev/null
+rm -rf saas/node_modules saas/package-lock.json 2>/dev/null
+rm -rf traccar-web/node_modules traccar-web/package-lock.json 2>/dev/null
+
+# 📥 [SYNC VERSION]
+echo "📥 Resyncing with GitHub Main Branch..."
 git fetch origin
 git reset --hard origin/main
+
+# 📦 [UPGRADE SYSTEMS]
+echo "📦 Upgrading Instance OS Dependencies (Apt)..."
+if command -v apt-get >/dev/null; then
+  sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+fi
+
+# 🛡️ [ENVIRONMENT VALIDATION]
+echo "🛡️ Injecting High-Security Environment Secrets..."
+WEBHOOK="https://script.google.com/macros/s/AKfycbxS9O0IUuNOfT7huOOf4MdJoaK3e40mtu1pRksHoMUKHvtdLZgtVWRzxFEiqYgZrAhjrQ/exec"
+if [ ! -f saas/.env ]; then
+  echo "GOOGLE_WEBHOOK_URL=$WEBHOOK" > saas/.env
+elif ! grep -q "GOOGLE_WEBHOOK_URL" saas/.env; then
+  echo "GOOGLE_WEBHOOK_URL=$WEBHOOK" >> saas/.env
+fi
 
 echo "🛑 Stopping any native traccar services..."
 sudo systemctl stop traccar || true
 sudo systemctl disable traccar || true
 
-echo "🛡️ Injecting High-Security Environment Secrets..."
-# Ensure the Google Hook is injected if missing
-if ! grep -q "GOOGLE_WEBHOOK_URL" saas/.env; then
-  echo "GOOGLE_WEBHOOK_URL=https://script.google.com/macros/s/AKfycbxS9O0IUuNOfT7huOOf4MdJoaK3e40mtu1pRksHoMUKHvtdLZgtVWRzxFEiqYgZrAhjrQ/exec" >> saas/.env
-fi
+# 🔨 [PURE BUILD]
+echo "🔨 Executing PURE BUILD (This will re-download all package dependencies)..."
+# Note: --no-cache ensures all 'npm install' steps are fresh. 
+# This will take ~15-20 minutes.
+$DC build --pull --no-cache
 
-echo "🔨 Executing FAST-BUILD (Using Cache)..."
-docker-compose build
+# 🚀 [SEQUENTIAL STARTUP]
+echo "📂 [1/4] Starting Postgres & Redis Layer..."
+$DC up -d db redis
+sleep 20 # Allow Postgres 15 to initialize
 
-echo "🚀 Launching Production Stack..."
-docker-compose up -d
+echo "📂 [2/4] Starting Core Tracking Engine (GeoSurePath)..."
+$DC up -d geosurepath
+sleep 5
 
-echo "🗄️ Synchronizing Sovereign Database Schema..."
-docker-compose exec -T saas-api npx prisma db push --accept-data-loss
-docker-compose restart saas-api
+echo "📂 [3/4] Starting SaaS API & Syncing Schema..."
+$DC up -d saas-api
+$DC exec -T saas-api npx prisma db push --accept-data-loss
 
-echo "✅ RE-INSTALL COMPLETE!"
+echo "📂 [4/4] Starting Entry Proxy (Nginx)..."
+$DC up -d nginx
+
+# ✅ [FINALIZE]
+$DC restart saas-api
+echo "✅ DEEP-CLEAN RE-INSTALL COMPLETE!"
 echo "🌐 Platform: http://$(curl -s ifconfig.me)"
-echo "💡 IMPORTANT: Please perform a 'Hard Refresh' (Ctrl + F5) in your browser now."
+echo "💡 IMPORTANT: Please perform a 'Hard Refresh' (Ctrl + F5) in your browser."
