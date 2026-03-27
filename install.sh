@@ -65,10 +65,10 @@ sleep 25 # Allow Postgres 15 to initialize
 echo "📂 [2/4] Starting Core Tracking Engine (GeoSurePath)..."
 $DC up -d geosurepath
 
-echo "⏳ Waiting for Tracking Engine to become Healthy (Timeout 2m)..."
+echo "⏳ Waiting for Tracking Engine to become Healthy (Timeout 5m)..."
 TIMER=0
 while [ "$($DC inspect --format '{{.State.Health.Status}}' geosurepath_traccar 2>/dev/null)" != "healthy" ]; do
-  if [ $TIMER -gt 120 ]; then
+  if [ $TIMER -gt 300 ]; then
     echo "❌ Engine Health Timeout! Check 'docker logs geosurepath_traccar'"
     exit 1
   fi
