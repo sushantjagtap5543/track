@@ -10,9 +10,9 @@ docker-compose down --rmi all --volumes --remove-orphans || true
 docker container prune -f
 docker network prune -f
 
-echo "📥 Resyncing with GitHub Master Branch (Strict)..."
+echo "📥 Resyncing with GitHub Main Branch (Strict)..."
 git fetch origin
-git reset --hard origin/master
+git reset --hard origin/main
 
 echo "🛑 Stopping any native traccar services..."
 sudo systemctl stop traccar || true
