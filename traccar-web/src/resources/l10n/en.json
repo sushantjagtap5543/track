@@ -375,6 +375,7 @@
     "mapGoogleRoad": "Google Road",
     "mapGoogleHybrid": "Google Hybrid",
     "mapGoogleSatellite": "Google Satellite",
+    "mapGoogleTerrain": "Google Terrain",
     "mapGoogleTraffic": "Google Traffic",
     "mapGoogleKey": "Google API Key",
     "mapOpenTopoMap": "OpenTopoMap",
