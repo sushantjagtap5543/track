@@ -84,7 +84,6 @@ public class WrapperInboundHandler implements ChannelInboundHandler {
         handler.handlerRemoved(ctx);
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         handler.exceptionCaught(ctx, cause);

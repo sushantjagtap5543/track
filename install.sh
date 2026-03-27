@@ -26,6 +26,9 @@ docker-compose build --no-cache
 echo "🚀 Launching Production Stack (Force Recreate)..."
 docker-compose up -d --force-recreate
 
+echo "🗄️ Synchronizing Sovereign Database Schema..."
+docker-compose exec -T saas-api npx prisma db push --accept-data-loss
+docker-compose restart saas-api
 
 echo "✅ RE-INSTALL COMPLETE!"
 echo "🌐 Platform: http://$(curl -s ifconfig.me)"
