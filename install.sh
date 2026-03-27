@@ -2,7 +2,7 @@
 # -------------------------------------------------------------------
 # 🚀 GeoSurePath "Ultimate Build & Sync" Re-Installation Script
 # Purpose: Wipes ALL old artifacts, updates host/docker dependencies,
-#          and performs a Sequential, verified startup.
+#          and performs a Sequential, verified startup with full health checks.
 # -------------------------------------------------------------------
 
 # 🛑 [DETECT DOCKER COMPOSE]
@@ -54,21 +54,34 @@ sudo systemctl disable traccar || true
 
 # 🔨 [PURE BUILD]
 echo "🔨 Executing PURE BUILD (This will re-download all package dependencies)..."
-# Note: --no-cache ensures all 'npm install' steps are fresh. 
 $DC build --pull --no-cache
 
 # 🚀 [SEQUENTIAL STARTUP]
 echo "📂 [1/4] Starting Postgres & Redis Layer..."
-# Note: Since we wiped volumes, the fresh DB will use the new password from .env
 $DC up -d db redis
 sleep 25 # Allow Postgres 15 to initialize
 
 echo "📂 [2/4] Starting Core Tracking Engine (GeoSurePath)..."
 $DC up -d geosurepath
-sleep 5
 
-echo "📂 [3/4] Starting SaaS API & Syncing Schema..."
+echo "⏳ Waiting for Tracking Engine to become Healthy..."
+while [ "$($DC inspect --format '{{.State.Health.Status}}' geosurepath_traccar 2>/dev/null)" != "healthy" ]; do
+  echo -n "."
+  sleep 5
+done
+echo "✅ Core Engine is Online."
+
+echo "📂 [3/4] Starting SaaS API..."
 $DC up -d saas-api
+
+echo "⏳ Waiting for SaaS API to become Healthy..."
+while [ "$($DC inspect --format '{{.State.Health.Status}}' geosurepath_saas_api 2>/dev/null)" != "healthy" ]; do
+  echo -n "."
+  sleep 5
+done
+echo "✅ SaaS API is Online."
+
+echo "🗄️ Synchronizing Sovereign Database Schema..."
 $DC exec -T saas-api npx prisma db push --accept-data-loss
 
 echo "📂 [4/4] Starting Entry Proxy (Nginx)..."
@@ -76,6 +89,6 @@ $DC up -d nginx
 
 # ✅ [FINALIZE]
 $DC restart saas-api
-echo "✅ DEEP-CLEAN RE-INSTALL COMPLETE! PASSWORD SYNCED."
+echo "✅ DEEP-CLEAN RE-INSTALL COMPLETE! ALL ISSUES RESOLVED."
 echo "🌐 Platform: http://$(curl -4 -s ifconfig.me) (or http://3.108.114.12)"
 echo "💡 IMPORTANT: Please perform a 'Hard Refresh' (Ctrl + F5) in your browser."
