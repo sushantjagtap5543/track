@@ -156,7 +156,7 @@ const ResetPasswordPage = () => {
           color="primary"
           className={classes.resetButton}
           type="submit"
-          disabled={loading || (!/(.+)@(.+)\.(.{2,})/.test(email) && !password)}
+          disabled={loading}
           fullWidth
           startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
         >

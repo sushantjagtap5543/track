@@ -162,22 +162,36 @@ const LoginPage = () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
           });
+
           if (saasRes.ok) {
             const saasData = await saasRes.json();
             window.localStorage.setItem('saas_token', saasData.token);
             window.localStorage.setItem('saas_user', JSON.stringify(saasData));
+          } else {
+            // If direct login fails (e.g. user missing in SaaS), try Hyper-Sync
+            const syncRes = await fetch('/api/auth/sync');
+            if (syncRes.ok) {
+              const syncData = await syncRes.json();
+              window.localStorage.setItem('saas_token', syncData.token);
+              window.localStorage.setItem('saas_user', JSON.stringify(syncData));
+            }
+          }
 
-            // Check for overdue bill
+          // Verify token exists before checking bill
+          const saasToken = window.localStorage.getItem('saas_token');
+          if (saasToken) {
             const billRes = await fetch('/api/billing/my-bill', {
-              headers: { Authorization: `Bearer ${saasData.token}` },
+              headers: { Authorization: `Bearer ${saasToken}` },
             });
-            const bill = await billRes.json();
-            if (bill.totalDue > 0) {
-              window.sessionStorage.setItem('postLogin', '/billing');
+            if (billRes.ok) {
+              const bill = await billRes.json();
+              if (bill.totalDue > 0) {
+                window.sessionStorage.setItem('postLogin', '/billing');
+              }
             }
           }
         } catch (saasError) {
-          console.warn('SaaS background authentication failed:', saasError);
+          console.warn('SaaS background authentication/sync failed:', saasError);
         }
 
         generateLoginToken();
@@ -189,7 +203,9 @@ const LoginPage = () => {
         setCodeEnabled(true);
       } else {
         const text = await response.text();
-        setErrorText(text || 'Invalid username or password');
+        // If it's a huge stack trace, just show the first line
+        const firstLine = text.split('\n')[0].substring(0, 100);
+        setErrorText(firstLine || 'Invalid username or password');
         setFailed(true);
         setPassword('');
       }
@@ -336,7 +352,7 @@ const LoginPage = () => {
               variant="contained"
               color="primary"
               className={classes.loginButton}
-              disabled={loading || !email || !password || (codeEnabled && !code)}
+              disabled={loading}
               fullWidth
               startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
             >

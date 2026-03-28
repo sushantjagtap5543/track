@@ -49,19 +49,32 @@ async function enforceBillingShield() {
         }, { jobId: `exp-3day-${user.id}-${expirationDate.toISOString()}` });
       }
 
-      // 2. Traccar Engine Sync
+      // 2. Traccar Engine Sync & Local Status Update
       try {
-        await geosurepathService.updateUser(user.geosurepathUserId, { disabled: shouldBeDisabled });
-        if (shouldBeDisabled && user.isActive) {
-           console.log(`🚫 AI-Guardian: Hard-Locked expired user ${user.email} in Traccar.`);
-           
-           // Lock the local database profile to prevent duplicate loops
-           await prisma.user.update({
-             where: { id: user.id },
-             data: { isActive: false }
-           });
+        // Only update if there's a status change to avoid excessive API calls
+        const currentTraccarStatus = await geosurepathService.getUser(user.geosurepathUserId).catch(() => ({}));
+        
+        if (currentTraccarStatus.disabled !== shouldBeDisabled) {
+           await geosurepathService.updateUser(user.geosurepathUserId, { disabled: shouldBeDisabled });
+           console.log(`🤖 AI-Guardian: Sync'd ${user.email} status -> ${shouldBeDisabled ? 'LOCKED' : 'UNLOCKED'}`);
+        }
 
-           // Send hard-lock notification (once)
+        if (shouldBeDisabled && user.isActive) {
+            // Lock the local database profile to prevent duplicate loops
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { isActive: false }
+            });
+
+            // Update subscription status to EXPIRED
+            if (latestSub) {
+              await prisma.subscription.update({
+                where: { id: latestSub.id },
+                data: { status: 'EXPIRED' }
+              });
+            }
+
+           // Send hard-lock notification (once per expiration)
            await emailQueue.add(`hard-lock-${user.id}`, {
              to: user.email,
              subject: '🚨 CRITICAL: Fleet Hard-Locked',
@@ -69,6 +82,13 @@ async function enforceBillingShield() {
                     <p>Your hardware access has been suspended due to an overdue settlement.</p>
                     <p>Settle your bill immediately to restore tracking.</p>`
            }, { jobId: `hard-lock-${user.id}-${expirationDate.toISOString()}` });
+        } else if (!shouldBeDisabled && !user.isActive) {
+           // Auto-Unlock the profile if a new subscription was detected
+           await prisma.user.update({
+             where: { id: user.id },
+             data: { isActive: true }
+           });
+           console.log(`✅ AI-Guardian: Auto-Unlocked ${user.email} (Subscription Active).`);
         }
       } catch (syncErr) {
         console.error(`❌ AI-Guardian: Sync failed for ${user.email}:`, syncErr.message);

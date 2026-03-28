@@ -89,12 +89,20 @@ const RegisterPage = () => {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  
+  const [vehicleName, setVehicleName] = useState('');
+  const [vehicleType, setVehicleType] = useState('car');
+  const [vehiclePlate, setVehiclePlate] = useState('');
+  const [deviceImei, setDeviceImei] = useState('');
+
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [totpKey, setTotpKey] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [errorText, setErrorText] = useState('');
 
   useEffectAsync(async () => {
     if (totpForce) {
@@ -109,13 +117,32 @@ const RegisterPage = () => {
       throw new Error('Passwords do not match');
     }
     setLoading(true);
+    setErrorText('');
     try {
-      await fetchOrThrow('/api/users', {
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, totpKey }),
+        body: JSON.stringify({ 
+          name, 
+          email, 
+          phone,
+          password, 
+          vehicleName, 
+          vehicleType,
+          vehiclePlate,
+          deviceImei 
+        }),
       });
-      setSnackbarOpen(true);
+
+      if (response.ok) {
+        setSnackbarOpen(true);
+      } else {
+        const text = await response.text();
+        const firstLine = text.split('\n')[0].substring(0, 100);
+        setErrorText(firstLine || 'Registration failed. Please check your details.');
+      }
+    } catch (e) {
+      setErrorText(e.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
@@ -135,6 +162,12 @@ const RegisterPage = () => {
           </Typography>
         </div>
 
+        {errorText && (
+          <Typography color="error" variant="body2" align="center" sx={{ mb: 1, fontWeight: 700 }}>
+            {errorText}
+          </Typography>
+        )}
+
         <TextField
           required
           fullWidth
@@ -142,7 +175,6 @@ const RegisterPage = () => {
           name="name"
           value={name}
           autoComplete="name"
-          autoFocus
           onChange={(event) => setName(event.target.value)}
         />
         <TextField
@@ -156,29 +188,68 @@ const RegisterPage = () => {
           onChange={(event) => setEmail(event.target.value)}
         />
         <TextField
-          required
           fullWidth
-          label={t('userPassword')}
-          name="password"
-          value={password}
-          type="password"
-          autoComplete="new-password"
-          onChange={(event) => setPassword(event.target.value)}
+          label="Phone Number"
+          name="phone"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
         />
-        <TextField
-          required
-          fullWidth
-          label="Confirm Password"
-          name="confirmPassword"
-          value={confirmPassword}
-          type="password"
-          autoComplete="new-password"
-          error={!!confirmPassword && password !== confirmPassword}
-          helperText={
-            !!confirmPassword && password !== confirmPassword ? 'Passwords do not match' : ''
-          }
-          onChange={(event) => setConfirmPassword(event.target.value)}
-        />
+        
+        <Box sx={{ mt: 1, mb: 1 }}>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 800, ml: 1 }}>
+            VEHICLE & DEVICE SETUP
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+            <TextField
+              required
+              fullWidth
+              label="Vehicle Name"
+              value={vehicleName}
+              placeholder="e.g. My Truck"
+              onChange={(e) => setVehicleName(e.target.value)}
+            />
+            <TextField
+              required
+              fullWidth
+              label="Device IMEI"
+              value={deviceImei}
+              onChange={(e) => setDeviceImei(e.target.value)}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+             <TextField
+              fullWidth
+              label="License Plate"
+              value={vehiclePlate}
+              onChange={(e) => setVehiclePlate(e.target.value)}
+            />
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <TextField
+            required
+            fullWidth
+            label={t('userPassword')}
+            name="password"
+            value={password}
+            type="password"
+            autoComplete="new-password"
+            onChange={(event) => setPassword(event.target.value)}
+          />
+          <TextField
+            required
+            fullWidth
+            label="Confirm"
+            name="confirmPassword"
+            value={confirmPassword}
+            type="password"
+            autoComplete="new-password"
+            error={!!confirmPassword && password !== confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+          />
+        </Box>
+
         <FormControlLabel
           control={
             <Checkbox
@@ -200,38 +271,17 @@ const RegisterPage = () => {
             </Typography>
           }
         />
-        {totpForce && (
-          <TextField
-            required
-            fullWidth
-            label={t('loginTotpKey')}
-            name="totpKey"
-            value={totpKey || ''}
-            slotProps={{
-              input: {
-                readOnly: true,
-              },
-            }}
-          />
-        )}
         <Button
           variant="contained"
           color="primary"
           className={classes.registerButton}
           onClick={handleSubmit}
           type="submit"
-          disabled={
-            loading ||
-            !acceptedTerms ||
-            !name ||
-            !password ||
-            password !== confirmPassword ||
-            !(server.newServer || /(.+)@(.+)\.(.{2,})/.test(email))
-          }
+          disabled={loading || !acceptedTerms || !name || !email || !password || !vehicleName || !deviceImei}
           fullWidth
           startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
         >
-          {loading ? 'Registering...' : t('loginRegister')}
+          {loading ? 'Finalizing Setup...' : 'Complete Registration'}
         </Button>
 
         <div className={classes.footer}>

@@ -40,6 +40,10 @@
     <!-- TELEMETRY GATEWAYS -->
     <entry key='osmand.port'>5055</entry>
 
+    <!-- DEFAULT SETTINGS FOR INDIAN USERS -->
+    <entry key='web.overrideAttributes'>timezone,unitSpeed,distanceUnit,altitudeUnit</entry>
+    <entry key='web.defaultAttributes'>{"timezone":"Asia/Kolkata","unitSpeed":"kmh","distanceUnit":"km","altitudeUnit":"m"}</entry>
+
     <!-- EVENT FORWARDING TO SAAS API -->
     <entry key='event.forward.enable'>true</entry>
     <entry key='event.forward.url'>http://saas-api:3001/api/geosurepath/events</entry>

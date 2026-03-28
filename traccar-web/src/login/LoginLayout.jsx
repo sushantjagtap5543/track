@@ -126,6 +126,10 @@ const useStyles = makeStyles()((theme) => ({
       '& .MuiInputBase-input': {
         color: '#ffffff',
         fontSize: '1.1rem',
+        textTransform: 'none',
+        '&::placeholder': {
+          textTransform: 'none',
+        },
       },
     },
   },

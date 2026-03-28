@@ -37,6 +37,7 @@ import { devicesActions } from '../../store';
 import { useCatch, useCatchCallback } from '../../reactHelper';
 import { useAttributePreference } from '../util/preferences';
 import fetchOrThrow from '../util/fetchOrThrow';
+import { useSafeParking } from '../util/useSafeParking';
 
 const useStyles = makeStyles()((theme, { desktopPadding }) => ({
   card: {
@@ -155,24 +156,11 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
     setRemoving(false);
   });
 
-  const handleGeofence = useCatchCallback(async () => {
-    const newItem = {
-      name: t('sharedGeofence'),
-      area: `CIRCLE (${position.latitude} ${position.longitude}, 50)`,
-    };
-    const response = await fetchOrThrow('/api/geofences', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newItem),
-    });
-    const item = await response.json();
-    await fetchOrThrow('/api/permissions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceId: position.deviceId, geofenceId: item.id }),
-    });
-    navigate(`/settings/geofence/${item.id}`);
-  }, [navigate, position]);
+  const { isSafeParkingActive, toggleSafeParking } = useSafeParking(device, position);
+
+  const handleSafeParking = useCatchCallback(async () => {
+    toggleSafeParking();
+  }, [toggleSafeParking]);
 
   return (
     <>
@@ -253,13 +241,15 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                   </IconButton>
                 </Tooltip>
                 {position && (
-                  <Tooltip title="Safe Parking (Secure Vehicle)">
+                  <Tooltip title={isSafeParkingActive ? 'Disable SafeZone' : 'Enable SafeZone'}>
                     <IconButton
-                      color="primary"
-                      onClick={handleGeofence}
+                      onClick={handleSafeParking}
                       sx={{
-                        background: 'rgba(59, 130, 246, 0.1)',
-                        '&:hover': { background: 'rgba(59, 130, 246, 0.2)' },
+                        border: '1px solid',
+                        borderColor: isSafeParkingActive ? '#06b6d4' : 'rgba(255,255,255,0.1)',
+                        background: isSafeParkingActive ? 'rgba(6, 182, 212, 0.1)' : 'rgba(59, 130, 246, 0.05)',
+                        color: isSafeParkingActive ? '#06b6d4' : 'primary.main',
+                        '&:hover': { background: isSafeParkingActive ? 'rgba(6, 182, 212, 0.2)' : 'rgba(59, 130, 246, 0.2)' },
                       }}
                     >
                       <VpnLockIcon />

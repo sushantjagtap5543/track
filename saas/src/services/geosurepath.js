@@ -299,8 +299,53 @@ const getAllLatestPositions = async () => {
     return response.json();
 };
 
+/**
+ * Fetches all devices linked to a specific user in GeoSurePath
+ */
+const getUserDevices = async (userId) => {
+    await ensureSession();
+    const response = await fetch(`${GEOSUREPATH_URL}/api/devices?userId=${userId}`, {
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        console.error(`GeoSurePath getUserDevices failed [${response.status}]:`, text);
+        return [];
+    }
+    return response.json();
+};
+
+/**
+ * Fetches all devices from GeoSurePath (Admin only)
+ */
+const getAllDevices = async () => {
+    await ensureSession();
+    const response = await fetch(`${GEOSUREPATH_URL}/api/devices`, {
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) return [];
+    return response.json();
+};
+
+/**
+ * Fetches a specific user's details from GeoSurePath
+ */
+const getUser = async (userId) => {
+    await ensureSession();
+    const response = await fetch(`${GEOSUREPATH_URL}/api/users/${userId}`, {
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        console.error(`GeoSurePath getUser failed [${response.status}]:`, text);
+        return {};
+    }
+    return response.json();
+};
+
 module.exports = {
   createUser,
+  getUser,
   updateUser,
   createDevice,
   linkDeviceToUser,
@@ -311,5 +356,7 @@ module.exports = {
   sendCommand,
   createGeofence,
   linkGeofenceToDevice,
-  getAllLatestPositions
+  getAllLatestPositions,
+  getUserDevices,
+  getAllDevices
 };

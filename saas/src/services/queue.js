@@ -78,50 +78,14 @@ const startWorkers = () => {
 
   // 4. Billing Worker (Subscription Management & Retention)
   activeWorkers.push(new Worker('BillingQueue', async job => {
-    if (job.name === 'check-expirations') {
-        console.log('[BillingWorker] Scanning subscription status...');
-        const now = new Date();
-        const threeDaysOut = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
-
-        // a. Warning (3 Days remaining)
-        const expiringSoon = await prisma.subscription.findMany({
-            where: {
-                status: 'ACTIVE',
-                expiresAt: { lte: threeDaysOut, gt: now }
-            },
-            include: { user: true }
-        });
-
-        for (const sub of expiringSoon) {
-            await emailService.sendEmail({
-                to: sub.user.email,
-                subject: '⚠️ Fleet Protection Warning: 3 Days Remaining',
-                html: `<h3>GeoSurePath Fleet Warning</h3><p>Your plan expires in 3 days. Settle your dues to avoid lock.</p>`
-            }).catch(e => console.error('Exp mail failed:', e.message));
-        }
-
-        // b. Hard Expiry (Pass Expiration)
-        const expired = await prisma.subscription.findMany({
-            where: { status: 'ACTIVE', expiresAt: { lt: now } },
-            include: { user: true }
-        });
-
-        for (const sub of expired) {
-            await prisma.subscription.update({ where: { id: sub.id }, data: { status: 'EXPIRED' } });
-            await prisma.user.update({ where: { id: sub.userId }, data: { isActive: false } });
-            if (sub.user.geosurepathUserId) {
-                await geosurepathService.updateUser(sub.user.geosurepathUserId, { disabled: true });
-                console.log(`[BillingWorker] User ${sub.user.email} hard-locked.`);
-            }
-        }
+    // Billing expiration checks have been migrated to aiGuardian.js for better grace-period management.
+    // This worker remains available for future transactional jobs.
+    if (job.name === 'process-payment') {
+        console.log('[BillingWorker] Processing payment event...');
     }
   }, { connection: redisConnection }));
 
-  // Schedule periodic expiration check (Run every hour)
-  billingQueue.add('check-expirations', {}, {
-    repeat: { cron: '0 * * * *' },
-    jobId: 'periodic-expiration-check'
-  }).catch(e => console.error('[BillingWorker] Failed to schedule:', e));
+  // Expiration check is now handled exclusively by AI-Guardian every hour.
 };
 
 const stopWorkers = async () => {
