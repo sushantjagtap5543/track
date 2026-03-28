@@ -35,8 +35,8 @@ const App = () => {
 
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
 
-  const newServer = useSelector((state) => state.session.server.newServer);
-  const termsUrl = useSelector((state) => state.session.server.attributes.termsUrl);
+  const newServer = useSelector((state) => state.session.server?.newServer);
+  const termsUrl = useSelector((state) => state.session.server?.attributes?.termsUrl);
   const user = useSelector((state) => state.session.user);
 
   const acceptTerms = useCatch(async () => {

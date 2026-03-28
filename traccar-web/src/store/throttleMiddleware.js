@@ -7,10 +7,10 @@ const maxInterval = 10000;
 const scaleFactor = 1000;
 
 // eslint-disable-next-line no-undef
-const debugMode = process.env.NODE_ENV === 'development';
+const debugMode = import.meta.env.MODE === 'development';
 const debugLog = (message) => debugMode && console.log(message);
 
-export default () => (next) => {
+export default (store) => (next) => {
   const buffer = [];
   let throttled = false;
   let counter = 0;
