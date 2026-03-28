@@ -59,24 +59,20 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// --- DEBUG MIDDLEWARE: Log raw body ---
-app.use((req, res, next) => {
-  let data = '';
-  req.on('data', (chunk) => {
-    data += chunk;
-  });
-  req.on('end', () => {
-    if (data) {
-      console.log(`[DEBUG] Incoming Raw Request Body: ${data}`);
+app.use(express.json({ 
+  limit: '1mb',
+  verify: (req, res, buf) => {
+    const rawBody = buf.toString();
+    console.log(`[DEBUG] Incoming Raw Request Body (Verify): [${rawBody}]`);
+    // Check for weird characters
+    for (let i = 0; i < rawBody.length; i++) {
+        const char = rawBody[i];
+        if (char.charCodeAt(0) < 32 || char.charCodeAt(0) > 126) {
+            console.log(`[DEBUG] Hidden char at ${i}: hex ${char.charCodeAt(0).toString(16)}`);
+        }
     }
-    // Note: We need to re-inject the data for body-parser because we consumed it
-    // but for now we just want to see it. Actually, this will break body-parser
-    // unless we use a better way like 'body-parser''s verify.
-  });
-  next();
-});
-
-app.use(express.json({ limit: '1mb' }));
+  }
+}));
 
 // Health check endpoints
 app.get('/api/health', (req, res) => {
