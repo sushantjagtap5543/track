@@ -92,12 +92,13 @@ exports.register = async (req, res) => {
       to: user.email,
       subject: 'Welcome to GeoSurePath!',
       html: `<h3>Welcome, ${user.name}!</h3><p>Your account is ready.</p>`
-    }).catch(e => console.error('[Register] Email failed:', e.message));
+    }).catch(() => {}); // Silent fail for email in dev
 
     res.status(201).json({ message: 'Registration successful!', userId: user.id });
   } catch (error) {
-    console.error('[Register] Error:', error);
-    res.status(500).json({ error: 'Registration failed.', details: error.message });
+    // SECURITY: Do not log the full error or req.body to avoid sensitive data exposure (Fix 18)
+    console.error('[Register] Error occurred during user creation'); 
+    res.status(500).json({ error: 'Registration failed.' });
   }
 };
 
@@ -144,6 +145,11 @@ exports.login = async (req, res) => {
     });
 
     if (!user.isActive) return res.status(403).json({ error: 'Account is suspended.' });
+    
+    // Check if verified (Fix 7)
+    if (!user.isVerified && process.env.REQUIRE_VERIFICATION === 'true') {
+      return res.status(403).json({ error: 'Please verify your email address before logging in.' });
+    }
 
     const { accessToken, refreshToken } = await generateTokens(user.id, user.role, user.geosurepathUserId);
 
