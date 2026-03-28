@@ -94,11 +94,6 @@ const RegisterPage = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const [vehicleName, setVehicleName] = useState('');
-  const [vehicleType] = useState('car');
-  const [vehiclePlate, setVehiclePlate] = useState('');
-  const [deviceImei, setDeviceImei] = useState('');
-
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [, setTotpKey] = useState(null);
@@ -127,20 +122,15 @@ const RegisterPage = () => {
           name,
           email,
           phone,
-          password,
-          vehicleName,
-          vehicleType,
-          vehiclePlate,
-          deviceImei,
+          password
         }),
       });
 
       if (response.ok) {
         setSnackbarOpen(true);
       } else {
-        const text = await response.text();
-        const firstLine = text.split('\n')[0].substring(0, 100);
-        setErrorText(firstLine || 'Registration failed. Please check your details.');
+        const data = await response.json().catch(() => ({}));
+        setErrorText(data.error || 'Registration failed. Please check your details.');
       }
     } catch (e) {
       setErrorText(e.message || 'An unexpected error occurred.');
@@ -201,33 +191,8 @@ const RegisterPage = () => {
             variant="caption"
             sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 800, ml: 1 }}
           >
-            VEHICLE & DEVICE SETUP
+            SECURE ACCOUNT SETUP
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-            <TextField
-              required
-              fullWidth
-              label="Vehicle Name"
-              value={vehicleName}
-              placeholder="e.g. My Truck"
-              onChange={(e) => setVehicleName(e.target.value)}
-            />
-            <TextField
-              required
-              fullWidth
-              label="Device IMEI"
-              value={deviceImei}
-              onChange={(e) => setDeviceImei(e.target.value)}
-            />
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-            <TextField
-              fullWidth
-              label="License Plate"
-              value={vehiclePlate}
-              onChange={(e) => setVehiclePlate(e.target.value)}
-            />
-          </Box>
         </Box>
 
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -286,8 +251,6 @@ const RegisterPage = () => {
             !name ||
             !email ||
             !password ||
-            !vehicleName ||
-            !deviceImei ||
             password !== confirmPassword
           }
           fullWidth
