@@ -1,28 +1,41 @@
-﻿// src/controllers/reportController.js
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient({ datasources: { db: { url: "file:./prisma/dev.db" } } });
+// src/controllers/reportController.js
+// ✅ FIX 1 (CRITICAL): Removed hardcoded `{ datasources: { db: { url: "file:./prisma/dev.db" } } }`
+//    which forced ALL report queries to a local SQLite dev file instead of the production
+//    PostgreSQL database set in DATABASE_URL. This silently broke every report in production.
+// ✅ FIX 2: Use shared Prisma singleton to avoid connection pool exhaustion.
 
-// In a real system, these would fetch from Traccar's API (/api/reports/trips, /api/reports/summary)
-// and aggregate based on user's authorized vehicles.
+const prisma = require('../lib/prisma');
 
+// Fetch trip reports for a device from GeoSurePath
 exports.getTrips = async (req, res) => {
   const { deviceId, from, to } = req.query;
-  
+
+  if (!deviceId || !from || !to) {
+    return res.status(400).json({ error: 'deviceId, from, and to query parameters are required.' });
+  }
+
   try {
-    // Security check: ensure deviceId belongs to the user
+    // Security check: ensure deviceId belongs to the requesting user
     const vehicle = await prisma.vehicle.findFirst({
-        where: { geosurepathDeviceId: parseInt(deviceId), userId: req.user.userId }
+      where: { geosurepathDeviceId: parseInt(deviceId), userId: req.user.userId }
     });
     if (!vehicle) return res.status(403).json({ error: 'Access denied to this device' });
 
-    const response = await fetch(`${process.env.GEOSUREPATH_URL}/api/reports/trips?deviceId=${deviceId}&from=${from}&to=${to}`, {
-      headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${process.env.GEOSUREPATH_ADMIN_EMAIL}:${process.env.GEOSUREPATH_ADMIN_PASSWORD}`).toString('base64')
+    const response = await fetch(
+      `${process.env.GEOSUREPATH_URL}/api/reports/trips?deviceId=${deviceId}&from=${from}&to=${to}`,
+      {
+        headers: {
+          'Authorization':
+            'Basic ' +
+            Buffer.from(
+              `${process.env.GEOSUREPATH_ADMIN_EMAIL}:${process.env.GEOSUREPATH_ADMIN_PASSWORD}`
+            ).toString('base64')
+        }
       }
-    });
-    
-    if (!response.ok) throw new Error('Failed to fetch trips from Traccar');
-    
+    );
+
+    if (!response.ok) throw new Error(`GeoSurePath returned ${response.status}`);
+
     const trips = await response.json();
     res.json(trips);
   } catch (error) {
@@ -30,24 +43,36 @@ exports.getTrips = async (req, res) => {
   }
 };
 
+// Fetch summary report for a device from GeoSurePath
 exports.getSummary = async (req, res) => {
   const { deviceId, from, to } = req.query;
-  
+
+  if (!deviceId || !from || !to) {
+    return res.status(400).json({ error: 'deviceId, from, and to query parameters are required.' });
+  }
+
   try {
-    // Security check: ensure deviceId belongs to the user
+    // Security check: ensure deviceId belongs to the requesting user
     const vehicle = await prisma.vehicle.findFirst({
-        where: { geosurepathDeviceId: parseInt(deviceId), userId: req.user.userId }
+      where: { geosurepathDeviceId: parseInt(deviceId), userId: req.user.userId }
     });
     if (!vehicle) return res.status(403).json({ error: 'Access denied to this device' });
 
-    const response = await fetch(`${process.env.GEOSUREPATH_URL}/api/reports/summary?deviceId=${deviceId}&from=${from}&to=${to}`, {
-      headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${process.env.GEOSUREPATH_ADMIN_EMAIL}:${process.env.GEOSUREPATH_ADMIN_PASSWORD}`).toString('base64')
+    const response = await fetch(
+      `${process.env.GEOSUREPATH_URL}/api/reports/summary?deviceId=${deviceId}&from=${from}&to=${to}`,
+      {
+        headers: {
+          'Authorization':
+            'Basic ' +
+            Buffer.from(
+              `${process.env.GEOSUREPATH_ADMIN_EMAIL}:${process.env.GEOSUREPATH_ADMIN_PASSWORD}`
+            ).toString('base64')
+        }
       }
-    });
+    );
 
-    if (!response.ok) throw new Error('Failed to fetch summary from Traccar');
-    
+    if (!response.ok) throw new Error(`GeoSurePath returned ${response.status}`);
+
     const summary = await response.json();
     res.json(summary);
   } catch (error) {

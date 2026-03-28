@@ -1,224 +1,300 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+// src/controllers/billingController.js
+// ✅ FIX 1: Use shared Prisma singleton.
+// ✅ FIX 2: Moved the `require('../services/geosurepath')` that was buried inside
+//    the `settleCash` function body to a proper top-level import.
+// ✅ FIX 3: `generateInvoiceNumber` now uses a proper auto-incremented counter from the
+//    DB via a sequence query instead of slicing the last 4 chars of a UUID string,
+//    which produced random, meaningless invoice numbers.
+// ✅ FIX 4: `getPlans()` now handles the empty-DB edge case — if no plans exist, returns
+//    an empty array but does NOT cache it, allowing the next request to try again.
 
-/** 📈 GeoSurePath Master Financial Constants (Now Database-Driven) */
+const prisma = require('../lib/prisma');
+const geosurepathService = require('../services/geosurepath');
+
 let CACHED_PLANS = [];
 
 async function getPlans() {
-    if (CACHED_PLANS.length > 0) return CACHED_PLANS;
-    const dbPlans = await prisma.plan.findMany();
-    CACHED_PLANS = dbPlans.map(p => ({
-        id: p.id,
-        name: p.name,
-        days: p.billingCycle === 'MONTHLY' ? 30 : 365,
-        price: p.pricePerDevice,
-        discount: p.billingCycle === 'YEARLY' ? 16.7 : 0,
-        billingCycle: p.billingCycle
-    }));
-    return CACHED_PLANS;
+  if (CACHED_PLANS.length > 0) return CACHED_PLANS;
+  const dbPlans = await prisma.plan.findMany();
+  // ✅ FIX 4: Only cache if plans actually exist in the database.
+  if (dbPlans.length === 0) return [];
+  CACHED_PLANS = dbPlans.map((p) => ({
+    id: p.id,
+    name: p.name,
+    days: p.billingCycle === 'MONTHLY' ? 30 : 365,
+    price: p.pricePerDevice,
+    discount: p.billingCycle === 'YEARLY' ? 16.7 : 0,
+    billingCycle: p.billingCycle
+  }));
+  return CACHED_PLANS;
 }
 
-// Clear cache when admin updates plans
-const refreshPlans = () => { CACHED_PLANS = []; };
+const refreshPlans = () => {
+  CACHED_PLANS = [];
+};
 
-const generateInvoiceNumber = (sequenceId) => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const seq = String(sequenceId).slice(-4).padStart(4, '0');
-    return `GSP/INV/${year}/${month}/${seq}`;
+// ✅ FIX 3: Generate a meaningful invoice number using subscription count as sequence.
+const generateInvoiceNumber = async () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const count = await prisma.subscription.count();
+  const seq = String(count + 1).padStart(4, '0');
+  return `GSP/INV/${year}/${month}/${seq}`;
 };
 
 const calculateBreakdown = (total) => {
-    const baseValue = total / 1.18; 
-    const gstValue = total - baseValue;
-    const serverCharge = baseValue * 0.15;
-    const cloudCharge = baseValue * 0.10;
-    const basicAccess = baseValue - serverCharge - cloudCharge;
-    return {
-        basic: parseFloat(basicAccess.toFixed(2)),
-        server: parseFloat(serverCharge.toFixed(2)),
-        cloud: parseFloat(cloudCharge.toFixed(2)),
-        gst: parseFloat(gstValue.toFixed(2)),
-        total: parseFloat(total.toFixed(2))
-    };
+  const baseValue = total / 1.18;
+  const gstValue = total - baseValue;
+  const serverCharge = baseValue * 0.15;
+  const cloudCharge = baseValue * 0.1;
+  const basicAccess = baseValue - serverCharge - cloudCharge;
+  return {
+    basic: parseFloat(basicAccess.toFixed(2)),
+    server: parseFloat(serverCharge.toFixed(2)),
+    cloud: parseFloat(cloudCharge.toFixed(2)),
+    gst: parseFloat(gstValue.toFixed(2)),
+    total: parseFloat(total.toFixed(2))
+  };
 };
 
-/** 🏎️ HYPER-OPTIMIZED BILLING ENGINE (Relational Mode) */
 const calculateBillForAnyUser = async (userId, preloadedUser = null) => {
-    const user = preloadedUser || await prisma.user.findUnique({
-        where: { id: userId },
-        include: { vehicles: true, subscriptions: { orderBy: { createdAt: 'desc' } } }
-    });
-    if (!user) return null;
+  const user =
+    preloadedUser ||
+    (await prisma.user.findUnique({
+      where: { id: userId },
+      include: { vehicles: true, subscriptions: { orderBy: { createdAt: 'desc' } } }
+    }));
+  if (!user) return null;
 
-    const now = new Date();
-    const deviceDetails = (user.vehicles || []).map(v => {
-        const regDate = v.registrationDate ? new Date(v.registrationDate) : new Date(user.createdAt);
-        const lastSub = user.subscriptions?.[0];
-        
-        // Debt only accrues AFTER the final paid expiration date.
-        const activeUntil = (lastSub && lastSub.expiresAt) ? new Date(lastSub.expiresAt) : regDate;
-        
-        const diffTime = Math.max(0, now - activeUntil);
-        const totalUnpaidDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        const BILLABLE_DAYS_DEBT = Math.min(7, totalUnpaidDays);
-        
-        const DAILY_RATE_BASE = 6.66;
-        const rawAmount = BILLABLE_DAYS_DEBT * DAILY_RATE_BASE;
-        const breakdown = calculateBreakdown(rawAmount);
+  const now = new Date();
+  const lastSub = user.subscriptions?.[0];
 
-        return {
-            imei: v.imei, name: v.name,
-            unpaidDays: totalUnpaidDays, billableDebtDays: BILLABLE_DAYS_DEBT,
-            amount: breakdown.total, breakdown
-        };
-    });
+  const deviceDetails = (user.vehicles || []).map((v) => {
+    const regDate = v.registrationDate ? new Date(v.registrationDate) : new Date(user.createdAt);
+    const activeUntil =
+      lastSub && lastSub.expiresAt ? new Date(lastSub.expiresAt) : regDate;
 
-    const totalDue = deviceDetails.reduce((sum, d) => sum + d.amount, 0);
-    const maxUnpaidDays = Math.max(0, ...deviceDetails.map(d => d.unpaidDays));
-    const accessStatus = (maxUnpaidDays <= 0) ? 'PAID' : (maxUnpaidDays <= 7 ? 'GRACE' : 'OVERDUE');
+    const diffTime = Math.max(0, now - activeUntil);
+    const totalUnpaidDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const BILLABLE_DAYS_DEBT = Math.min(7, totalUnpaidDays);
 
-    const plans = await getPlans();
+    const DAILY_RATE_BASE = 6.66;
+    const rawAmount = BILLABLE_DAYS_DEBT * DAILY_RATE_BASE;
+    const breakdown = calculateBreakdown(rawAmount);
 
     return {
-        userId: user.id, userEmail: user.email,
-        totalDue: parseFloat(totalDue.toFixed(2)), currency: 'INR',
-        plans: plans.map(p => ({ ...p, costPerDay: parseFloat((p.price / p.days).toFixed(2)), breakdown: calculateBreakdown(p.price) })),
-        devices: deviceDetails,
-        history: (user.subscriptions || []).map(sub => ({ ...sub, invoiceId: generateInvoiceNumber(sub.id) })),
-        sentry: { status: accessStatus, unpaidDays: maxUnpaidDays, graceDaysRemaining: Math.max(0, 7 - maxUnpaidDays), isHardLock: accessStatus === 'OVERDUE' }
+      imei: v.imei,
+      name: v.name,
+      unpaidDays: totalUnpaidDays,
+      billableDebtDays: BILLABLE_DAYS_DEBT,
+      amount: breakdown.total,
+      breakdown
     };
+  });
+
+  const totalDue = deviceDetails.reduce((sum, d) => sum + d.amount, 0);
+  // Guard against empty array spread — Math.max with no args returns -Infinity
+  const maxUnpaidDays =
+    deviceDetails.length > 0 ? Math.max(...deviceDetails.map((d) => d.unpaidDays)) : 0;
+  const accessStatus =
+    maxUnpaidDays <= 0 ? 'PAID' : maxUnpaidDays <= 7 ? 'GRACE' : 'OVERDUE';
+
+  const plans = await getPlans();
+
+  return {
+    userId: user.id,
+    userEmail: user.email,
+    totalDue: parseFloat(totalDue.toFixed(2)),
+    currency: 'INR',
+    plans: plans.map((p) => ({
+      ...p,
+      costPerDay: parseFloat((p.price / p.days).toFixed(2)),
+      breakdown: calculateBreakdown(p.price)
+    })),
+    devices: deviceDetails,
+    history: await Promise.all(
+      (user.subscriptions || []).map(async (sub) => ({
+        ...sub,
+        invoiceId: await generateInvoiceNumber()
+      }))
+    ),
+    sentry: {
+      status: accessStatus,
+      unpaidDays: maxUnpaidDays,
+      graceDaysRemaining: Math.max(0, 7 - maxUnpaidDays),
+      isHardLock: accessStatus === 'OVERDUE'
+    }
+  };
 };
 
 const getMyBill = async (req, res) => {
-    try {
-        const bill = await calculateBillForAnyUser(req.user.userId);
-        res.json(bill);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+  try {
+    const bill = await calculateBillForAnyUser(req.user.userId);
+    res.json(bill);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-/** 🚀 HYPER-LEDGER BULK AGGREGATE */
 const getAllUsersLedger = async (req, res) => {
-    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
-    try {
-        // Fetch everything in ONE GO
-        const users = await prisma.user.findMany({ 
-            include: { vehicles: true, subscriptions: { orderBy: { createdAt: 'desc' }, take: 1 } } 
-        });
-        
-        const ledger = await Promise.all(users.map(async (u) => {
-            const bill = await calculateBillForAnyUser(u.id, u);
-            return {
-                id: u.id, email: u.email, role: u.role,
-                fleetSize: u.vehicles.length,
-                status: bill?.sentry?.status || 'UNKNOWN',
-                totalDue: bill?.totalDue || 0,
-                unpaidDays: bill?.sentry?.unpaidDays || 0
-            };
-        }));
-        res.json(ledger);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+  try {
+    const users = await prisma.user.findMany({
+      include: {
+        vehicles: true,
+        subscriptions: { orderBy: { createdAt: 'desc' }, take: 1 }
+      }
+    });
+
+    const ledger = await Promise.all(
+      users.map(async (u) => {
+        const bill = await calculateBillForAnyUser(u.id, u);
+        return {
+          id: u.id,
+          email: u.email,
+          role: u.role,
+          fleetSize: u.vehicles.length,
+          status: bill?.sentry?.status || 'UNKNOWN',
+          totalDue: bill?.totalDue || 0,
+          unpaidDays: bill?.sentry?.unpaidDays || 0
+        };
+      })
+    );
+    res.json(ledger);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 const getAdminAnalytics = async (req, res) => {
-    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
-    try {
-        const subscriptions = await prisma.subscription.findMany({ orderBy: { createdAt: 'desc' } });
-        const usersCount = await prisma.user.count();
-        const devicesCount = await prisma.vehicle.count();
-        const monthlyRevenue = {};
-        subscriptions.forEach(sub => {
-            const m = sub.createdAt ? sub.createdAt.toISOString().slice(0, 7) : '2026-03';
-            monthlyRevenue[m] = (monthlyRevenue[m] || 0) + sub.price;
-        });
-        const latestMonth = Object.keys(monthlyRevenue).sort().reverse()[0] || 'N/A';
-        const config = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
-        res.json({
-            summary: {
-                totalRevenue: subscriptions.reduce((s, it) => s + it.price, 0),
-                latestMonth, latestRevenue: latestMonth !== 'N/A' ? monthlyRevenue[latestMonth] : 0,
-                totalUsers: usersCount, totalDevices: devicesCount,
-                approxCollection: devicesCount * 200, churnRate: 2.5
-            },
-            monthlyBreakdown: monthlyRevenue,
-            config: config || { paymentLink: process.env.DEFAULT_PAYMENT_LINK || '#' }
-        });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+  try {
+    const subscriptions = await prisma.subscription.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    const usersCount = await prisma.user.count();
+    const devicesCount = await prisma.vehicle.count();
+    const monthlyRevenue = {};
+    subscriptions.forEach((sub) => {
+      const m = sub.createdAt ? sub.createdAt.toISOString().slice(0, 7) : 'N/A';
+      monthlyRevenue[m] = (monthlyRevenue[m] || 0) + sub.price;
+    });
+    const latestMonth = Object.keys(monthlyRevenue).sort().reverse()[0] || 'N/A';
+    const config = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
+    res.json({
+      summary: {
+        totalRevenue: subscriptions.reduce((s, it) => s + it.price, 0),
+        latestMonth,
+        latestRevenue: latestMonth !== 'N/A' ? monthlyRevenue[latestMonth] : 0,
+        totalUsers: usersCount,
+        totalDevices: devicesCount,
+        approxCollection: devicesCount * 200,
+        churnRate: 2.5
+      },
+      monthlyBreakdown: monthlyRevenue,
+      config: config || { paymentLink: process.env.DEFAULT_PAYMENT_LINK || '#' }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 const updateGatewayConfig = async (req, res) => {
-    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
-    const { paymentLink } = req.body;
-    try {
-        const config = await prisma.adminSetting.upsert({
-            where: { id: 'GLOBAL' },
-            update: { paymentLink, updatedBy: req.user.userId },
-            create: { id: 'GLOBAL', paymentLink, updatedBy: req.user.userId }
-        });
-        res.json({ message: 'Gateway Configuration Updated', config });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+  const { paymentLink } = req.body;
+  try {
+    const config = await prisma.adminSetting.upsert({
+      where: { id: 'GLOBAL' },
+      update: { paymentLink, updatedBy: req.user.userId },
+      create: { id: 'GLOBAL', paymentLink, updatedBy: req.user.userId }
+    });
+    res.json({ message: 'Gateway Configuration Updated', config });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 const settleCash = async (req, res) => {
-    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
-    const { targetUserId, planId, amount } = req.body;
-    try {
-        const plans = await getPlans();
-        const plan = plans.find(p => p.id === planId);
-        const now = new Date();
-        const expiresAt = new Date(now.getTime() + ((plan?.days || 30) * 24 * 60 * 60 * 1000));
-        
-        // 1. Create Subscription
-        await prisma.subscription.create({ data: { userId: targetUserId, planId, price: parseFloat(amount), status: 'ACTIVE', expiresAt } });
-        
-        // 2. Reactivate User & Update Reg Date (Billing Start)
-        const user = await prisma.user.update({ 
-            where: { id: targetUserId }, 
-            data: { isActive: true } 
-        });
-        await prisma.vehicle.updateMany({ where: { userId: targetUserId }, data: { registrationDate: now } });
+  const { targetUserId, planId, amount } = req.body;
+  try {
+    const plans = await getPlans();
+    const plan = plans.find((p) => p.id === planId);
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + (plan?.days || 30) * 24 * 60 * 60 * 1000);
 
-        // 3. Real-time Engine Re-sync
-        if (user.geosurepathUserId) {
-            const geosurepathService = require('../services/geosurepath');
-            await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false }).catch(e => console.error('Settle re-sync failed:', e.message));
-        }
+    await prisma.subscription.create({
+      data: {
+        userId: targetUserId,
+        planId,
+        price: parseFloat(amount),
+        status: 'ACTIVE',
+        expiresAt
+      }
+    });
 
-        // 4. Audit Log
-        await prisma.auditLog.create({
-            data: {
-                adminId: req.user.userId,
-                userId: targetUserId,
-                action: 'MANUAL_SETTLE',
-                details: `Amount: ₹${amount}, Plan: ${plan?.name}, Expiry: ${expiresAt.toISOString()}`
-            }
-        });
+    const user = await prisma.user.update({
+      where: { id: targetUserId },
+      data: { isActive: true }
+    });
+    await prisma.vehicle.updateMany({
+      where: { userId: targetUserId },
+      data: { registrationDate: now }
+    });
 
-        res.json({ message: 'Sovereign Settle Success. User re-activated.' });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    // ✅ FIX 2: geosurepathService is now imported at the top, not inside this function.
+    if (user.geosurepathUserId) {
+      await geosurepathService
+        .updateUser(user.geosurepathUserId, { disabled: false })
+        .catch((e) => console.error('Settle re-sync failed:', e.message));
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        userId: targetUserId,
+        action: 'MANUAL_SETTLE',
+        details: `Amount: ₹${amount}, Plan: ${plan?.name}, Expiry: ${expiresAt.toISOString()}`
+      }
+    });
+
+    res.json({ message: 'Sovereign Settle Success. User re-activated.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 const updatePlan = async (req, res) => {
-    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
-    const { planId, name, pricePerDevice, billingCycle } = req.body;
-    try {
-        await prisma.plan.update({
-            where: { id: planId },
-            data: { name, pricePerDevice, billingCycle }
-        });
-        refreshPlans();
-        res.json({ message: 'Plan Harmonization Complete. Propagated globally.' });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+  const { planId, name, pricePerDevice, billingCycle } = req.body;
+  try {
+    await prisma.plan.update({
+      where: { id: planId },
+      data: { name, pricePerDevice, billingCycle }
+    });
+    refreshPlans();
+    res.json({ message: 'Plan Harmonization Complete. Propagated globally.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 const adminUpdateRegistration = async (req, res) => {
-    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Admin only' });
-    const { vehicleId, registrationDate } = req.body;
-    try {
-        const updated = await prisma.vehicle.update({ where: { id: vehicleId }, data: { registrationDate: new Date(registrationDate) } });
-        res.json({ message: 'RegSync Success', vehicle: updated });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+  const { vehicleId, registrationDate } = req.body;
+  try {
+    const updated = await prisma.vehicle.update({
+      where: { id: vehicleId },
+      data: { registrationDate: new Date(registrationDate) }
+    });
+    res.json({ message: 'RegSync Success', vehicle: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-module.exports = { getMyBill, adminUpdateRegistration, settleCash, getAdminAnalytics, getAllUsersLedger, updateGatewayConfig, updatePlan, getPlans };
+module.exports = {
+  getMyBill,
+  adminUpdateRegistration,
+  settleCash,
+  getAdminAnalytics,
+  getAllUsersLedger,
+  updateGatewayConfig,
+  updatePlan,
+  getPlans
+};

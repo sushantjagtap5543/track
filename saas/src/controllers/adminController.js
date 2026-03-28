@@ -1,8 +1,9 @@
 // src/controllers/adminController.js
+// ✅ FIX: Use shared Prisma singleton instead of `new PrismaClient()`.
+
 const os = require('os');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const geosurepathService = require('../services/geosurepath');
-const prisma = new PrismaClient();
 
 // Get System Health (CPU, Memory, Uptime)
 exports.getSystemHealth = async (req, res) => {
@@ -63,26 +64,29 @@ exports.updateClientStatus = async (req, res) => {
     
     // Sync with GeoSurePath: If not active, disable in GeoSurePath
     if (user.geosurepathUserId) {
-        try {
-            await geosurepathService.updateUser(user.geosurepathUserId, { disabled: !isActive });
-            console.log(`[Sync] User ${user.email} ${isActive ? 'activated' : 'disabled'} in GeoSurePath.`);
-        } catch (syncError) {
-            console.error(`[Sync Error] Failed to sync status for ${user.email}:`, syncError.message);
-            // We continue even if sync fails
-        }
+      geosurepathService
+        .updateUser(user.geosurepathUserId, { disabled: !isActive })
+        .then(() =>
+          console.log(`[Sync] User ${user.email} ${isActive ? 'activated' : 'disabled'} in GeoSurePath.`)
+        )
+        .catch((syncError) =>
+          console.error(`[Sync Error] Failed to sync status for ${user.email}:`, syncError.message)
+        );
     }
 
     res.json({ message: `Client ${isActive ? 'activated' : 'suspended'} successfully`, user });
 
-    // 5. Audit Log (Async)
-    await prisma.auditLog.create({
+    // Audit Log (fire-and-forget — response already sent)
+    prisma.auditLog
+      .create({
         data: {
           adminId: req.user.userId,
           userId: clientId,
           action: isActive ? 'ACTIVATE_USER' : 'SUSPEND_USER',
-          details: `User status changed by admin. Sync attempt made.`
+          details: 'User status changed by admin. Sync attempt made.'
         }
-    }).catch(e => console.error('Audit failed:', e.message));
+      })
+      .catch((e) => console.error('Audit failed:', e.message));
 
   } catch (_error) {
     res.status(500).json({ error: 'Failed to update client status' });

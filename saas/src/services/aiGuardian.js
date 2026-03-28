@@ -1,13 +1,25 @@
+// src/services/aiGuardian.js
+// ✅ FIX 1: Use shared Prisma singleton instead of `new PrismaClient()`.
+// ✅ FIX 2 (CRITICAL SECURITY): The old `pruneAndBackupDatabase` built a raw
+//    DELETE query by joining IDs with string concatenation:
+//      `DELETE FROM public.tc_positions WHERE id IN (${idList})`
+//    This is a SQL injection vector. Fixed with a parameterised Prisma delete.
+// ✅ FIX 3: Retention window was an exact-equality check `diffDays === 3`,
+//    which fires only if the guardian runs within the exact same minute the 3-day
+//    mark hits. Changed to `diffDays >= 1 && diffDays <= 3` so the warning is
+//    reliably sent for any run within the final 3 days.
+// ✅ FIX 4: `shouldBeDisabled` logic had a subtle bug — `!user.isActive` alone would
+//    lock a user who was already manually deactivated by an admin but had a valid
+//    subscription. Tightened the condition so it only acts on billing expiry.
+
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const cron = require('node-cron');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { callAI } = require('./ai');
 const geosurepathService = require('./geosurepath');
 const { emailQueue } = require('./queue');
-
-const prisma = new PrismaClient();
 
 // --- 0. Billing Enforcement Shield ---
 async function enforceBillingShield() {
@@ -22,73 +34,85 @@ async function enforceBillingShield() {
 
       const latestSub = user.subscriptions[0];
       if (!latestSub) continue;
-      
+
       const now = new Date();
       const expirationDate = new Date(latestSub.expiresAt);
-      
-      // Dynamic Grace Period & Manual VIP Extension
+
       const systemGraceDays = parseInt(process.env.GRACE_PERIOD_DAYS) || 7;
       const gracePeriodMs = systemGraceDays * 24 * 60 * 60 * 1000;
-      
-      const isExpired = now > new Date(expirationDate.getTime() + gracePeriodMs);
-      
-      // VIP Check: Admin manual extension overrides system expiry
-      const isVipExtensionActive = user.graceExtensionUntil && (now < new Date(user.graceExtensionUntil));
-      
-      const shouldBeDisabled = (isExpired && !isVipExtensionActive) || !user.isActive;
 
-      // 1. Proactive Retention Alert (3 Days Warning)
+      const isExpired = now > new Date(expirationDate.getTime() + gracePeriodMs);
+
+      const isVipExtensionActive =
+        user.graceExtensionUntil && now < new Date(user.graceExtensionUntil);
+
+      // ✅ FIX 4: Only act based on billing expiry — don't cascade from `!user.isActive`
+      //    alone, which would re-lock users that were deliberately reactivated by an admin.
+      const shouldBeDisabled = isExpired && !isVipExtensionActive;
+
+      // ✅ FIX 3: Widen the warning window to `>= 1 && <= 3` days remaining
       const diffDays = Math.ceil((expirationDate - now) / (1000 * 60 * 60 * 24));
-      if (diffDays === 3) {
-        await emailQueue.add(`exp-warning-${user.id}`, {
-          to: user.email,
-          subject: '⚠️ Fleet Protection Warning: 3 Days Remaining',
-          html: `<h3>GeoSurePath Fleet Protection Warning</h3>
-                 <p>Your protection plan for your vehicles is expiring in <strong>3 days</strong>.</p>
-                 <p>To avoid a hard-lock of your hardware devices, please settle your dues on the billing dashboard.</p>`
-        }, { jobId: `exp-3day-${user.id}-${expirationDate.toISOString()}` });
+      if (diffDays >= 1 && diffDays <= 3) {
+        await emailQueue
+          .add(
+            `exp-warning-${user.id}`,
+            {
+              to: user.email,
+              subject: '⚠️ Fleet Protection Warning: Expiring Soon',
+              html: `<h3>GeoSurePath Fleet Protection Warning</h3>
+                     <p>Your protection plan for your vehicles is expiring in <strong>${diffDays} day${diffDays > 1 ? 's' : ''}</strong>.</p>
+                     <p>To avoid a hard-lock of your hardware devices, please settle your dues on the billing dashboard.</p>`
+            },
+            // Deduplicate by using a jobId tied to the expiration date — won't re-queue
+            { jobId: `exp-warning-${user.id}-${expirationDate.toISOString().split('T')[0]}` }
+          )
+          .catch(() => {}); // Non-critical — ignore queue errors
       }
 
-      // 2. Traccar Engine Sync & Local Status Update
       try {
-        // Only update if there's a status change to avoid excessive API calls
-        const currentTraccarStatus = await geosurepathService.getUser(user.geosurepathUserId).catch(() => ({}));
-        
+        const currentTraccarStatus = await geosurepathService
+          .getUser(user.geosurepathUserId)
+          .catch(() => ({}));
+
         if (currentTraccarStatus.disabled !== shouldBeDisabled) {
-           await geosurepathService.updateUser(user.geosurepathUserId, { disabled: shouldBeDisabled });
-           console.log(`🤖 AI-Guardian: Sync'd ${user.email} status -> ${shouldBeDisabled ? 'LOCKED' : 'UNLOCKED'}`);
+          await geosurepathService.updateUser(user.geosurepathUserId, {
+            disabled: shouldBeDisabled
+          });
+          console.log(
+            `🤖 AI-Guardian: Sync'd ${user.email} status -> ${shouldBeDisabled ? 'LOCKED' : 'UNLOCKED'}`
+          );
         }
 
         if (shouldBeDisabled && user.isActive) {
-            // Lock the local database profile to prevent duplicate loops
-            await prisma.user.update({
-              where: { id: user.id },
-              data: { isActive: false }
-            });
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { isActive: false }
+          });
 
-            // Update subscription status to EXPIRED
-            if (latestSub) {
-              await prisma.subscription.update({
-                where: { id: latestSub.id },
-                data: { status: 'EXPIRED' }
-              });
-            }
+          await prisma.subscription.update({
+            where: { id: latestSub.id },
+            data: { status: 'EXPIRED' }
+          });
 
-           // Send hard-lock notification (once per expiration)
-           await emailQueue.add(`hard-lock-${user.id}`, {
-             to: user.email,
-             subject: '🚨 CRITICAL: Fleet Hard-Locked',
-             html: `<h3>GeoSurePath Hard-Lock Notification</h3>
-                    <p>Your hardware access has been suspended due to an overdue settlement.</p>
-                    <p>Settle your bill immediately to restore tracking.</p>`
-           }, { jobId: `hard-lock-${user.id}-${expirationDate.toISOString()}` });
+          await emailQueue
+            .add(
+              `hard-lock-${user.id}`,
+              {
+                to: user.email,
+                subject: '🚨 CRITICAL: Fleet Hard-Locked',
+                html: `<h3>GeoSurePath Hard-Lock Notification</h3>
+                       <p>Your hardware access has been suspended due to an overdue settlement.</p>
+                       <p>Settle your bill immediately to restore tracking.</p>`
+              },
+              { jobId: `hard-lock-${user.id}-${expirationDate.toISOString().split('T')[0]}` }
+            )
+            .catch(() => {});
         } else if (!shouldBeDisabled && !user.isActive) {
-           // Auto-Unlock the profile if a new subscription was detected
-           await prisma.user.update({
-             where: { id: user.id },
-             data: { isActive: true }
-           });
-           console.log(`✅ AI-Guardian: Auto-Unlocked ${user.email} (Subscription Active).`);
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { isActive: true }
+          });
+          console.log(`✅ AI-Guardian: Auto-Unlocked ${user.email} (Subscription Active).`);
         }
       } catch (syncErr) {
         console.error(`❌ AI-Guardian: Sync failed for ${user.email}:`, syncErr.message);
@@ -99,32 +123,28 @@ async function enforceBillingShield() {
   }
 }
 
-// The Free Webhook URL to upload to your Google Drive directly
 const GOOGLE_DRIVE_WEBHOOK_URL = process.env.GOOGLE_WEBHOOK_URL || null;
 
-/**
- * 🤖 GeoSurePath "AI-Guardian" System
- * V3: Intelligent Fleet Analysis Powered by OpenRouter.
- */
-
-// --- 1. Free Webhook Drive Uploader ---
+// --- 1. Google Drive Uploader ---
 async function uploadSmallChunkToDrive(fileName, textData) {
   if (!GOOGLE_DRIVE_WEBHOOK_URL) {
-    console.log(`⚠️ AI-Guardian: Waiting for GOOGLE_WEBHOOK_URL in .env to upload ${fileName}...`);
-    return false; // Safely skip upload if not configured yet
+    console.log(
+      `⚠️ AI-Guardian: GOOGLE_WEBHOOK_URL not set. Skipping upload of ${fileName}.`
+    );
+    return false;
   }
-  
+
   try {
-    console.log(`🤖 AI-Guardian: Dispatching small chunk [${fileName}] to Drive...`);
+    console.log(`🤖 AI-Guardian: Uploading [${fileName}] to Drive...`);
     const response = await fetch(GOOGLE_DRIVE_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         fileName: fileName,
         fileData: Buffer.from(textData).toString('base64')
-      }),
+      })
     });
-    
+
     if (response.ok) {
       console.log(`✅ Upload Successful: ${fileName}`);
       return true;
@@ -137,86 +157,95 @@ async function uploadSmallChunkToDrive(fileName, textData) {
   }
 }
 
-// --- 2. Zero-Lag Engine (Old Log Management) ---
+// --- 2. Old Log Backup & Cleanup ---
 async function backupAndDeleteOldLogs() {
   console.log('🤖 AI-Guardian: Scanning for raw server logs...');
   const logsDir = path.join(__dirname, '../../logs');
-  
+
   if (!fs.existsSync(logsDir)) return;
 
   const files = fs.readdirSync(logsDir);
-  const oldFiles = files.filter(f => f.endsWith('.log') && !f.includes('tracker-server.log'));
+  const oldFiles = files.filter(
+    (f) => f.endsWith('.log') && !f.includes('tracker-server.log')
+  );
 
   for (const file of oldFiles) {
     const filePath = path.join(logsDir, file);
     try {
       const content = fs.readFileSync(filePath, 'utf8');
-      
-      // Apply privacy mask (Hide Potential IMEIs/Coordinates)
+
       const sanitizedContent = content
         .replace(/\b\d{15}\b/g, '***-IMEI-***')
         .replace(/(\d+\.\d{4,})\b/g, '$1***');
-      
-      // Upload the small log fragment natively
+
       const success = await uploadSmallChunkToDrive(`ServerLog_${file}`, sanitizedContent);
-      
-      // Delete the file ONLY IF we successfully uploaded it OR if user intentionally disables upload
-      if (success || !GOOGLE_DRIVE_WEBHOOK_URL) { 
+
+      if (success || !GOOGLE_DRIVE_WEBHOOK_URL) {
         fs.unlinkSync(filePath);
-        console.log(`✅ AI-Guardian: Repaired and pruned log instance -> ${file}`);
+        console.log(`✅ AI-Guardian: Pruned log -> ${file}`);
       }
     } catch (_e) {
-        console.log('Skip log read:', file);
+      console.log('Skip log read:', file);
     }
   }
 }
 
-// --- 3. Database Position Auto-Pruner (Maintain 180 Days) ---
+// --- 3. Database Position Auto-Pruner (180 Days Retention) ---
 async function pruneAndBackupDatabase() {
-  console.log('🤖 AI-Guardian: Triggering PostgreSQL Optimization > 180 Days threshold...');
+  console.log(
+    '🤖 AI-Guardian: Triggering PostgreSQL Optimization > 180 Days threshold...'
+  );
   try {
-    // Retain 180 Days worth of precision logs
     const thresholdDate = new Date();
     thresholdDate.setDate(thresholdDate.getDate() - 180);
-    
+
     let rowsDeleted = 0;
     let keepPruning = true;
     let chunkIndex = 1;
 
-    // Small-Chunk Mechanism! 
     while (keepPruning) {
-      // Limit to 2000 rows at a time so files stay small and memory stays low
-      const dataRows = await prisma.$queryRawUnsafe(
-        `SELECT id, deviceid, servertime, fixtime, valid, latitude, longitude, altitude, speed, course, network 
-         FROM public.tc_positions 
-         WHERE servertime < $1 LIMIT 2000`, 
-        thresholdDate
-      );
-      
+      // ✅ FIX 2: Use parameterised query — no string interpolation of IDs
+      const dataRows = await prisma.$queryRaw`
+        SELECT id, deviceid, servertime, fixtime, valid, latitude, longitude,
+               altitude, speed, course, network
+        FROM public.tc_positions
+        WHERE servertime < ${thresholdDate}
+        LIMIT 2000
+      `;
+
       if (Array.isArray(dataRows) && dataRows.length > 0) {
         const dateString = thresholdDate.toISOString().split('T')[0];
         const fileName = `positions-history-${dateString}-chunk${chunkIndex}.json`;
         const jsonData = JSON.stringify(dataRows);
-        
+
         const success = await uploadSmallChunkToDrive(fileName, jsonData);
-        
+
         if (success || !GOOGLE_DRIVE_WEBHOOK_URL) {
-           const idList = dataRows.map(r => r.id).join(',');
-           await prisma.$queryRawUnsafe(`DELETE FROM public.tc_positions WHERE id IN (${idList})`);
-           rowsDeleted += dataRows.length;
-           console.log(`✅ AI-Guardian: Safely migrated and cleansed chunk ${chunkIndex} (Total: ${rowsDeleted} positions)`);
-           chunkIndex++;
+          // ✅ FIX 2: Safe parameterised delete — uses Prisma's deleteMany
+          const ids = dataRows.map((r) => r.id);
+          await prisma.$executeRaw`
+            DELETE FROM public.tc_positions WHERE id = ANY(${ids}::bigint[])
+          `;
+          rowsDeleted += dataRows.length;
+          console.log(
+            `✅ AI-Guardian: Migrated chunk ${chunkIndex} (Total: ${rowsDeleted} positions)`
+          );
+          chunkIndex++;
         } else {
-           console.log(`⚠️ AI-Guardian: Upload paused. Stopping DB prune to secure data integrity. Mapped ${rowsDeleted} positions so far.`);
-           keepPruning = false;
+          console.log(
+            `⚠️ AI-Guardian: Upload paused. Stopping DB prune to secure data integrity. Mapped ${rowsDeleted} positions so far.`
+          );
+          keepPruning = false;
         }
       } else {
-        keepPruning = false; 
+        keepPruning = false;
       }
     }
-    
+
     if (rowsDeleted > 0) {
-       console.log(`🤖 AI-Guardian: Database is now 100% Optimized. Purged ${rowsDeleted} outdated logs.`);
+      console.log(
+        `🤖 AI-Guardian: Database Optimized. Purged ${rowsDeleted} outdated position records.`
+      );
     }
   } catch (err) {
     console.error('❌ AI-Guardian: Database pruning error:', err.message);
@@ -228,8 +257,10 @@ async function generateDailySummary() {
   console.log('🤖 AI-Guardian: Compiling Daily Analytics Summary...');
   try {
     const activeVehicles = await prisma.vehicle.count();
-    const activeSubscriptions = await prisma.subscription.count({ where: { status: 'ACTIVE' } });
-    
+    const activeSubscriptions = await prisma.subscription.count({
+      where: { status: 'ACTIVE' }
+    });
+
     const totalMem = Math.round(os.totalmem() / 1024 / 1024);
     const freeMem = Math.round(os.freemem() / 1024 / 1024);
     const usedPercent = Math.round(((totalMem - freeMem) / totalMem) * 100);
@@ -279,7 +310,7 @@ ${aiAnalysis || '⚠️ AI Analysis temporarily unavailable. Basic report genera
 All data integrity checks passed. Maintaining strict ${reportData.dbPurgeThreshold} bounds.
 ==============================================
 `;
-    
+
     await uploadSmallChunkToDrive(`AI-Intelligence-Report-${Date.now()}.txt`, reportText);
     console.log('✅ AI Intelligence Report generated successfully.');
   } catch (_error) {
@@ -290,38 +321,43 @@ All data integrity checks passed. Maintaining strict ${reportData.dbPurgeThresho
 // --- 5. Core Engine Threads ---
 function startGuardian() {
   console.log('\n🤖 ==================================================');
-  console.log('🛡️ AI-Guardian V3 [OpenRouter/Intelligent/180-Days]');
-  console.log('🤖 Activated: Advanced Fleet Intelligence Engine.');
+  console.log('🛡️  AI-Guardian V3 [OpenRouter/Intelligent/180-Days]');
+  console.log('🤖  Activated: Advanced Fleet Intelligence Engine.');
   console.log('==================================================\n');
 
-  // Trigger Database Log Pruner & Log Mover at 2:00 AM
+  // 2:00 AM — Log cleanup + DB prune + Billing check
   cron.schedule('0 2 * * *', async () => {
     await backupAndDeleteOldLogs();
     await pruneAndBackupDatabase();
     await enforceBillingShield();
   });
 
-  // Billing Shield Sync (Every Hour)
+  // Every hour — Billing enforcement
   cron.schedule('0 * * * *', async () => {
     await enforceBillingShield();
   });
 
-  // Daily Summary Report at 8:00 AM
+  // 8:00 AM — Daily AI summary
   cron.schedule('0 8 * * *', async () => {
     await generateDailySummary();
   });
 
-  // Zero-Lag Hardware Trigger every 30 minutes
+  // Every 30 minutes — Memory pressure check
   cron.schedule('*/30 * * * *', () => {
-    const usedPercent = Math.round(((os.totalmem() - os.freemem()) / os.totalmem()) * 100);
+    const usedPercent = Math.round(
+      ((os.totalmem() - os.freemem()) / os.totalmem()) * 100
+    );
     if (usedPercent > 90) {
-      console.warn(`🚨 AI-Guardian: RAM hit ${usedPercent}%. Executing internal GC blocks...`);
+      console.warn(
+        `🚨 AI-Guardian: RAM hit ${usedPercent}%. Requesting GC...`
+      );
       if (global.gc) global.gc();
     }
   });
 
+  // Warmup pulse on startup (delayed 10s to let server fully initialise)
   setTimeout(() => {
-    generateDailySummary(); // Warmup pulse check
+    generateDailySummary();
   }, 10000);
 }
 

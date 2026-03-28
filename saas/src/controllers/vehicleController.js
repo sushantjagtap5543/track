@@ -1,12 +1,17 @@
 // src/controllers/vehicleController.js
-const { PrismaClient } = require('@prisma/client');
+// ✅ FIX: Use shared Prisma singleton instead of `new PrismaClient()`.
+
+const prisma = require('../lib/prisma');
 const geosurepathService = require('../services/geosurepath');
-const prisma = new PrismaClient();
 
 // Create new vehicle (Fleet Expansion)
 exports.createVehicle = async (req, res) => {
   const { name, imei, type, model, plate } = req.body;
   const userId = req.user.userId;
+
+  if (!name || !imei) {
+    return res.status(400).json({ error: 'Vehicle name and IMEI are required.' });
+  }
 
   try {
     // 1. Create in GeoSurePath Engine
@@ -14,8 +19,8 @@ exports.createVehicle = async (req, res) => {
 
     // 2. Link to GeoSurePath User
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (user.geosurepathUserId) {
-        await geosurepathService.linkDeviceToUser(user.geosurepathUserId, geosurepathDevice.id);
+    if (user?.geosurepathUserId) {
+      await geosurepathService.linkDeviceToUser(user.geosurepathUserId, geosurepathDevice.id);
     }
 
     // 3. Save to local database
@@ -53,7 +58,13 @@ exports.getVehicles = async (req, res) => {
 
 // Toggle Engine (Ignition Control System)
 exports.toggleEngine = async (req, res) => {
-  const { vehicleId, action } = req.body; // action: 'engineResume' or 'engineStop'
+  const { vehicleId, action } = req.body;
+
+  if (!vehicleId || !['engineStop', 'engineResume'].includes(action)) {
+    return res
+      .status(400)
+      .json({ error: 'vehicleId and a valid action (engineStop|engineResume) are required.' });
+  }
 
   try {
     const vehicle = await prisma.vehicle.findFirst({
@@ -61,14 +72,18 @@ exports.toggleEngine = async (req, res) => {
     });
 
     if (!vehicle || !vehicle.geosurepathDeviceId) {
-      return res.status(404).json({ error: 'Vehicle not found or not linked to device' });
+      return res
+        .status(404)
+        .json({ error: 'Vehicle not found or not linked to device' });
     }
 
     // Prevention: Cannot stop engine while driving over 20km/h
     if (action === 'engineStop') {
       const position = await geosurepathService.getLatestPosition(vehicle.geosurepathDeviceId);
       if (position && position.speed > 20) {
-        return res.status(400).json({ error: 'Cannot stop engine while driving over 20km/h for safety.' });
+        return res
+          .status(400)
+          .json({ error: 'Cannot stop engine while driving over 20km/h for safety.' });
       }
     }
 
@@ -86,6 +101,10 @@ exports.toggleEngine = async (req, res) => {
 exports.toggleSafeParking = async (req, res) => {
   const { vehicleId, enable, lat, lng, radius } = req.body;
 
+  if (enable && (!lat || !lng)) {
+    return res.status(400).json({ error: 'lat and lng are required when enabling safe parking.' });
+  }
+
   try {
     const vehicle = await prisma.vehicle.findFirst({
       where: { id: vehicleId, userId: req.user.userId }
@@ -99,16 +118,23 @@ exports.toggleSafeParking = async (req, res) => {
 
     if (enable) {
       // 1. Create Geofence in GeoSurePath (Circle format)
-      // Area format: CIRCLE (lat lng, radius_in_meters)
       const area = `CIRCLE (${lat} ${lng}, ${radius || 20})`;
-      const geofence = await geosurepathService.createGeofence(`SafeParking_${vehicle.name}`, area);
+      const geofence = await geosurepathService.createGeofence(
+        `SafeParking_${vehicle.name}`,
+        area
+      );
       geosurepathGeofenceId = geofence.id;
 
       // 2. Link Geofence to Device in GeoSurePath
-      await geosurepathService.linkGeofenceToDevice(vehicle.geosurepathDeviceId, geosurepathGeofenceId);
+      await geosurepathService.linkGeofenceToDevice(
+        vehicle.geosurepathDeviceId,
+        geosurepathGeofenceId
+      );
     } else if (geosurepathGeofenceId) {
       // 3. Delete Geofence from GeoSurePath if it exists
-      await geosurepathService.deleteGeofence(geosurepathGeofenceId).catch(e => console.error('Failed to delete GeoSurePath geofence:', e));
+      await geosurepathService
+        .deleteGeofence(geosurepathGeofenceId)
+        .catch((e) => console.error('Failed to delete GeoSurePath geofence:', e));
       geosurepathGeofenceId = null;
     }
 
@@ -119,7 +145,7 @@ exports.toggleSafeParking = async (req, res) => {
         safeParkingOn: enable,
         parkingLat: enable ? lat : null,
         parkingLng: enable ? lng : null,
-        parkingRadius: enable ? (radius || 20) : null,
+        parkingRadius: enable ? radius || 20 : null,
         geosurepathGeofenceId: geosurepathGeofenceId
       }
     });
@@ -145,11 +171,7 @@ exports.createAlertRule = async (req, res) => {
     }
 
     const alertRule = await prisma.alertRule.create({
-      data: {
-        vehicleId,
-        type,
-        parameters: parameters || {}
-      }
+      data: { vehicleId, type, parameters: parameters || {} }
     });
 
     res.json(alertRule);
