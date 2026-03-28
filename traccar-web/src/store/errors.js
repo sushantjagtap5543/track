@@ -7,10 +7,12 @@ const { reducer, actions } = createSlice({
   },
   reducers: {
     push(state, action) {
-      if (!state.errors) {
+      if (!Array.isArray(state.errors)) {
         state.errors = [];
       }
-      state.errors.push(action.payload);
+      if (action.payload) {
+        state.errors.push(action.payload);
+      }
     },
     pop(state) {
       if (state.errors.length) {
