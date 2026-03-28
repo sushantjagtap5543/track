@@ -10,6 +10,7 @@ import {
   FormControlLabel,
   Checkbox,
   CircularProgress,
+  Box,
 } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useNavigate } from 'react-router-dom';
