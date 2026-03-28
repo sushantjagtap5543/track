@@ -655,6 +655,7 @@ const BillingPage = () => {
                   <TableCell>INVOICE NO.</TableCell>
                   <TableCell>DATE</TableCell>
                   <TableCell>PLAN</TableCell>
+                  <TableCell>UNITS</TableCell>
                   <TableCell align="right">AMOUNT (INR)</TableCell>
                   <TableCell align="center">STATUS</TableCell>
                 </TableRow>
@@ -674,6 +675,9 @@ const BillingPage = () => {
                       </TableCell>
                       <TableCell sx={{ fontWeight: 700, opacity: 0.8 }}>
                         {(entry.planId || 'MONTHLY').toUpperCase()}
+                      </TableCell>
+                      <TableCell sx={{ opacity: 0.7 }}>
+                        {entry.deviceCount || 1} Units
                       </TableCell>
                       <TableCell align="right" sx={{ fontWeight: 900 }}>
                         ₹{entry.price}

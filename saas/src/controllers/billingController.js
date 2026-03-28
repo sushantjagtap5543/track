@@ -68,12 +68,21 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null) => {
   if (!user) return null;
 
   const now = new Date();
-  const lastSub = user.subscriptions?.[0];
+  const activeSub = user.subscriptions?.[0];
+  const activeDeviceCount = activeSub?.status === 'ACTIVE' ? activeSub.deviceCount : 0;
 
-  const deviceDetails = (user.vehicles || []).map((v) => {
+  const deviceDetails = (user.vehicles || []).map((v, index) => {
     const regDate = v.registrationDate ? new Date(v.registrationDate) : new Date(user.createdAt);
-    const activeUntil =
-      lastSub && lastSub.expiresAt ? new Date(lastSub.expiresAt) : regDate;
+    
+    // Per-device logic: If this device is "beyond" the paid deviceCount, its activeUntil is its own regDate.
+    // However, if the user has a manually extended grace period, we respect that too.
+    const effectiveSubExpiresAt = (user.graceExtensionUntil && new Date(user.graceExtensionUntil) > now)
+      ? new Date(user.graceExtensionUntil)
+      : (activeSub?.expiresAt ? new Date(activeSub.expiresAt) : null);
+
+    const activeUntil = (index < activeDeviceCount && effectiveSubExpiresAt) 
+      ? effectiveSubExpiresAt 
+      : regDate;
 
     const diffTime = Math.max(0, now - activeUntil);
     const totalUnpaidDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -220,17 +229,24 @@ const settleCash = async (req, res) => {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + (plan?.days || 30) * 24 * 60 * 60 * 1000);
 
+    const user = await prisma.user.findUnique({ 
+      where: { id: targetUserId },
+      include: { vehicles: true }
+    });
+    if (!user) throw new Error('Target user not found');
+
     await prisma.subscription.create({
       data: {
         userId: targetUserId,
         planId,
         price: parseFloat(amount),
         status: 'ACTIVE',
+        deviceCount: user.vehicles.length,
         expiresAt
       }
     });
 
-    const user = await prisma.user.update({
+    await prisma.user.update({
       where: { id: targetUserId },
       data: { isActive: true }
     });

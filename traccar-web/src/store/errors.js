@@ -7,6 +7,9 @@ const { reducer, actions } = createSlice({
   },
   reducers: {
     push(state, action) {
+      if (!state.errors) {
+        state.errors = [];
+      }
       state.errors.push(action.payload);
     },
     pop(state) {

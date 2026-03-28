@@ -155,7 +155,7 @@ const RegisterPage = () => {
         <BackIcon />
       </IconButton>
 
-      <div className={classes.container}>
+      <form className={classes.container} onSubmit={handleSubmit}>
         <div className={classes.header}>
           <Typography className={classes.title}>{t('loginRegister')}</Typography>
           <Typography className={classes.subText}>
@@ -276,9 +276,8 @@ const RegisterPage = () => {
           variant="contained"
           color="primary"
           className={classes.registerButton}
-          onClick={handleSubmit}
           type="submit"
-          disabled={loading || !acceptedTerms || !name || !email || !password || !vehicleName || !deviceImei}
+          disabled={loading || !acceptedTerms || !name || !email || !password || !vehicleName || !deviceImei || password !== confirmPassword}
           fullWidth
           startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
         >
@@ -292,12 +291,13 @@ const RegisterPage = () => {
               className={classes.loginLink}
               onClick={() => navigate('/login')}
               component="button"
+              type="button"
             >
               {t('loginLogin')}
             </Link>
           </Typography>
         </div>
-      </div>
+      </form>
 
       <Snackbar
         open={snackbarOpen}

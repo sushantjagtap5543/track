@@ -179,6 +179,18 @@ exports.adjustExpiry = async (req, res) => {
         await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false });
     }
 
+    // Also sync the latest subscription expiresAt if it exists to keep calendars clean
+    const latestSub = await prisma.subscription.findFirst({
+        where: { userId: userId },
+        orderBy: { createdAt: 'desc' }
+    });
+    if (latestSub && new Date(latestSub.expiresAt) < newGraceDate) {
+        await prisma.subscription.update({
+            where: { id: latestSub.id },
+            data: { expiresAt: newGraceDate }
+        });
+    }
+
     // Log the override
     await prisma.auditLog.create({
       data: {

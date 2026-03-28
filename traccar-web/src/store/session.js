@@ -28,14 +28,19 @@ const { reducer, actions } = createSlice({
       }
     },
     updateLogs(state, action) {
-      state.logs.push(...action.payload);
+      if (Array.isArray(action.payload)) {
+        state.logs.push(...action.payload);
+      }
     },
     updatePositions(state, action) {
+      if (!Array.isArray(action.payload)) {
+        return;
+      }
       const liveRoutes =
-        state.user.attributes.mapLiveRoutes || state.server.attributes.mapLiveRoutes || 'none';
+        state.user.attributes?.mapLiveRoutes || state.server.attributes?.mapLiveRoutes || 'none';
       const liveRoutesLimit =
-        state.user.attributes['web.liveRouteLength'] ||
-        state.server.attributes['web.liveRouteLength'] ||
+        state.user.attributes?.['web.liveRouteLength'] ||
+        state.server.attributes?.['web.liveRouteLength'] ||
         10;
       action.payload.forEach((position) => {
         state.positions[position.deviceId] = position;

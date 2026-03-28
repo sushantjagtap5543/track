@@ -148,25 +148,27 @@ const EventReportPage = () => {
 
   const onExport = useCatch(async () => {
     const sheets = new Map();
-    items.forEach((item) => {
-      const deviceName = devices[item.deviceId].name;
-      if (!sheets.has(deviceName)) {
-        sheets.set(deviceName, []);
-      }
-      const row = {};
-      columns.forEach((key) => {
-        const header = t(columnsMap.get(key));
-        if (key === 'attributes' && item.type === 'media') {
-          row[header] = item.attributes.file;
-        } else if (key === 'address') {
-          const position = positions[item.positionId];
-          row[header] = position ? formatAddress(position, coordinateFormat) : '';
-        } else {
-          row[header] = formatValue(item, key);
+    if (Array.isArray(items)) {
+      items.forEach((item) => {
+        const deviceName = devices[item.deviceId]?.name || `Device ${item.deviceId}`;
+        if (!sheets.has(deviceName)) {
+          sheets.set(deviceName, []);
         }
+        const row = {};
+        columns.forEach((key) => {
+          const header = t(columnsMap.get(key));
+          if (key === 'attributes' && item.type === 'media') {
+            row[header] = item.attributes?.file;
+          } else if (key === 'address') {
+            const position = positions[item.positionId];
+            row[header] = position ? formatAddress(position, coordinateFormat) : '';
+          } else {
+            row[header] = formatValue(item, key);
+          }
+        });
+        sheets.get(deviceName).push(row);
       });
-      sheets.get(deviceName).push(row);
-    });
+    }
     await exportExcel(t('reportEvents'), 'events.xlsx', sheets, theme);
   });
 

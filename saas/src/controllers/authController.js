@@ -126,6 +126,16 @@ exports.register = async (req, res) => {
     }
   } catch (error) {
     console.error('[SaaS] Registration failure:', error);
+    
+    // Handle Prisma Unique Constraint Violations (e.g. IMEI or Email exists)
+    if (error.code === 'P2002') {
+      const field = error.meta?.target?.[0] || 'account/device';
+      return res.status(400).json({ 
+        error: `Registration failed. The ${field} already exists in our system.`,
+        details: `Duplicate field: ${field}`
+      });
+    }
+
     res.status(500).json({ error: 'Registration failed.', details: error.message });
   }
 };

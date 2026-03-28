@@ -26,10 +26,14 @@ export default () => (next) => {
       const positionUpdates = {};
 
       flushed.forEach((action) => {
-        if (action.type === devicesActions.update.type) {
-          action.payload.forEach((item) => (deviceUpdates[item.id] = item));
-        } else if (action.type === sessionActions.updatePositions.type) {
-          action.payload.forEach((item) => (positionUpdates[item.deviceId] = item));
+        if (action.type === devicesActions.update.type && Array.isArray(action.payload)) {
+          action.payload.forEach((item) => {
+            if (item && item.id) deviceUpdates[item.id] = item;
+          });
+        } else if (action.type === sessionActions.updatePositions.type && Array.isArray(action.payload)) {
+          action.payload.forEach((item) => {
+            if (item && item.deviceId) positionUpdates[item.deviceId] = item;
+          });
         }
       });
 
