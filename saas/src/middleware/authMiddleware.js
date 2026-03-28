@@ -1,21 +1,37 @@
-﻿// src/middleware/authMiddleware.js
+// src/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
+const prisma = require('../lib/prisma');
 
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  // Token format: "Bearer [TOKEN]"
-  const token = authHeader && authHeader.split(' ')[1];
+const authenticateToken = async (req, res, next) => {
+  const token = req.cookies.token || (req.headers['authorization'] && req.headers['authorization'].split(' ')[1]);
 
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
-    req.user = user; // Contains { userId, role, traccarUserId }
-    next();
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId }
+      });
+
+      if (!user || !user.isActive) {
+        return res.status(403).json({ error: 'User account is inactive or not found' });
+      }
+
+      // Optional: Check if user is verified for certain routes
+      // if (!user.isVerified) { ... }
+
+      req.user = { ...decoded, role: user.role };
+      next();
+    } catch (dbErr) {
+      console.error('[AuthMiddleware] DB Error:', dbErr);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   });
 };
 

@@ -2,19 +2,16 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-
 const { authenticateToken } = require('../middleware/authMiddleware');
 
-// Registration (Step 1, 2, 3 combined into one payload)
 router.post('/register', authController.register);
-
-// Secure Login
 router.post('/login', authController.login);
+router.post('/refresh-token', authController.refreshToken);
+router.post('/logout', authController.logout);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
 
-// Hyper-Sync Traccar Session
+router.post('/change-password', authenticateToken, authController.changePassword);
 router.get('/sync', authController.syncSession);
-
-// Change Password (Synchronization with Traccar)
-router.put('/change-password', authenticateToken, authController.changePassword);
 
 module.exports = router;

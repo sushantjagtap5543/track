@@ -36,7 +36,7 @@ exports.getSystemHealth = async (req, res) => {
 // Get Dashboard Statistics
 exports.getStats = async (req, res) => {
   try {
-    const totalClients = await prisma.user.count({ where: { role: 'CLIENT' } });
+    const totalClients = await prisma.user.count({ where: { role: 'CLIENT', deletedAt: null } });
     const totalVehicles = await prisma.vehicle.count();
     
     // Calculate total revenue from completed payments
@@ -76,20 +76,98 @@ exports.updateClientStatus = async (req, res) => {
 
     res.json({ message: `Client ${isActive ? 'activated' : 'suspended'} successfully`, user });
 
-    // Audit Log (fire-and-forget — response already sent)
+    // Audit Log
     prisma.auditLog
       .create({
         data: {
           adminId: req.user.userId,
           userId: clientId,
           action: isActive ? 'ACTIVATE_USER' : 'SUSPEND_USER',
-          details: 'User status changed by admin. Sync attempt made.'
+          details: 'User status changed by admin.'
         }
       })
       .catch((e) => console.error('Audit failed:', e.message));
 
   } catch (_error) {
     res.status(500).json({ error: 'Failed to update client status' });
+  }
+};
+
+// NEW: Get All Users with Pagination, Search, and Filters
+exports.getAllUsers = async (req, res) => {
+  const { page = 1, limit = 10, search = '', role, isActive } = req.query;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  try {
+    const where = {
+      deletedAt: null,
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { username: { contains: search, mode: 'insensitive' } }
+      ],
+      ...(role && { role }),
+      ...(isActive !== undefined && { isActive: isActive === 'true' })
+    };
+
+    const users = await prisma.user.findMany({
+      where,
+      skip,
+      take: parseInt(limit),
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, name: true, email: true, username: true, role: true, 
+        isActive: true, createdAt: true, lastLoginAt: true
+      }
+    });
+
+    const total = await prisma.user.count({ where });
+
+    res.json({
+      users,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+};
+
+// NEW: Bulk Update User Status
+exports.bulkUpdateStatus = async (req, res) => {
+  const { userIds, isActive } = req.body;
+  if (!Array.isArray(userIds)) return res.status(400).json({ error: 'userIds must be an array' });
+
+  try {
+    await prisma.user.updateMany({
+      where: { id: { in: userIds } },
+      data: { isActive }
+    });
+
+    res.json({ message: `Successfully ${isActive ? 'activated' : 'suspended'} ${userIds.length} users` });
+  } catch (error) {
+    res.status(500).json({ error: 'Bulk status update failed' });
+  }
+};
+
+// NEW: Bulk Soft Delete Users
+exports.bulkDeleteUsers = async (req, res) => {
+  const { userIds } = req.body;
+  if (!Array.isArray(userIds)) return res.status(400).json({ error: 'userIds must be an array' });
+
+  try {
+    await prisma.user.updateMany({
+      where: { id: { in: userIds } },
+      data: { deletedAt: new Date(), isActive: false }
+    });
+
+    res.json({ message: `Successfully soft-deleted ${userIds.length} users` });
+  } catch (error) {
+    res.status(500).json({ error: 'Bulk deletion failed' });
   }
 };
 

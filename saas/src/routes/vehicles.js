@@ -6,9 +6,12 @@ const { authenticateToken } = require('../middleware/authMiddleware');
 
 router.use(authenticateToken);
 
-// Get client's vehicles
+// Vehicle Fleet Management
 router.get('/', vehicleController.getVehicles);
-router.post('/create-fleet', vehicleController.createVehicle);
+router.post('/', vehicleController.createVehicle);
+router.put('/:vehicleId', vehicleController.updateVehicle);
+router.delete('/:vehicleId', vehicleController.deleteVehicle);
+router.post('/bulk', vehicleController.bulkUploadVehicles);
 
 // Engine controls
 router.post('/engine', vehicleController.toggleEngine);

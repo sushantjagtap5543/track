@@ -28,6 +28,13 @@ if (missingVars.length > 0) {
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const morgan = require('morgan');
+const jwt = require('jsonwebtoken');
+const { Server } = require('socket.io');
+const socketService = require('./src/services/socketService');
+const cookieParser = require('cookie-parser');
+const xss = require('xss-clean');
+const rateLimit = require('express-rate-limit');
 const { startWorkers, stopWorkers, redisConnection } = require('./src/services/queue');
 const { startGuardian } = require('./src/services/aiGuardian');
 const prisma = require('./src/lib/prisma');
@@ -39,7 +46,29 @@ startWorkers();
 startGuardian();
 
 // --- Security Middleware ---
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(helmet());
+app.use(cookieParser());
+app.use(xss());
+
+// Global Rate Limiter
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
+app.use(globalLimiter);
+
+// Auth Rate Limiter (Stricter)
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20, // Limit each IP to 20 requests per hour for auth
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many authentication attempts, please try again in an hour.' }
+});
 
 // ✅ FIX 4: Correct CORS configuration
 const rawOrigins = process.env.ALLOWED_ORIGINS?.split(',').map((o) => o.trim()) || [];
@@ -118,7 +147,9 @@ app.get('/api/pulse', async (req, res) => {
 });
 
 // --- Routes ---
-app.use('/api/auth', require('./src/routes/auth'));
+// --- Routes ---
+app.use('/api/auth', authLimiter, require('./src/routes/auth'));
+app.use('/api/users', require('./src/routes/user'));
 app.use('/api/vehicles', require('./src/routes/vehicles'));
 app.use('/api/billing', require('./src/routes/billing'));
 app.use('/api/admin', require('./src/routes/admin'));
@@ -137,6 +168,44 @@ const PORT = process.env.PORT || 3001;
 const server = app.listen(PORT, () => {
   console.log(`[GeoSurePath] Server is running on port ${PORT}`);
 });
+
+// --- Socket.io Integration ---
+const io = new Server(server, {
+  cors: {
+    origin: '*', // Adjust for production
+    methods: ['GET', 'POST']
+  }
+});
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token || socket.handshake.headers.cookie?.split('token=')[1]?.split(';')[0];
+  if (!token) return next(new Error('Authentication error'));
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) return next(new Error('Authentication error'));
+    socket.user = decoded;
+    next();
+  });
+});
+
+io.on('connection', (socket) => {
+  const userId = socket.user.userId;
+  console.log(`[Socket] User connected: ${userId} (ID: ${socket.id})`);
+  
+  socket.join(`user:${userId}`);
+  
+  // Join vehicle rooms for vehicles owned by this user
+  prisma.vehicle.findMany({ where: { userId, deletedAt: null }, select: { id: true } })
+    .then(vehicles => {
+      vehicles.forEach(v => socket.join(`vehicle:${v.id}`));
+    });
+
+  socket.on('disconnect', () => {
+    console.log(`[Socket] User disconnected: ${userId}`);
+  });
+});
+
+socketService.init(io);
 
 // --- Graceful Shutdown (FIX 3: all requires are now at the top) ---
 const shutdown = async (signal) => {

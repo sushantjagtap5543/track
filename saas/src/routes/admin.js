@@ -12,7 +12,12 @@ router.get('/health', adminController.getSystemHealth);
 router.get('/stats', adminController.getStats);
 router.get('/advanced-stats', adminController.getAdvancedStats);
 router.get('/audit-logs', adminController.getAuditLogs);
+
+// User Management
+router.get('/users', adminController.getAllUsers);
 router.post('/client-status', adminController.updateClientStatus);
+router.post('/bulk-status', adminController.bulkUpdateStatus);
+router.post('/bulk-delete', adminController.bulkDeleteUsers);
 router.post('/adjust-expiry', adminController.adjustExpiry);
 
 module.exports = router;

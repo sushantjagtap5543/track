@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -71,6 +71,12 @@ const MainToolbar = ({
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
   const [devicesAnchorEl, setDevicesAnchorEl] = useState(null);
 
+  const [localKeyword, setLocalKeyword] = useState(keyword);
+  useEffect(() => {
+    const timer = setTimeout(() => setKeyword(localKeyword), 300);
+    return () => clearTimeout(timer);
+  }, [localKeyword, setKeyword]);
+
   const deviceStatusCount = (status) =>
     Object.values(devices).filter((d) => d.status === status).length;
 
@@ -82,8 +88,8 @@ const MainToolbar = ({
       <OutlinedInput
         ref={inputRef}
         placeholder={t('sharedSearchDevices')}
-        value={keyword}
-        onChange={(e) => setKeyword(e.target.value)}
+        value={localKeyword}
+        onChange={(e) => setLocalKeyword(e.target.value)}
         onFocus={() => setDevicesAnchorEl(toolbarRef.current)}
         onBlur={() => setDevicesAnchorEl(null)}
         endAdornment={
