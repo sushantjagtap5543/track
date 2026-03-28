@@ -1,0 +1,9 @@
+{
+  "name": "FinalSuccess",
+  "email": "finalsuccess@test.com",
+  "password": "Password123!",
+  "vehicleName": "FinalVehicle",
+  "vehicleType": "car",
+  "vehiclePlate": "FIN-001",
+  "deviceImei": "123456789012345"
+}
