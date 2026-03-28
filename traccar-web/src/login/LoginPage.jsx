@@ -147,65 +147,31 @@ const LoginPage = () => {
     setErrorText('');
     setLoading(true);
     try {
-      const query = `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
-      const response = await fetch('/api/session', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
-        body: new URLSearchParams(code.length ? `${query}&code=${code}` : query),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
+
       if (response.ok) {
-        const user = await response.json();
-
-        // --- SaaS API Sync ---
-        try {
-          const saasRes = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-          });
-
-          if (saasRes.ok) {
-            const saasData = await saasRes.json();
-            window.localStorage.setItem('saas_token', saasData.token);
-            window.localStorage.setItem('saas_user', JSON.stringify(saasData));
-          } else {
-            // If direct login fails (e.g. user missing in SaaS), try Hyper-Sync
-            const syncRes = await fetch('/api/auth/sync');
-            if (syncRes.ok) {
-              const syncData = await syncRes.json();
-              window.localStorage.setItem('saas_token', syncData.token);
-              window.localStorage.setItem('saas_user', JSON.stringify(syncData));
-            }
-          }
-
-          // Verify token exists before checking bill
-          const saasToken = window.localStorage.getItem('saas_token');
-          if (saasToken) {
-            const billRes = await fetch('/api/billing/my-bill', {
-              headers: { Authorization: `Bearer ${saasToken}` },
-            });
-            if (billRes.ok) {
-              const bill = await billRes.json();
-              if (bill.totalDue > 0) {
-                window.sessionStorage.setItem('postLogin', '/billing');
-              }
-            }
-          }
-        } catch (saasError) {
-          console.warn('SaaS background authentication/sync failed:', saasError);
+        const saasData = await response.json();
+        
+        // --- Traccar Session Logic ---
+        // Backend /api/auth/login already handles Traccar session creation.
+        // We just need to fetch the Traccar user object to update Redux.
+        const traccarRes = await fetch('/api/session');
+        if (traccarRes.ok) {
+          const user = await traccarRes.json();
+          dispatch(sessionActions.updateUser(user));
         }
 
         generateLoginToken();
-        dispatch(sessionActions.updateUser(user));
         const target = window.sessionStorage.getItem('postLogin') || '/';
         window.sessionStorage.removeItem('postLogin');
         navigate(target, { replace: true });
-      } else if (response.status === 401 && response.headers.get('WWW-Authenticate') === 'TOTP') {
-        setCodeEnabled(true);
       } else {
-        const text = await response.text();
-        // If it's a huge stack trace, just show the first line
-        const firstLine = text.split('\n')[0].substring(0, 100);
-        setErrorText(firstLine || 'Invalid username or password');
+        const data = await response.json().catch(() => ({}));
+        setErrorText(data.error || 'Invalid username or password');
         setFailed(true);
         setPassword('');
       }
