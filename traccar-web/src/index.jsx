@@ -19,8 +19,8 @@ root.render(
   <ErrorBoundary>
     <Provider store={store}>
       <LocalizationProvider>
-        <StyledEngineProvider injectFirst>
-          <AppThemeProvider>
+        <AppThemeProvider>
+          <StyledEngineProvider injectFirst>
             <CssBaseline />
             <ServerProvider>
               <BrowserRouter>
@@ -29,8 +29,8 @@ root.render(
               <ErrorHandler />
               <NativeInterface />
             </ServerProvider>
-          </AppThemeProvider>
-        </StyledEngineProvider>
+          </StyledEngineProvider>
+        </AppThemeProvider>
       </LocalizationProvider>
     </Provider>
   </ErrorBoundary>,
