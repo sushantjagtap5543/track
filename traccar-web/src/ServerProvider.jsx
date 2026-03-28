@@ -10,20 +10,25 @@ const ServerProvider = ({ children }) => {
   const dispatch = useDispatch();
 
   const initialized = useSelector((state) => !!state.session.server);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState(null);
 
   useEffectAsync(async () => {
     if (!error) {
       try {
         const response = await fetch('/api/server');
-        if (response.ok) {
-          dispatch(sessionActions.updateServer(await response.json()));
+        if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
+          const server = await response.json();
+          dispatch(sessionActions.updateServer(server));
+          setIsLoaded(true);
         } else {
-          const message = await response.text();
-          throw Error(message || response.statusText);
+          setError(`Server error: ${response.status} ${response.statusText}`);
+          // Still initialize but with null server to allow fallback to change server
+          setIsLoaded(true);
         }
-      } catch (error) {
-        setError(error.message);
+      } catch (e) {
+        setError(e.message);
+        setIsLoaded(true);
       }
     }
   }, [error]);
@@ -42,7 +47,7 @@ const ServerProvider = ({ children }) => {
       </Alert>
     );
   }
-  if (!initialized) {
+  if (!isLoaded && !initialized) {
     return <Loader />;
   }
   return children;

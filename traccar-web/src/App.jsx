@@ -51,22 +51,22 @@ const App = () => {
   useEffectAsync(async () => {
     if (!user) {
       const response = await fetch('/api/session');
-      if (response.ok) {
-        const traccarUser = await response.json();
-        dispatch(sessionActions.updateUser(traccarUser));
-
-        // --- Hyper-Sync SaaS Token ---
-        try {
-          const saasSync = await fetch('/api/auth/sync');
-          if (saasSync.ok) {
-            const saasData = await saasSync.json();
+      if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
+        const user = await response.json();
+        dispatch(sessionActions.updateUser(user));
+      } else if (response.status === 404) {
+        // This means we are NOT logged in in Traccar.
+        // We should try to see if we have a SaaS session.
+        const saasSync = await fetch('/api/auth/sync');
+        if (saasSync.ok && saasSync.headers.get('content-type')?.includes('application/json')) {
+          const saasData = await saasSync.json();
+          if (saasData.token) {
             window.localStorage.setItem('saas_token', saasData.token);
             window.localStorage.setItem('saas_user', JSON.stringify(saasData));
+            // Reload to apply Traccar session (handled by hyper-sync or similar)
+            window.location.reload();
           }
-        } catch (e) {
-          console.warn('SaaS Session Hyper-Sync failed:', e);
         }
-      } else {
         window.sessionStorage.setItem('postLogin', pathname + search);
         navigate(newServer ? '/register' : '/login', { replace: true });
       }
