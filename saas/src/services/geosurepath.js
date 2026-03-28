@@ -58,8 +58,8 @@ const getAuthHeaders = () => {
 const ensureSession = async () => {
   if (sessionCookie) return;
 
-  console.log(`Establishing GeoSurePath session for ${GEOSUREPATH_ADMIN_EMAIL}...`);
-
+  console.log(`Establishing GeoSurePath session for ${GEOSUREPATH_ADMIN_EMAIL}... (URL: ${GEOSUREPATH_URL})`);
+  
   const params = new URLSearchParams();
   params.append('email', GEOSUREPATH_ADMIN_EMAIL);
   params.append('password', GEOSUREPATH_ADMIN_PASSWORD);
@@ -76,6 +76,7 @@ const ensureSession = async () => {
 
   if (!response.ok) {
     const text = await response.text();
+    console.error(`[GeoSurePath] Session creation failed for ${GEOSUREPATH_ADMIN_EMAIL}. Status: ${response.status}. Body: ${text}`);
     throw new Error(`GeoSurePath session creation failed: ${response.status} ${text}`);
   }
 
