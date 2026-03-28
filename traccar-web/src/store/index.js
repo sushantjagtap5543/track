@@ -38,5 +38,5 @@ export { calendarsActions } from './calendars';
 
 export default configureStore({
   reducer,
-  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(throttleMiddleware),
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware(),
 });
