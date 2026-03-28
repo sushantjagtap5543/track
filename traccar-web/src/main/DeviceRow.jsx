@@ -20,7 +20,7 @@ import ErrorIcon from '@mui/icons-material/Error';
 import SecurityIcon from '@mui/icons-material/Security';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { devicesActions, geofencesActions } from '../store';
+import { devicesActions } from '../store';
 import { formatAlarm, formatPercentage, formatStatus } from '../common/util/formatter';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { mapIconKey, mapIcons } from '../map/core/preloadImages';
@@ -84,7 +84,7 @@ const DeviceRow = ({ devices, index, style }) => {
   const [pendingIgnition, setPendingIgnition] = useState(false);
 
   const item = devices[index];
-  const position = useSelector((state) => state.session.positions[item.id]);
+  const position = useSelector((state) => state.positions.items[item.id]);
   const { isSafeParkingActive, toggleSafeParking } = useSafeParking(item, position);
 
   const handleSafeParking = (e) => {
@@ -106,6 +106,12 @@ const DeviceRow = ({ devices, index, style }) => {
   };
 
   const isImmobilized = position?.attributes?.ignition === false;
+
+  const handleIgnitionToggle = (e) => {
+    e.stopPropagation();
+    setPendingIgnition(true);
+    setTimeout(() => setPendingIgnition(false), 2000);
+  };
 
   return (
     <div style={style}>
@@ -174,7 +180,9 @@ const DeviceRow = ({ devices, index, style }) => {
                           p: '3px',
                           border: '1px solid',
                           borderColor: isSafeParkingActive ? '#06b6d4' : 'rgba(255,255,255,0.1)',
-                          background: isSafeParkingActive ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
+                          background: isSafeParkingActive
+                            ? 'rgba(6, 182, 212, 0.1)'
+                            : 'transparent',
                         }}
                       >
                         <SecurityIcon

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { geofencesActions } from '../../store';
@@ -6,7 +7,7 @@ import { useCatchCallback } from '../../reactHelper';
 
 export const useSafeParking = (device, position) => {
   const dispatch = useDispatch();
-  
+
   const parkingGeofence = useSelector((state) =>
     Object.values(state.geofences.items).find((it) => it.name === `Safe Parking - ${device?.name}`),
   );

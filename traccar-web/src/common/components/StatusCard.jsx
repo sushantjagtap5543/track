@@ -162,6 +162,8 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
     toggleSafeParking();
   }, [toggleSafeParking]);
 
+  const handleGeofence = () => {};
+
   return (
     <>
       <div className={classes.root}>
@@ -247,9 +249,15 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                       sx={{
                         border: '1px solid',
                         borderColor: isSafeParkingActive ? '#06b6d4' : 'rgba(255,255,255,0.1)',
-                        background: isSafeParkingActive ? 'rgba(6, 182, 212, 0.1)' : 'rgba(59, 130, 246, 0.05)',
+                        background: isSafeParkingActive
+                          ? 'rgba(6, 182, 212, 0.1)'
+                          : 'rgba(59, 130, 246, 0.05)',
                         color: isSafeParkingActive ? '#06b6d4' : 'primary.main',
-                        '&:hover': { background: isSafeParkingActive ? 'rgba(6, 182, 212, 0.2)' : 'rgba(59, 130, 246, 0.2)' },
+                        '&:hover': {
+                          background: isSafeParkingActive
+                            ? 'rgba(6, 182, 212, 0.2)'
+                            : 'rgba(59, 130, 246, 0.2)',
+                        },
                       }}
                     >
                       <VpnLockIcon />

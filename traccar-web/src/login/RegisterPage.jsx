@@ -93,15 +93,15 @@ const RegisterPage = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
   const [vehicleName, setVehicleName] = useState('');
-  const [vehicleType, setVehicleType] = useState('car');
+  const [vehicleType] = useState('car');
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [deviceImei, setDeviceImei] = useState('');
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [totpKey, setTotpKey] = useState(null);
+  const [, setTotpKey] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [errorText, setErrorText] = useState('');
 
@@ -123,15 +123,15 @@ const RegisterPage = () => {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name, 
-          email, 
+        body: JSON.stringify({
+          name,
+          email,
           phone,
-          password, 
-          vehicleName, 
+          password,
+          vehicleName,
           vehicleType,
           vehiclePlate,
-          deviceImei 
+          deviceImei,
         }),
       });
 
@@ -195,9 +195,12 @@ const RegisterPage = () => {
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
         />
-        
+
         <Box sx={{ mt: 1, mb: 1 }}>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 800, ml: 1 }}>
+          <Typography
+            variant="caption"
+            sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 800, ml: 1 }}
+          >
             VEHICLE & DEVICE SETUP
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
@@ -218,7 +221,7 @@ const RegisterPage = () => {
             />
           </Box>
           <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-             <TextField
+            <TextField
               fullWidth
               label="License Plate"
               value={vehiclePlate}
@@ -277,7 +280,16 @@ const RegisterPage = () => {
           color="primary"
           className={classes.registerButton}
           type="submit"
-          disabled={loading || !acceptedTerms || !name || !email || !password || !vehicleName || !deviceImei || password !== confirmPassword}
+          disabled={
+            loading ||
+            !acceptedTerms ||
+            !name ||
+            !email ||
+            !password ||
+            !vehicleName ||
+            !deviceImei ||
+            password !== confirmPassword
+          }
           fullWidth
           startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
         >

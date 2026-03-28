@@ -6,10 +6,10 @@ const minInterval = 300; // Lowered to 300ms for fluid updates
 const maxInterval = 10000;
 const scaleFactor = 1000;
 
-// eslint-disable-next-line no-undef
 const debugMode = import.meta.env.MODE === 'development';
 const debugLog = (message) => debugMode && console.log(message);
 
+// eslint-disable-next-line no-unused-vars
 export default (store) => (next) => {
   const buffer = [];
   let throttled = false;
@@ -30,7 +30,10 @@ export default (store) => (next) => {
           action.payload.forEach((item) => {
             if (item && item.id) deviceUpdates[item.id] = item;
           });
-        } else if (action.type === sessionActions.updatePositions.type && Array.isArray(action.payload)) {
+        } else if (
+          action.type === sessionActions.updatePositions.type &&
+          Array.isArray(action.payload)
+        ) {
           action.payload.forEach((item) => {
             if (item && item.deviceId) positionUpdates[item.deviceId] = item;
           });

@@ -2,7 +2,8 @@ import { combineReducers, configureStore } from '@reduxjs/toolkit';
 
 import { errorsReducer as errors } from './errors';
 import { sessionReducer as session } from './session';
-import { devicesReducer as devices } from './devices';
+import { devicesReducer as devices } from './devicesSlice';
+import { positionsReducer as positions } from './positionsSlice';
 import { eventsReducer as events } from './events';
 import { motionReducer as motion } from './motion';
 import { geofencesReducer as geofences } from './geofences';
@@ -16,6 +17,7 @@ const reducer = combineReducers({
   errors,
   session,
   devices,
+  positions,
   events,
   motion,
   geofences,
@@ -27,7 +29,8 @@ const reducer = combineReducers({
 
 export { errorsActions } from './errors';
 export { sessionActions } from './session';
-export { devicesActions } from './devices';
+export { devicesActions } from './devicesSlice';
+export { positionsActions } from './positionsSlice';
 export { eventsActions } from './events';
 export { motionActions } from './motion';
 export { geofencesActions } from './geofences';
@@ -38,5 +41,10 @@ export { calendarsActions } from './calendars';
 
 export default configureStore({
   reducer,
-  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(throttleMiddleware),
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredPaths: ['events.items', 'positions.items'],
+      },
+    }).concat(throttleMiddleware),
 });

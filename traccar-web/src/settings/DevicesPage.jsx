@@ -44,7 +44,7 @@ const DevicesPage = () => {
   const deviceReadonly = useDeviceReadonly();
   const coordinateFormat = usePreference('coordinateFormat');
 
-  const positions = useSelector((state) => state.session.positions);
+  const positions = useSelector((state) => state.positions.items);
 
   const [timestamp, setTimestamp] = useState(() => Date.now());
   const [items, setItems] = useState([]);

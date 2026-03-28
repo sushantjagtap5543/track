@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector, connect } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Snackbar, Alert, AlertTitle } from '@mui/material';
-import { sessionActions, devicesActions } from './store';
+import { sessionActions, devicesActions, positionsActions } from './store';
 import { useCatchCallback, useEffectAsync } from './reactHelper';
 import alarm from './resources/alarm.mp3';
 import { playEventSound, playLegacyAlarm } from './resources/sounds/SoundGenerator';
@@ -56,7 +56,7 @@ const SocketController = () => {
             !soundAlarms &&
             ['deviceOnline', 'deviceOffline', 'alarm', 'ignitionOn', 'ignitionOff'].includes(
               e.type,
-            )) || 
+            )) ||
           // SECURITY FIX: Always sound alarm for Safe Parking breach regardless of system settings
           (e.type === 'geofenceExit' && e.attributes.name?.startsWith('Safe Parking')),
       );
@@ -169,7 +169,7 @@ const SocketController = () => {
           }
           const positionsResponse = await fetch('/api/positions');
           if (positionsResponse.ok) {
-            dispatch(sessionActions.updatePositions(await positionsResponse.json()));
+            dispatch(positionsActions.update(await positionsResponse.json()));
           }
           if (devicesResponse.status === 401 || positionsResponse.status === 401) {
             navigate('/login');
@@ -191,7 +191,7 @@ const SocketController = () => {
         dispatch(devicesActions.update(data.devices));
       }
       if (data.positions) {
-        dispatch(sessionActions.updatePositions(data.positions));
+        dispatch(positionsActions.update(data.positions));
       }
       if (data.events) {
         handleEvents(data.events);

@@ -148,9 +148,11 @@ const BillingPage = () => {
   };
 
   const handleAdjustExpiry = async (targetId, email) => {
-    const days = window.prompt(`Extend Grace Period for ${email}?\nEnter number of days (e.g. 15):`);
+    const days = window.prompt(
+      `Extend Grace Period for ${email}?\nEnter number of days (e.g. 15):`,
+    );
     if (!days || isNaN(days) || parseInt(days) < 1) return;
-    
+
     setSettling(true);
     try {
       const token = localStorage.getItem('saas_token');
@@ -676,9 +678,7 @@ const BillingPage = () => {
                       <TableCell sx={{ fontWeight: 700, opacity: 0.8 }}>
                         {(entry.planId || 'MONTHLY').toUpperCase()}
                       </TableCell>
-                      <TableCell sx={{ opacity: 0.7 }}>
-                        {entry.deviceCount || 1} Units
-                      </TableCell>
+                      <TableCell sx={{ opacity: 0.7 }}>{entry.deviceCount || 1} Units</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 900 }}>
                         ₹{entry.price}
                       </TableCell>
@@ -724,7 +724,11 @@ const BillingPage = () => {
           <TableContainer sx={{ maxHeight: 600 }}>
             <Table stickyHeader>
               <TableHead>
-                <TableRow sx={{ '& th': { bgcolor: '#0f172a', fontWeight: 900, color: 'rgba(255,255,255,0.5)' } }}>
+                <TableRow
+                  sx={{
+                    '& th': { bgcolor: '#0f172a', fontWeight: 900, color: 'rgba(255,255,255,0.5)' },
+                  }}
+                >
                   <TableCell>TIMESTAMP</TableCell>
                   <TableCell>ADMIN ID</TableCell>
                   <TableCell>ACTION</TableCell>
@@ -735,19 +739,40 @@ const BillingPage = () => {
               <TableBody>
                 {auditLogs.length > 0 ? (
                   auditLogs.map((log) => (
-                    <TableRow key={log.id} sx={{ '&:hover': { background: 'rgba(255,255,255,0.05)' } }}>
-                      <TableCell sx={{ opacity: 0.6, fontSize: '0.8rem' }}>{new Date(log.createdAt).toLocaleString()}</TableCell>
-                      <TableCell sx={{ fontFamily: 'monospace', opacity: 0.5, fontSize: '0.7rem' }}>{log.adminId}</TableCell>
-                      <TableCell>
-                        <Chip label={log.action} size="small" sx={{ fontWeight: 800, bgcolor: 'rgba(59,130,246,0.2)', color: '#3b82f6' }} />
+                    <TableRow
+                      key={log.id}
+                      sx={{ '&:hover': { background: 'rgba(255,255,255,0.05)' } }}
+                    >
+                      <TableCell sx={{ opacity: 0.6, fontSize: '0.8rem' }}>
+                        {new Date(log.createdAt).toLocaleString()}
                       </TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{log.user?.email || log.userId}</TableCell>
-                      <TableCell sx={{ opacity: 0.8, fontSize: '0.85rem' }}>{log.details}</TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', opacity: 0.5, fontSize: '0.7rem' }}>
+                        {log.adminId}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={log.action}
+                          size="small"
+                          sx={{
+                            fontWeight: 800,
+                            bgcolor: 'rgba(59,130,246,0.2)',
+                            color: '#3b82f6',
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>
+                        {log.user?.email || log.userId}
+                      </TableCell>
+                      <TableCell sx={{ opacity: 0.8, fontSize: '0.85rem' }}>
+                        {log.details}
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ opacity: 0.5, py: 5 }}>No audit logs discovered in database.</TableCell>
+                    <TableCell colSpan={5} align="center" sx={{ opacity: 0.5, py: 5 }}>
+                      No audit logs discovered in database.
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>

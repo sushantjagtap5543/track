@@ -74,7 +74,7 @@ const EmulatorPage = () => {
     deviceEquality(['id', 'name', 'uniqueId']),
   );
   const deviceId = useSelector((state) => state.devices.selectedId);
-  const positions = useSelector((state) => state.session.positions);
+  const position = useSelector((state) => state.positions.items[deviceId]);
 
   const handleClick = useCatch(async (latitude, longitude) => {
     if (deviceId) {
@@ -136,7 +136,7 @@ const EmulatorPage = () => {
         <div className={classes.mapContainer}>
           <MapView>
             <MapPositions
-              positions={Object.values(positions)}
+              positions={position ? [position] : []}
               onMapClick={handleClick}
               showStatus
             />

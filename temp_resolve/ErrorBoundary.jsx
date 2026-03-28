@@ -39,7 +39,7 @@ class ErrorBoundary extends React.Component {
   render() {
     if (!this.state.hasError) return this.props.children;
 
-    const isDev = import.meta.env?.DEV || (typeof process !== 'undefined' && process.env.NODE_ENV === 'development');
+    const isDev = import.meta.env?.DEV || process.env.NODE_ENV === 'development';
 
     return (
       <div style={styles.overlay}>
@@ -80,22 +80,17 @@ class ErrorBoundary extends React.Component {
 
 const styles = {
   overlay: {
-    position: 'fixed',
-    inset: 0,
+    position: 'fixed', inset: 0,
     background: '#0f172a',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 9999,
-    padding: '20px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 9999, padding: '20px',
   },
   card: {
     background: '#1e293b',
     border: '1px solid #334155',
     borderRadius: '12px',
     padding: '40px',
-    maxWidth: '560px',
-    width: '100%',
+    maxWidth: '560px', width: '100%',
     textAlign: 'center',
     color: '#f1f5f9',
     fontFamily: 'system-ui, sans-serif',
@@ -104,39 +99,24 @@ const styles = {
   title: { fontSize: '22px', fontWeight: 700, marginBottom: '12px', color: '#f8fafc' },
   message: { color: '#94a3b8', lineHeight: 1.6, marginBottom: '24px' },
   details: {
-    textAlign: 'left',
-    marginBottom: '24px',
-    background: '#0f172a',
-    borderRadius: '8px',
-    padding: '12px',
+    textAlign: 'left', marginBottom: '24px',
+    background: '#0f172a', borderRadius: '8px', padding: '12px',
   },
   summary: { cursor: 'pointer', color: '#60a5fa', fontSize: '14px', marginBottom: '8px' },
   pre: {
-    fontSize: '11px',
-    color: '#f87171',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    margin: 0,
+    fontSize: '11px', color: '#f87171', whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word', margin: 0,
   },
   actions: { display: 'flex', gap: '12px', justifyContent: 'center' },
   primaryBtn: {
-    padding: '10px 24px',
-    borderRadius: '8px',
-    border: 'none',
-    background: '#3b82f6',
-    color: 'white',
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
+    padding: '10px 24px', borderRadius: '8px', border: 'none',
+    background: '#3b82f6', color: 'white', fontSize: '14px',
+    fontWeight: 600, cursor: 'pointer',
   },
   secondaryBtn: {
-    padding: '10px 24px',
-    borderRadius: '8px',
-    border: '1px solid #475569',
-    background: 'transparent',
-    color: '#94a3b8',
-    fontSize: '14px',
-    cursor: 'pointer',
+    padding: '10px 24px', borderRadius: '8px',
+    border: '1px solid #475569', background: 'transparent',
+    color: '#94a3b8', fontSize: '14px', cursor: 'pointer',
   },
 };
 
