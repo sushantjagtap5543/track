@@ -10,6 +10,13 @@
 
 const prisma = require('../lib/prisma');
 const geosurepathService = require('../services/geosurepath');
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+});
 
 let CACHED_PLANS = [];
 
@@ -18,14 +25,21 @@ async function getPlans() {
   const dbPlans = await prisma.plan.findMany();
   // ✅ FIX 4: Only cache if plans actually exist in the database.
   if (dbPlans.length === 0) return [];
-  CACHED_PLANS = dbPlans.map((p) => ({
-    id: p.id,
-    name: p.name,
-    days: p.billingCycle === 'MONTHLY' ? 30 : 365,
-    price: p.pricePerDevice,
-    discount: p.billingCycle === 'YEARLY' ? 16.7 : 0,
-    billingCycle: p.billingCycle
-  }));
+  CACHED_PLANS = dbPlans.map((p) => {
+    let days = p.billingCycle === 'MONTHLY' ? 30 : 365;
+    // Handle intermediate plans based on ID or Name
+    if (p.id.includes('half') || p.name.includes('6 Month') || p.name.includes('Half')) {
+      days = 180;
+    }
+    return {
+      id: p.id,
+      name: p.name,
+      days,
+      price: p.pricePerDevice,
+      discount: p.billingCycle === 'YEARLY' ? 16.7 : 0,
+      billingCycle: p.billingCycle
+    };
+  });
   return CACHED_PLANS;
 }
 
@@ -34,20 +48,28 @@ const refreshPlans = () => {
 };
 
 // ✅ FIX 3: Generate a meaningful invoice number using subscription count as sequence.
-const generateInvoiceNumber = async () => {
+const generateInvoiceNumber = async (precomputedCount = null) => {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
-  const count = await prisma.subscription.count();
-  const seq = String(count + 1).padStart(4, '0');
-  return `GSP/INV/${year}/${month}/${seq}`;
+  const count = precomputedCount !== null ? precomputedCount : await prisma.subscription.count();
+  const seq = String(count + 1).padStart(5, '0'); // ✅ REFINEMENT: 5-digit sequence
+  const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase(); // ✅ REFINEMENT: 6-char random suffix
+  return `GSP-INV-${year}${month}-${seq}-${randomSuffix}`;
 };
 
+const GST_RATE = 0.18;
+const SERVER_CHARGE_RATE = 0.15;
+const CLOUD_CHARGE_RATE = 0.10;
+
 const calculateBreakdown = (total) => {
-  const baseValue = total / 1.18;
+  if (!total || total <= 0) {
+    return { basic: 0, server: 0, cloud: 0, gst: 0, total: 0 };
+  }
+  const baseValue = total / (1 + GST_RATE);
   const gstValue = total - baseValue;
-  const serverCharge = baseValue * 0.15;
-  const cloudCharge = baseValue * 0.1;
+  const serverCharge = baseValue * SERVER_CHARGE_RATE;
+  const cloudCharge = baseValue * CLOUD_CHARGE_RATE;
   const basicAccess = baseValue - serverCharge - cloudCharge;
   return {
     basic: parseFloat(basicAccess.toFixed(2)),
@@ -58,7 +80,7 @@ const calculateBreakdown = (total) => {
   };
 };
 
-const calculateBillForAnyUser = async (userId, preloadedUser = null) => {
+const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputedSubCount = null) => {
   const user =
     preloadedUser ||
     (await prisma.user.findUnique({
@@ -88,7 +110,7 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null) => {
     const totalUnpaidDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     const BILLABLE_DAYS_DEBT = Math.min(7, totalUnpaidDays);
 
-    const DAILY_RATE_BASE = 6.66;
+    const DAILY_RATE_BASE = parseFloat(process.env.DAILY_RATE_BASE) || 6.66;
     const rawAmount = BILLABLE_DAYS_DEBT * DAILY_RATE_BASE;
     const breakdown = calculateBreakdown(rawAmount);
 
@@ -111,6 +133,8 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null) => {
 
   const plans = await getPlans();
 
+  const totalSubCount = precomputedSubCount !== null ? precomputedSubCount : await prisma.subscription.count();
+  
   return {
     userId: user.id,
     userEmail: user.email,
@@ -125,7 +149,7 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null) => {
     history: await Promise.all(
       (user.subscriptions || []).map(async (sub) => ({
         ...sub,
-        invoiceId: await generateInvoiceNumber()
+        invoiceId: await generateInvoiceNumber(totalSubCount)
       }))
     ),
     sentry: {
@@ -155,9 +179,10 @@ const getAllUsersLedger = async (req, res) => {
       }
     });
 
+    const totalSubCount = await prisma.subscription.count();
     const ledger = await Promise.all(
       users.map(async (u) => {
-        const bill = await calculateBillForAnyUser(u.id, u);
+        const bill = await calculateBillForAnyUser(u.id, u, totalSubCount);
         return {
           id: u.id,
           email: u.email,
@@ -165,7 +190,8 @@ const getAllUsersLedger = async (req, res) => {
           fleetSize: u.vehicles.length,
           status: bill?.sentry?.status || 'UNKNOWN',
           totalDue: bill?.totalDue || 0,
-          unpaidDays: bill?.sentry?.unpaidDays || 0
+          unpaidDays: bill?.sentry?.unpaidDays || 0,
+          isVIP: !!u.graceExtensionUntil && new Date(u.graceExtensionUntil) > new Date()
         };
       })
     );
@@ -235,15 +261,34 @@ const settleCash = async (req, res) => {
     });
     if (!user) throw new Error('Target user not found');
 
-    await prisma.subscription.create({
+    const amountToSettle = parseFloat(amount);
+    if (isNaN(amountToSettle)) throw new Error('Invalid amount provided');
+
+    // ✅ REFINEMENT: Create a Payment record for the audit trail
+    const payment = await prisma.payment.create({
+      data: {
+        userId: targetUserId,
+        amount: amountToSettle,
+        status: 'CAPTURED',
+        paymentMethod: 'CASH',
+        transactionId: `CASH_${Date.now()}`
+      }
+    });
+
+    const subscription = await prisma.subscription.create({
       data: {
         userId: targetUserId,
         planId,
-        price: parseFloat(amount),
+        price: amountToSettle,
         status: 'ACTIVE',
         deviceCount: user.vehicles.length,
         expiresAt
       }
+    });
+
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { subscriptionId: subscription.id }
     });
 
     await prisma.user.update({
@@ -304,6 +349,114 @@ const adminUpdateRegistration = async (req, res) => {
   }
 };
 
+const createOrder = async (req, res) => {
+  const { planId, amount } = req.body;
+  const userId = req.user.userId;
+
+  try {
+    const options = {
+      amount: Math.round(amount * 100), // amount in the smallest currency unit (paise)
+      currency: "INR",
+      receipt: `receipt_${Date.now()}`,
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    // Track the payment attempt
+    await prisma.payment.create({
+      data: {
+        userId,
+        amount: parseFloat(amount),
+        status: 'PENDING',
+        razorpayOrderId: order.id,
+        planId: planId // ✅ FIX: Save planId to associate with subscription later
+      }
+    });
+
+    res.json({
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency
+    });
+  } catch (err) {
+    console.error('[Razorpay Order Error]', err);
+    res.status(500).json({ error: 'Failed to create payment order' });
+  }
+};
+
+const handleWebhook = async (req, res) => {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET || 'gsp_webhook_secret';
+  const shasum = crypto.createHmac('sha256', secret);
+  shasum.update(JSON.stringify(req.body));
+  const digest = shasum.digest('hex');
+
+  if (digest === req.headers['x-razorpay-signature']) {
+    const event = req.body.event;
+    const { payload } = req.body;
+
+    if (event === 'payment.captured') {
+      const orderId = payload.payment.entity.order_id;
+      const paymentId = payload.payment.entity.id;
+
+      try {
+        // Idempotent update: Only proceed if status is still PENDING
+        // ✅ REFINEMENT: Absolute idempotency check using both Order ID and Payment ID
+        let payment = await prisma.payment.findFirst({
+          where: { 
+            OR: [
+              { razorpayOrderId: orderId, status: 'PENDING' },
+              { razorpayPaymentId: paymentId } // Already processed?
+            ]
+          },
+          include: { user: { include: { vehicles: true } } }
+        });
+
+        if (payment && payment.status === 'PENDING') {
+          // ✅ FIX: Use planId from payment record
+          const planId = payment.planId;
+          const plan = planId ? await prisma.plan.findUnique({ where: { id: planId } }) : null;
+          const days = plan ? (plan.billingCycle === 'MONTHLY' ? 30 : 365) : 30;
+
+          const now = new Date();
+          const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+          const subscription = await prisma.subscription.create({
+            data: {
+              userId: payment.userId,
+              planId: payment.planId,
+              price: payment.amount,
+              status: 'ACTIVE',
+              deviceCount: payment.user.vehicles.length,
+              expiresAt
+            }
+          });
+
+          await prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+              status: 'CAPTURED',
+              razorpayPaymentId: paymentId,
+              subscriptionId: subscription.id
+            }
+          });
+
+          await prisma.user.update({
+            where: { id: payment.userId },
+            data: { isActive: true }
+          });
+
+          console.log(`[Webhook] Payment successful and subscription activated for User: ${payment.userId}`);
+        }
+      } catch (err) {
+        console.error('[Webhook Processing Error]', err);
+      }
+    }
+    res.json({ status: 'ok' });
+  } else {
+    res.status(403).json({ error: 'Invalid signature' });
+  }
+};
+
 module.exports = {
   getMyBill,
   adminUpdateRegistration,
@@ -312,5 +465,7 @@ module.exports = {
   getAllUsersLedger,
   updateGatewayConfig,
   updatePlan,
-  getPlans
+  getPlans,
+  createOrder,
+  handleWebhook
 };

@@ -55,18 +55,19 @@ graph TD
 
 ---
 
-## 🚀 Rapid Deployment (AWS Lightsail / Ubuntu)
+## 🚀 Rapid Deployment (Ubuntu / Debian)
 
-### 1. Zero-Touch Installation
-Run the automated installer on a fresh Ubuntu 22.04/24.04 instance:
+### 1. One-Click Installation
+Run this on a fresh Ubuntu 22.04/24.04 instance to auto-install Docker, configure secrets, and launch:
 ```bash
 wget -qO- https://raw.githubusercontent.com/sushantjagtap5543/track/main/install.sh | bash
 ```
 
-### 2. Manual Docker Launch
+### 2. Manual Launch
 ```bash
 git clone https://github.com/sushantjagtap5543/track.git
-# Configure secrets in .env
+cd track
+# Secrets are auto-generated from .env.example if .env is missing
 docker compose up -d --build
 ```
 

@@ -59,9 +59,16 @@ async function enforceBillingShield() {
             {
               to: user.email,
               subject: '⚠️ Fleet Protection Warning: Expiring Soon',
-              html: `<h3>GeoSurePath Fleet Protection Warning</h3>
-                     <p>Your protection plan for your vehicles is expiring in <strong>${diffDays} day${diffDays > 1 ? 's' : ''}</strong>.</p>
-                     <p>To avoid a hard-lock of your hardware devices, please settle your dues on the billing dashboard.</p>`
+              html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #f87171; border-radius: 12px; padding: 24px;">
+                  <h2 style="color: #ef4444;">🛡️ Fleet Protection Warning</h2>
+                  <p>Your GeoSurePath protection plan is expiring in <strong>${diffDays} day${diffDays > 1 ? 's' : ''}</strong>.</p>
+                  <p>To avoid a hard-lock of your hardware devices and maintain tracking continuity, please settle your dues on the billing dashboard.</p>
+                  <div style="margin-top: 24px; text-align: center;">
+                    <a href="${process.env.APP_URL || '#'}/billing" style="background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">SETTLE DUES NOW</a>
+                  </div>
+                </div>
+              `
             },
             // Deduplicate by using a jobId tied to the expiration date — won't re-queue
             { jobId: `exp-warning-${user.id}-${expirationDate.toISOString().split('T')[0]}` }
@@ -100,9 +107,16 @@ async function enforceBillingShield() {
               {
                 to: user.email,
                 subject: '🚨 CRITICAL: Fleet Hard-Locked',
-                html: `<h3>GeoSurePath Hard-Lock Notification</h3>
-                       <p>Your hardware access has been suspended due to an overdue settlement.</p>
-                       <p>Settle your bill immediately to restore tracking.</p>`
+                html: `
+                  <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 2px solid #b91c1c; border-radius: 12px; padding: 24px; background: #fef2f2;">
+                    <h2 style="color: #b91c1c;">🚨 CRITICAL: Fleet Hard-Locked</h2>
+                    <p>Access to your hardware tracking engine has been <strong>suspended</strong> due to an overdue settlement.</p>
+                    <p>Your vehicles are no longer being monitored in real-time. Settle your outstanding bill immediately to restore protection.</p>
+                    <div style="margin-top: 24px; text-align: center;">
+                      <a href="${process.env.APP_URL || '#'}/billing" style="background: #b91c1c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">RESTORE ACCESS</a>
+                    </div>
+                  </div>
+                `
               },
               { jobId: `hard-lock-${user.id}-${expirationDate.toISOString().split('T')[0]}` }
             )
@@ -160,7 +174,12 @@ async function uploadSmallChunkToDrive(fileName, textData) {
 // --- 2. Old Log Backup & Cleanup ---
 async function backupAndDeleteOldLogs() {
   console.log('🤖 AI-Guardian: Scanning for raw server logs...');
-  const logsDir = path.join(__dirname, '../../logs');
+  
+  // ✅ FIX: More robust log path resolution (Docker vs Local)
+  const logsDir = process.env.LOGS_DIR || 
+                  (fs.existsSync(path.join(__dirname, '../../logs')) 
+                    ? path.join(__dirname, '../../logs') // Docker (/app/logs)
+                    : path.join(__dirname, '../../../logs')); // Local (track/logs)
 
   if (!fs.existsSync(logsDir)) return;
 
@@ -319,11 +338,30 @@ All data integrity checks passed. Maintaining strict ${reportData.dbPurgeThresho
 }
 
 // --- 5. Core Engine Threads ---
-function startGuardian() {
+async function startGuardian() {
   console.log('\n🤖 ==================================================');
-  console.log('🛡️  AI-Guardian V3 [OpenRouter/Intelligent/180-Days]');
+  console.log('🛡️  AI-Guardian V3.1 [Refined/Intelligent/180-Days]');
   console.log('🤖  Activated: Advanced Fleet Intelligence Engine.');
   console.log('==================================================\n');
+
+  // ✅ Startup Health Check
+  const logsDir = process.env.LOGS_DIR || 
+                  (fs.existsSync(path.join(__dirname, '../../logs')) 
+                    ? path.join(__dirname, '../../logs') 
+                    : path.join(__dirname, '../../../logs'));
+
+  if (!fs.existsSync(logsDir)) {
+    console.error(`🚨 AI-Guardian: CRITICAL - Logs directory NOT found at ${logsDir}`);
+  } else {
+    console.log(`✅ AI-Guardian: Monitoring logs at ${logsDir}`);
+  }
+
+  const aiCheck = await callAI('Pulse check. Respond with "System Online".');
+  if (aiCheck) {
+    console.log(`✅ AI-Guardian: AI connectivity confirmed. [${aiCheck}]`);
+  } else {
+    console.error('🚨 AI-Guardian: AI connectivity failed. Check OPENROUTER_API_KEY.');
+  }
 
   // 2:00 AM — Log cleanup + DB prune + Billing check
   cron.schedule('0 2 * * *', async () => {

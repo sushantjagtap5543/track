@@ -17,12 +17,14 @@ exports.getSystemHealth = async (req, res) => {
     // Node.js process runtime
     const processUptime = process.uptime();
 
+    const bytesToGB = (bytes) => (bytes / (1024 ** 3)).toFixed(2);
+
     res.json({
       cpuLoad: loadAvg,
       memory: {
-        total: totalMem,
-        free: freeMem,
-        used: usedMem,
+        total: `${bytesToGB(totalMem)} GB`,
+        free: `${bytesToGB(freeMem)} GB`,
+        used: `${bytesToGB(usedMem)} GB`,
         percentageUsed: ((usedMem / totalMem) * 100).toFixed(2)
       },
       systemUptime: uptime,
@@ -39,9 +41,9 @@ exports.getStats = async (req, res) => {
     const totalClients = await prisma.user.count({ where: { role: 'CLIENT', deletedAt: null } });
     const totalVehicles = await prisma.vehicle.count();
     
-    // Calculate total revenue from completed payments
+    // Calculate total revenue from completed payments (CAPTURED)
     const payments = await prisma.payment.findMany({
-      where: { status: 'COMPLETED' },
+      where: { status: 'CAPTURED' },
       select: { amount: true }
     });
     const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
@@ -59,7 +61,10 @@ exports.updateClientStatus = async (req, res) => {
   try {
     const user = await prisma.user.update({
       where: { id: clientId },
-      data: { isActive: isActive }
+      data: { 
+        isActive: isActive,
+        ...(isActive && { loginAttempts: 0, lockUntil: null }) // ✅ Reset lock on activation
+      }
     });
     
     // Sync with GeoSurePath: If not active, disable in GeoSurePath
@@ -174,9 +179,9 @@ exports.bulkDeleteUsers = async (req, res) => {
 // Get Advanced Analytics (MRR, Churn, Heatmap)
 exports.getAdvancedStats = async (req, res) => {
   try {
-    // 1. Calculate MRR
+    // 1. Calculate MRR (Filter out trials with price 0)
     const activeSubscriptions = await prisma.subscription.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: 'ACTIVE', price: { gt: 0 } },
       include: { plan: true }
     });
 

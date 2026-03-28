@@ -160,12 +160,21 @@ model Payment {
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   amount        Float
-  status        String   @default("PENDING")
+  status        String   @default("PENDING") // PENDING, CAPTURED, FAILED
   transactionId String?
   paymentMethod String?
+  
+  // Razorpay Integration
+  razorpayOrderId   String? @unique
+  razorpayPaymentId String? @unique
+  razorpaySignature String?
+  
+  subscriptionId    String? // Link to subscription if created via payment
+  
   createdAt     DateTime @default(now())
 
   @@index([userId])
+  @@index([razorpayOrderId])
 }
 
 model LoginHistory {

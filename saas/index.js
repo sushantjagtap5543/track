@@ -32,6 +32,7 @@ const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
 const { Server } = require('socket.io');
 const socketService = require('./src/services/socketService');
+const { fetchFreeModels } = require('./src/services/modelScheduler'); // Initialize weekly free model fetch
 const cookieParser = require('cookie-parser');
 const xss = require('xss-clean');
 const rateLimit = require('express-rate-limit');

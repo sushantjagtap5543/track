@@ -12,12 +12,18 @@ const {
   getAdminAnalytics,
   getAllUsersLedger,
   updateGatewayConfig,
-  updatePlan
+  updatePlan,
+  createOrder,
+  handleWebhook
 } = require('../controllers/billingController');
 const { authenticateToken, requireRole } = require('../middleware/authMiddleware');
 
 // Client routes (any authenticated user)
 router.get('/my-bill', authenticateToken, getMyBill);
+router.post('/create-order', authenticateToken, createOrder);
+
+// Webhook (Public, signature verified in controller)
+router.post('/webhook', handleWebhook);
 
 // Admin routes — protected by both token AND role middleware
 router.get('/admin-analytics', authenticateToken, requireRole('ADMIN'), getAdminAnalytics);

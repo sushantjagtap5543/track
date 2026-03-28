@@ -35,7 +35,8 @@
     "prisma": "^5.22.0",
     "razorpay": "^2.9.6",
     "socket.io": "^4.8.3",
-    "xss-clean": "^0.1.4"
+    "xss-clean": "^0.1.4",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

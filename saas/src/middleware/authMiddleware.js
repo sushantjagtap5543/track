@@ -3,7 +3,8 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../lib/prisma');
 
 const authenticateToken = async (req, res, next) => {
-  const token = req.cookies.token || (req.headers['authorization'] && req.headers['authorization'].split(' ')[1]);
+  const authHeader = req.headers['authorization'];
+  const token = (authHeader && authHeader.split(' ')[1]) || req.cookies.token;
 
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });

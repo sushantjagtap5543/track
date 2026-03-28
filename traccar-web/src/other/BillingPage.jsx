@@ -21,6 +21,7 @@ import {
   Tab,
   TextField,
   InputAdornment,
+  Tooltip,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import VerifiedIcon from '@mui/icons-material/Verified';
@@ -32,14 +33,19 @@ import StorageIcon from '@mui/icons-material/Storage';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LinkIcon from '@mui/icons-material/Link';
+import StarsIcon from '@mui/icons-material/Stars'; // ✅ New icon
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'; // ✅ New icon
 
 import { useNavigate } from 'react-router-dom';
 import { useAdministrator } from '../common/util/permissions';
 
 const BillingPage = () => {
-  const admin = useAdministrator();
+  const traccarAdmin = useAdministrator();
+  const [saasRole] = useState(() => localStorage.getItem('saas_role'));
+  const admin = traccarAdmin || saasRole === 'ADMIN';
   const navigate = useNavigate();
   const [tabIndex, setTabIndex] = useState(0);
+
   const [loading, setLoading] = useState(true);
   const [bill, setBill] = useState(null);
   const [analytics, setAnalytics] = useState(null);
@@ -96,7 +102,8 @@ const BillingPage = () => {
         setBill(data);
         if (data?.plans?.length > 0) setSelectedPlan(data.plans[0].id);
       } else {
-        setError('Failed to fetch billing cycle data.');
+        const errData = await billRes.json().catch(() => ({}));
+        setError(errData.error || 'Failed to fetch billing cycle data.');
       }
     } catch (err) {
       setError(err.message);
@@ -235,6 +242,7 @@ const BillingPage = () => {
           >
             <Tab icon={<AssessmentIcon />} label="PLATFORM ANALYTICS" />
             <Tab icon={<GroupIcon />} label="USER LEDGER" />
+            <Tab icon={<ReceiptLongIcon />} label="AUDIT LOGS" />
             <Tab icon={<ReceiptIcon />} label="FLEET SETTLEMENT" />
             <Tab icon={<StorageIcon />} label="DATABASE & LOGS" />
             <Tab icon={<SettingsIcon />} label="COMMAND SETTINGS" />
@@ -417,6 +425,7 @@ const BillingPage = () => {
                   <TableCell>CLIENT IDENTITY</TableCell>
                   <TableCell>FLEET SIZE</TableCell>
                   <TableCell>SENTRY STATUS</TableCell>
+                  <TableCell align="center">UNPAID DAYS</TableCell>
                   <TableCell align="right">PENDING DEBT (INR)</TableCell>
                   <TableCell align="center">COMMANDS</TableCell>
                 </TableRow>
@@ -424,7 +433,16 @@ const BillingPage = () => {
               <TableBody>
                 {filteredLedger.map((u) => (
                   <TableRow key={u.id} sx={{ '&:hover': { background: 'rgba(255,255,255,0.02)' } }}>
-                    <TableCell sx={{ fontWeight: 800 }}>{u.email}</TableCell>
+                    <TableCell sx={{ fontWeight: 800 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {u.email}
+                        {u.isVIP && (
+                          <Tooltip title="VIP Account (Grace Extension Active)">
+                            <StarsIcon sx={{ color: '#facc15', fontSize: '1.2rem' }} />
+                          </Tooltip>
+                        )}
+                      </Box>
+                    </TableCell>
                     <TableCell sx={{ opacity: 0.8 }}>{u.fleetSize} Units</TableCell>
                     <TableCell>
                       <Chip
@@ -447,6 +465,17 @@ const BillingPage = () => {
                                 : '#f87171',
                         }}
                       />
+                    </TableCell>
+                    <TableCell align="center" sx={{ opacity: 0.8 }}>
+                      {u.unpaidDays > 0 ? (
+                        <Typography color="error" variant="body2" sx={{ fontWeight: 700 }}>
+                          {u.unpaidDays} DAYS
+                        </Typography>
+                      ) : (
+                        <Typography color="success.main" variant="body2">
+                          CLEAN
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell align="right" sx={{ fontWeight: 900 }}>
                       ₹{u.totalDue?.toFixed(2)}
@@ -480,8 +509,61 @@ const BillingPage = () => {
         </Paper>
       )}
 
-      {/* --- TAB 2: FLEET SETTLEMENT --- */}
-      {(tabIndex === 2 || !admin) && (
+      {/* --- TAB 2: AUDIT LOGS --- */}
+      {admin && tabIndex === 2 && (
+        <Paper
+          sx={{
+            p: 4,
+            borderRadius: '24px',
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid rgba(255,255,255,0.1)',
+          }}
+        >
+          <Typography variant="h5" fontWeight={900} sx={{ mb: 4 }}>
+            SOVEREIGN AUDIT TRAIL
+          </Typography>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ '& th': { fontWeight: 900, color: 'rgba(255,255,255,0.5)' } }}>
+                  <TableCell>TIMESTAMP</TableCell>
+                  <TableCell>ACTION</TableCell>
+                  <TableCell>USER</TableCell>
+                  <TableCell>DETAILS</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {auditLogs.map((log) => (
+                  <TableRow
+                    key={log.id}
+                    sx={{ '&:hover': { background: 'rgba(255,255,255,0.02)' } }}
+                  >
+                    <TableCell sx={{ opacity: 0.7 }}>
+                      {new Date(log.createdAt).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={log.action}
+                        size="small"
+                        sx={{
+                          fontWeight: 800,
+                          background: 'rgba(59,130,246,0.1)',
+                          color: '#60a5fa',
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>{log.user?.email || 'System'}</TableCell>
+                    <TableCell sx={{ opacity: 0.8 }}>{log.details}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
+
+      {/* --- TAB 3: FLEET SETTLEMENT (User view or Admin view) --- */}
+      {(admin && tabIndex === 3) || (!admin && tabIndex === 0) ? (
         <Paper
           elevation={3}
           sx={{
@@ -630,8 +712,11 @@ const BillingPage = () => {
                 size="large"
                 onClick={() => window.open(analytics?.config?.paymentLink || '#', '_blank')}
                 sx={{ borderRadius: '16px', px: 6, py: 2, fontWeight: 900, fontSize: '1.1rem' }}
+                disabled={!analytics?.config?.paymentLink || analytics?.config?.paymentLink === '#'}
               >
-                PROCEED TO SECURE PAYMENT
+                {!analytics?.config?.paymentLink || analytics?.config?.paymentLink === '#'
+                  ? 'GATEWAY UNCONFIGURED'
+                  : 'PROCEED TO SECURE PAYMENT'}
               </Button>
             </Box>
           </Paper>
@@ -706,10 +791,10 @@ const BillingPage = () => {
             </Table>
           </TableContainer>
         </Paper>
-      )}
+      ) : null}
 
-      {/* --- TAB 3: DATABASE & LOGS --- */}
-      {admin && tabIndex === 3 && (
+      {/* --- TAB 4: DATABASE & LOGS --- */}
+      {admin && tabIndex === 4 && (
         <Paper
           sx={{
             p: 4,
@@ -781,8 +866,8 @@ const BillingPage = () => {
         </Paper>
       )}
 
-      {/* --- TAB 4: COMMAND SETTINGS --- */}
-      {admin && tabIndex === 4 && (
+      {/* --- TAB 5: COMMAND SETTINGS --- */}
+      {admin && tabIndex === 5 && (
         <Paper
           sx={{
             p: 4,

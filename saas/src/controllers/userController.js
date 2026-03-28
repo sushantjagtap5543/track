@@ -35,9 +35,17 @@ exports.updateProfile = async (req, res) => {
       },
       select: {
         id: true, name: true, email: true, username: true,
-        phone: true, avatarUrl: true, timezone: true
+        phone: true, avatarUrl: true, timezone: true, geosurepathUserId: true
       }
     });
+
+    // ✅ REFINEMENT: Sync profile updates to GeoSurePath
+    if (user.geosurepathUserId) {
+      geosurepathService.updateUser(user.geosurepathUserId, { 
+        name: user.name, 
+        phone: user.phone || undefined 
+      }).catch(err => console.error('[Profile Sync] Failed to sync to Traccar:', err.message));
+    }
 
     res.json({ message: 'Profile updated successfully', user });
   } catch (error) {

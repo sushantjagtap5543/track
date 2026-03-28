@@ -96,7 +96,8 @@ const RegisterPage = () => {
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [, setTotpKey] = useState(null);
+  // eslint-disable-next-line no-unused-vars
+  const [totpKey, setTotpKey] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [errorText, setErrorText] = useState('');
 
@@ -122,7 +123,7 @@ const RegisterPage = () => {
           name,
           email,
           phone,
-          password
+          password,
         }),
       });
 

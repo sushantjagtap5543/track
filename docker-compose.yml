@@ -14,6 +14,7 @@ services:
       retries: 5
     volumes:
       - db_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
 
 
   redis:
@@ -72,16 +73,24 @@ services:
         condition: service_healthy
       geosurepath:
         condition: service_healthy
-    command: ["sh", "-c", "npx prisma migrate deploy && node index.js"]
+    command: ["sh", "-c", "npx prisma db push && node scripts/seed_plans.js && node index.js"]
     # No direct port exposure (Nginx only)
     env_file:
       - ./saas/.env
     volumes:
       - ./saas/firebase-service-account.json:/app/firebase-service-account.json:ro
+      - ./logs:/app/logs:rw
+      - ./saas/data:/app/data:rw
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-geosurepath}:${DB_PASSWORD}@db:5432/${DB_NAME:-geosurepath}?schema=saas
       - REDIS_HOST=redis
       - GEOSUREPATH_URL=http://geosurepath:8082
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GOOGLE_WEBHOOK_URL=${GOOGLE_WEBHOOK_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - GEOSUREPATH_ADMIN_EMAIL=${GEOSUREPATH_ADMIN_EMAIL}
+      - GEOSUREPATH_ADMIN_PASSWORD=${GEOSUREPATH_ADMIN_PASSWORD}
+      - NODE_ENV=production
 
   nginx:
     image: nginx:alpine

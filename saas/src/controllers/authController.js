@@ -41,17 +41,24 @@ exports.register = async (req, res) => {
   }
 
   // Validations
+  if (name.length > 50) return res.status(400).json({ error: 'Name must be less than 50 characters' });
+  if (username && username.length > 50) return res.status(400).json({ error: 'Username must be less than 50 characters' });
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) return res.status(400).json({ error: 'Invalid email format' });
 
-  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+  // Password complexity: Min 8 chars, at least 1 number. Special chars allowed but not strictly part of regex to avoid exclusion.
+  const passwordRegex = /^(?=.*[0-9]).{8,}$/;
+  if (!passwordRegex.test(password)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters and include at least one number.' });
+  }
 
   if (phone && !/^\+?[1-9]\d{1,14}$/.test(phone)) {
     return res.status(400).json({ error: 'Invalid phone number format' });
   }
 
   email = email.toLowerCase().trim();
-  name = name?.trim();
+  name = name.trim();
   username = username?.toLowerCase().trim();
 
   try {
@@ -65,39 +72,63 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create Traccar User
-    const gUser = await geosurepathService.createUser(name, email, password);
+    // Create Traccar User with both name and username if available
+    const gUser = await geosurepathService.createUser(name, email, password, { 
+      phone, 
+      login: username || email // ✅ REFINEMENT: Prefer username as login for Traccar if provided
+    });
 
-    const user = await prisma.user.create({
-      data: {
-        name,
-        username,
-        email,
-        phone,
-        password: hashedPassword,
-        geosurepathUserId: gUser.id,
-        role: 'CLIENT',
-        isActive: true,
-        subscriptions: {
-          create: {
-            price: 0,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30-day trial
-            status: 'ACTIVE'
+    let user;
+    try {
+      user = await prisma.user.create({
+        data: {
+          name,
+          username,
+          email,
+          phone,
+          password: hashedPassword,
+          geosurepathUserId: gUser.id,
+          role: 'CLIENT',
+          isActive: true,
+          subscriptions: {
+            create: {
+              price: 0,
+              deviceCount: 5, // ✅ FIX: Default trial gives coverage for up to 5 units
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30-day trial
+              status: 'ACTIVE'
+            }
           }
         }
-      }
-    });
+      });
+    } catch (prismaError) {
+      console.error('[Register] Prisma creation failed, cleaning up Traccar user:', gUser.id);
+      await geosurepathService.deleteUser(gUser.id).catch(() => {});
+      throw prismaError;
+    }
 
     emailQueue.add('welcome-email', {
       to: user.email,
-      subject: 'Welcome to GeoSurePath!',
-      html: `<h3>Welcome, ${user.name}!</h3><p>Your account is ready.</p>`
-    }).catch(() => {}); // Silent fail for email in dev
+      subject: 'Welcome to GeoSurePath - Your Fleet is Secure',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
+          <h2 style="color: #3b82f6;">Welcome to GeoSurePath, ${user.name}!</h2>
+          <p>We're excited to have you on board. Your account has been successfully created and your 30-day trial is now active.</p>
+          <p><strong>Next Steps:</strong></p>
+          <ul>
+            <li>Login to your dashboard to add your vehicles.</li>
+            <li>Configure your alert preferences for maximum security.</li>
+          </ul>
+          <div style="margin-top: 24px; padding: 12px; background: #f8fafc; border-radius: 8px;">
+            <p style="font-size: 0.9rem; color: #64748b; margin: 0;">Need help? Reply to this email or visit our support portal.</p>
+          </div>
+        </div>
+      `
+    }).catch(() => {});
 
     res.status(201).json({ message: 'Registration successful!', userId: user.id });
   } catch (error) {
-    // SECURITY: Do not log the full error or req.body to avoid sensitive data exposure (Fix 18)
-    console.error('[Register] Error occurred during user creation'); 
+    // SECURITY: Do not log the full error or req.body to avoid sensitive data exposure
+    console.error('[Register] Error occurred during user creation:', error.message); 
     res.status(500).json({ error: 'Registration failed.' });
   }
 };
@@ -119,6 +150,9 @@ exports.login = async (req, res) => {
     // Check account lock
     if (user.lockUntil && user.lockUntil > new Date()) {
       return res.status(403).json({ error: `Account is locked. Try again after ${user.lockUntil.toISOString()}` });
+    } else if (user.lockUntil && user.lockUntil <= new Date()) {
+      // ✅ FIX: Lock expired, reset attempts
+      await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: 0, lockUntil: null } });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -138,10 +172,15 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Success - Reset attempts
+    // Success - Reset attempts and update lastLoginAt
     await prisma.user.update({
       where: { id: user.id },
-      data: { loginAttempts: 0, lockUntil: null, loginHistory: { create: { ipAddress: req.ip, success: true, device: req.headers['user-agent'] } } }
+      data: { 
+        loginAttempts: 0, 
+        lockUntil: null, 
+        lastLoginAt: new Date(),
+        loginHistory: { create: { ipAddress: req.ip, success: true, device: req.headers['user-agent'] } } 
+      }
     });
 
     if (!user.isActive) return res.status(403).json({ error: 'Account is suspended.' });
@@ -153,11 +192,12 @@ exports.login = async (req, res) => {
 
     const { accessToken, refreshToken } = await generateTokens(user.id, user.role, user.geosurepathUserId);
 
-    res.cookie('token', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 15 * 60 * 1000 });
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: REFRESH_TOKEN_EXPIRATION });
+    res.cookie('token', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 15 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: REFRESH_TOKEN_EXPIRATION });
 
     res.json({
       message: 'Login successful',
+      accessToken, // ✅ FIX: Return token for localStorage persistence
       user: { id: user.id, name: user.name, email: user.email, role: user.role }
     });
   } catch (error) {
@@ -188,7 +228,7 @@ exports.refreshToken = async (req, res) => {
     res.cookie('token', tokens.accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 15 * 60 * 1000 });
     res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: REFRESH_TOKEN_EXPIRATION });
 
-    res.json({ message: 'Token refreshed' });
+    res.json({ message: 'Token refreshed', accessToken: tokens.accessToken });
   } catch (error) {
     res.status(500).json({ error: 'Refresh failed' });
   }
@@ -222,8 +262,17 @@ exports.forgotPassword = async (req, res) => {
 
     emailQueue.add('reset-password', {
       to: user.email,
-      subject: 'Password Reset',
-      html: `<p>Use this token to reset your password: <b>${token}</b></p>`
+      subject: 'Reset Your GeoSurePath Password',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
+          <h2 style="color: #3b82f6;">Password Reset Request</h2>
+          <p>You requested a password reset for your GeoSurePath account. Please use the token below to complete the process:</p>
+          <div style="background: #f1f5f9; padding: 16px; text-align: center; border-radius: 8px; margin: 24px 0;">
+            <span style="font-size: 1.5rem; font-weight: bold; letter-spacing: 2px;">${token}</span>
+          </div>
+          <p style="color: #64748b; font-size: 0.85rem;">This token will expire in 1 hour. If you did not request this, you can safely ignore this email.</p>
+        </div>
+      `
     });
 
     res.json({ message: 'If that email exists, a reset link has been sent.' });
@@ -279,7 +328,33 @@ exports.changePassword = async (req, res) => {
 };
 
 exports.syncSession = async (req, res) => {
-  // Keeping syncSession for compatibility, but updating it to use local logic
-  // ... (implementation same as before but adapted for new schema if needed)
-  res.status(501).json({ error: 'Sync session not implemented in new auth flow' });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        username: true,
+        role: true,
+        avatarUrl: true,
+        isVerified: true,
+        isActive: true,
+      }
+    });
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const authHeader = req.headers['authorization'];
+    const token = (authHeader && authHeader.split(' ')[1]) || req.cookies.token;
+
+    res.json({
+      message: 'Session synchronized',
+      user,
+      token // ✅ FIX: Allow frontend to persist token from synced session
+    });
+  } catch (error) {
+    console.error('[SyncSession] Error:', error);
+    res.status(500).json({ error: 'Failed to sync session' });
+  }
 };

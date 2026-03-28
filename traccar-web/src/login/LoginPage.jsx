@@ -136,7 +136,7 @@ const LoginPage = () => {
   const openIdForced = useSelector(
     (state) => state.session.server.openIdEnabled && state.session.server.openIdForce,
   );
-  const [codeEnabled, setCodeEnabled] = useState(false);
+  const [codeEnabled] = useState(false);
 
   const [announcementShown, setAnnouncementShown] = useState(false);
   const announcement = useSelector((state) => state.session.server.announcement);
@@ -155,7 +155,15 @@ const LoginPage = () => {
 
       if (response.ok) {
         const saasData = await response.json();
-        
+
+        // ✅ FIX: Persist SaaS tokens for BillingPage and other SaaS features
+        if (saasData.accessToken) {
+          localStorage.setItem('saas_token', saasData.accessToken);
+        }
+        if (saasData.user?.role) {
+          localStorage.setItem('saas_role', saasData.user.role);
+        }
+
         // --- Traccar Session Logic ---
         // Backend /api/auth/login already handles Traccar session creation.
         // We just need to fetch the Traccar user object to update Redux.

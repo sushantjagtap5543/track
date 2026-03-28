@@ -109,12 +109,13 @@ const fetchWithSessionRefresh = async (url, options, retried = false) => {
   return response;
 };
 
-const createUser = async (name, email, password) => {
+const createUser = async (name, email, password, options = {}) => {
   await ensureSession();
+  const userData = { name, email, password, ...options };
   const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/users`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ name, email, password })
+    body: JSON.stringify(userData)
   });
   if (!response.ok) {
     const text = await response.text();
