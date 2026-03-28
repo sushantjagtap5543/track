@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { geofencesActions } from '../../store';
 import fetchOrThrow from './fetchOrThrow';
-import { useCatchCallback } from '../reactHelper';
+import { useCatchCallback } from '../../reactHelper';
 
 export const useSafeParking = (device, position) => {
   const dispatch = useDispatch();
