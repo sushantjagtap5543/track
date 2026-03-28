@@ -59,6 +59,23 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+// --- DEBUG MIDDLEWARE: Log raw body ---
+app.use((req, res, next) => {
+  let data = '';
+  req.on('data', (chunk) => {
+    data += chunk;
+  });
+  req.on('end', () => {
+    if (data) {
+      console.log(`[DEBUG] Incoming Raw Request Body: ${data}`);
+    }
+    // Note: We need to re-inject the data for body-parser because we consumed it
+    // but for now we just want to see it. Actually, this will break body-parser
+    // unless we use a better way like 'body-parser''s verify.
+  });
+  next();
+});
+
 app.use(express.json({ limit: '1mb' }));
 
 // Health check endpoints
