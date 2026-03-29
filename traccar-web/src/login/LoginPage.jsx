@@ -14,6 +14,7 @@ import {
   Typography,
   CircularProgress,
 } from '@mui/material';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import CountryFlag from 'react-country-flag';
 import { makeStyles } from 'tss-react/mui';
 import CloseIcon from '@mui/icons-material/Close';
@@ -97,6 +98,52 @@ const useStyles = makeStyles()((theme) => ({
     '& fieldset': {
       border: 'none',
     },
+  },
+  buttonGroup: {
+    display: 'flex',
+    gap: theme.spacing(2),
+    marginBottom: theme.spacing(2),
+    justifyContent: 'center',
+    width: '100%',
+  },
+  navButton: {
+    flex: 1,
+    borderRadius: theme.spacing(1.5),
+    padding: theme.spacing(1.2, 1),
+    textTransform: 'none',
+    fontWeight: 700,
+    fontSize: '0.95rem',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: theme.spacing(0.5),
+  },
+  activeNav: {
+    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+    color: '#fff',
+    boxShadow: '0 8px 20px rgba(59, 130, 246, 0.4)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    '&:hover': {
+      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+      transform: 'translateY(-2px)',
+      boxShadow: '0 10px 25px rgba(59, 130, 246, 0.5)',
+    },
+  },
+  inactiveNav: {
+    background: 'rgba(255, 255, 255, 0.03)',
+    color: 'rgba(255, 255, 255, 0.6)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    backdropFilter: 'blur(10px)',
+    '&:hover': {
+      background: 'rgba(255, 255, 255, 0.08)',
+      color: '#fff',
+      borderColor: 'rgba(255, 255, 255, 0.3)',
+      transform: 'translateY(-2px)',
+    },
+  },
+  navIcon: {
+    fontSize: '1.2rem',
   },
 }));
 
@@ -352,17 +399,21 @@ const LoginPage = () => {
             <Button
               onClick={() => navigate('/billing')}
               variant="outlined"
+              color="primary"
+              fullWidth
               sx={{
-                color: '#fff',
+                mb: 2,
+                borderRadius: '12px',
+                fontWeight: 900,
                 borderColor: 'rgba(255,255,255,0.3)',
-                borderRadius: '30px',
-                px: 3,
-                fontSize: '0.8rem',
-                mb: 1,
-                '&:hover': { borderColor: '#fff', background: 'rgba(255,255,255,0.05)' },
+                color: '#fff',
+                '&:hover': {
+                  borderColor: '#fff',
+                  background: 'rgba(255,255,255,0.05)',
+                },
               }}
             >
-              Pay Subscription Bill
+              PAY SUBSCRIPTION BILL
             </Button>
             {registrationEnabled && (
               <Typography

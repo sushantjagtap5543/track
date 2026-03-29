@@ -30,6 +30,9 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  IconButton,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import VerifiedIcon from '@mui/icons-material/Verified';
@@ -48,9 +51,94 @@ import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
+import VpnLockIcon from '@mui/icons-material/VpnLock';
 
 import { useNavigate } from 'react-router-dom';
 import { useAdministrator } from '../common/util/permissions';
+
+const InvoiceDialog = ({ open, onClose, invoice }) => {
+  if (!invoice) return null;
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: '24px', background: '#0f172a', color: 'white' } }}>
+      <DialogTitle sx={{ fontWeight: 900, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        INVOICE PREVIEW
+        <Box>
+          <Button onClick={handlePrint} startIcon={<ReceiptLongIcon />} variant="outlined" sx={{ mr: 1, borderRadius: '8px', color: '#3b82f6', borderColor: '#3b82f6' }}>
+            PRINT / PDF
+          </Button>
+          <IconButton onClick={onClose} sx={{ color: 'white' }}><CancelIcon /></IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent sx={{ p: 4 }}>
+        <Box id="invoice-content">
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4 }}>
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 900, color: '#3b82f6' }}>GeoSurePath</Typography>
+              <Typography variant="caption" sx={{ opacity: 0.6 }}>Global Fleet Intelligence</Typography>
+            </Box>
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>Invoice #{invoice.invoiceId}</Typography>
+              <Typography variant="caption" sx={{ opacity: 0.6 }}>{new Date(invoice.createdAt).toLocaleDateString()}</Typography>
+            </Box>
+          </Box>
+
+          <Paper sx={{ p: 2, mb: 4, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '12px' }}>
+            <Typography variant="caption" sx={{ fontWeight: 900, opacity: 0.5, mb: 1, display: 'block' }}>BILLED TO</Typography>
+            <Typography variant="body1" sx={{ fontWeight: 700 }}>{invoice.email || 'Client'}</Typography>
+            <Typography variant="body2" sx={{ opacity: 0.7 }}>{invoice.userEmail || ''}</Typography>
+          </Paper>
+
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ '& th': { borderBottom: '2px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', fontWeight: 900 } }}>
+                <TableCell>DESCRIPTION</TableCell>
+                <TableCell align="right">AMOUNT</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              <TableRow>
+                <TableCell sx={{ color: 'white', py: 2 }}>Fleet Subscription - {invoice.planId?.toUpperCase()} ({invoice.deviceCount} Units)</TableCell>
+                <TableCell align="right" sx={{ color: 'white', fontWeight: 700 }}>₹{invoice.price}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+
+          <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 4 }}>
+              <Typography variant="body2" sx={{ opacity: 0.6 }}>Subtotal</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>₹{(invoice.price / 1.18).toFixed(2)}</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 4 }}>
+              <Typography variant="body2" sx={{ opacity: 0.6 }}>GST (18%)</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>₹{(invoice.price - (invoice.price / 1.18)).toFixed(2)}</Typography>
+            </Box>
+            <Divider sx={{ width: '200px', my: 1, borderColor: 'rgba(255,255,255,0.1)' }} />
+            <Box sx={{ display: 'flex', gap: 4 }}>
+              <Typography variant="h6" sx={{ fontWeight: 900 }}>Total Paid</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 900, color: '#4ade80' }}>₹{invoice.price}</Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ mt: 4, textAlign: 'center', p: 1, bgcolor: 'rgba(74,222,128,0.1)', borderRadius: '8px', color: '#4ade80', fontWeight: 900, fontSize: '0.8rem' }}>
+            STATUS: ✓ PAID SECURELY
+          </Box>
+        </Box>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const loadScript = (src) => new Promise((resolve) => {
+  const script = document.createElement('script');
+  script.src = src;
+  script.onload = () => resolve(true);
+  script.onerror = () => resolve(false);
+  document.body.appendChild(script);
+});
 
 const BillingPage = () => {
   const traccarAdmin = useAdministrator();
@@ -67,6 +155,7 @@ const BillingPage = () => {
   const admin = traccarAdmin || saasRole === 'ADMIN';
   const navigate = useNavigate();
   const [tabIndex, setTabIndex] = useState(0);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [bill, setBill] = useState(null);
@@ -91,6 +180,11 @@ const BillingPage = () => {
   });
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({ planId: '', status: '', expiresAt: '' });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+
+  const showFeedback = (message, severity = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  };
 
   const fetchAnalyticsAndLedger = async () => {
     try {
@@ -149,7 +243,7 @@ const BillingPage = () => {
       setLoading(true);
       const token = localStorage.getItem('saas_token');
       if (!token) {
-        navigate('/login');
+        setLoading(false);
         return;
       }
       const billRes = await fetch('/api/billing/my-bill', {
@@ -189,9 +283,14 @@ const BillingPage = () => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ paymentLink: gatewayLink }),
       });
-      if (res.ok) alert('Sovereign Gateway Updated Successfully');
+      if (res.ok) {
+        showFeedback('Sovereign Gateway Updated Successfully');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showFeedback(data.error || 'Failed to update gateway', 'error');
+      }
     } catch (err) {
-      alert(err.message);
+      showFeedback(err.message, 'error');
     }
   };
 
@@ -204,11 +303,14 @@ const BillingPage = () => {
         body: JSON.stringify(adminSettings),
       });
       if (res.ok) {
-        alert('Sovereign Configuration Saved Successfully.');
+        showFeedback('Sovereign Configuration Saved Successfully.');
         fetchAdminSettings();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showFeedback(data.error || 'Failed to save configuration', 'error');
       }
     } catch (err) {
-      alert(err.message);
+      showFeedback(err.message, 'error');
     }
   };
 
@@ -223,12 +325,15 @@ const BillingPage = () => {
         body: JSON.stringify({ userId: editingUser.id, ...editForm }),
       });
       if (res.ok) {
-        alert('User Management sync applied.');
+        showFeedback('User Management sync applied.');
         setEditingUser(null);
         fetchAnalyticsAndLedger();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showFeedback(data.error || 'User update failed', 'error');
       }
     } catch (err) {
-      alert(err.message);
+      showFeedback(err.message, 'error');
     } finally {
       setSettling(false);
     }
@@ -245,11 +350,14 @@ const BillingPage = () => {
         body: JSON.stringify({ targetUserId: targetId, planId, amount: total }),
       });
       if (res.ok) {
-        alert('Sovereign Settle Applied.');
+        showFeedback('Sovereign Settle Applied.');
         fetchAnalyticsAndLedger();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showFeedback(data.error || 'Settle failed', 'error');
       }
     } catch (err) {
-      alert(err.message);
+      showFeedback(err.message, 'error');
     } finally {
       setSettling(false);
     }
@@ -270,14 +378,14 @@ const BillingPage = () => {
         body: JSON.stringify({ userId: targetId, extensionDays: parseInt(days) }),
       });
       if (res.ok) {
-        alert(`VIP Expiry Extended by ${days} days.`);
+        showFeedback(`VIP Expiry Extended by ${days} days.`);
         fetchAnalyticsAndLedger();
       } else {
-        const errData = await res.json();
-        alert(errData.error || 'Operation failed');
+        const errData = await res.json().catch(() => ({}));
+        showFeedback(errData.error || 'Operation failed', 'error');
       }
     } catch (err) {
-      alert(err.message);
+      showFeedback(err.message, 'error');
     } finally {
       setSettling(false);
     }
@@ -300,7 +408,13 @@ const BillingPage = () => {
       if (!orderRes.ok) throw new Error('Order creation failed on server');
       const orderData = await orderRes.json();
 
-      // 2. Initialize Razorpay Modal
+      // 2. Load Razorpay Script if needed
+      if (!window.Razorpay) {
+        const loaded = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+        if (!loaded) throw new Error('Razorpay SDK failed to load. Check your connection.');
+      }
+
+      // 3. Initialize Razorpay Modal
       const options = {
         key: orderData.key,
         amount: orderData.amount,
@@ -310,10 +424,8 @@ const BillingPage = () => {
         image: '/apple-touch-icon-180x180.png',
         order_id: orderData.orderId,
         handler: async (response) => {
-          // Response will contain razorpay_payment_id, razorpay_order_id, razorpay_signature
-          // Note: Webhook handles the actual backend state update, but we should refresh here
-          alert('Payment Successful! We are activating your subscription...');
-          setTimeout(fetchMyBill, 3000); // Give webhook a moment
+          showFeedback('Payment Successful! Activating your subscription...');
+          setTimeout(fetchMyBill, 3000);
         },
         prefill: {
           email: bill?.userEmail || '',
@@ -325,11 +437,11 @@ const BillingPage = () => {
 
       const rzp1 = new window.Razorpay(options);
       rzp1.on('payment.failed', function (response) {
-        alert(`Payment Failed: ${response.error.description}`);
+        showFeedback(`Payment Failed: ${response.error.description}`, 'error');
       });
       rzp1.open();
     } catch (err) {
-      alert(`Razorpay Initialization Error: ${err.message}`);
+      showFeedback(`Razorpay Error: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -352,14 +464,14 @@ const BillingPage = () => {
         }),
       });
       if (res.ok) {
-        alert('Payment Simulated Successfully! Subscription Activated.');
+        showFeedback('Payment Simulated Successfully! Subscription Activated.');
         fetchMyBill();
       } else {
-        const errData = await res.json();
-        alert(errData.error || 'Demo Payment Failed');
+        const errData = await res.json().catch(() => ({}));
+        showFeedback(errData.error || 'Demo Payment Failed', 'error');
       }
     } catch (err) {
-      alert(err.message);
+      showFeedback(err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -374,6 +486,39 @@ const BillingPage = () => {
   const filteredLedger = Array.isArray(ledger)
     ? ledger.filter((u) => u.email?.toLowerCase().includes(searchQuery.toLowerCase()))
     : [];
+
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [loginMode, setLoginMode] = useState(0); // 0: Client, 1: Admin
+
+  const handleBillingLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setAuthError('');
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('saas_token', data.accessToken);
+        localStorage.setItem('saas_role', data.user.role);
+        localStorage.setItem('saas_user', JSON.stringify(data.user));
+        fetchMyBill();
+      } else {
+        const err = await response.json().catch(() => ({}));
+        setAuthError(err.error || 'Authentication sequence failed. Verify credentials.');
+        console.error('[BillingLogin] Server error:', err);
+      }
+    } catch (err) {
+      setAuthError('Connection error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading)
     return (
@@ -395,6 +540,172 @@ const BillingPage = () => {
         </Typography>
       </Box>
     );
+
+  const token = localStorage.getItem('saas_token');
+  if (!token) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          background: '#0f172a',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 3,
+        }}
+      >
+        <Paper
+          elevation={24}
+          sx={{
+            p: 5,
+            width: '100%',
+            maxWidth: 480,
+            borderRadius: '40px',
+            background: 'rgba(30, 41, 59, 0.7)',
+            backdropFilter: 'blur(30px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            textAlign: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Decorative Gradient Glow */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '-10%',
+              left: '-10%',
+              width: '40%',
+              height: '40%',
+              background: loginMode === 1 ? 'rgba(57, 130, 246, 0.2)' : 'rgba(74, 222, 128, 0.1)',
+              filter: 'blur(60px)',
+              borderRadius: '50%',
+              zIndex: 0,
+            }}
+          />
+
+          <Box sx={{ position: 'relative', zIndex: 1 }}>
+            <Tabs
+              value={loginMode}
+              onChange={(e, v) => setLoginMode(v)}
+              variant="fullWidth"
+              sx={{
+                mb: 4,
+                '& .MuiTabs-indicator': { height: 3, borderRadius: '4px', bgcolor: loginMode === 1 ? '#3b82f6' : '#10b981' },
+                '& .MuiTab-root': { color: 'rgba(255,255,255,0.4)', fontWeight: 800, py: 2 },
+                '& .Mui-selected': { color: '#fff !important' },
+              }}
+            >
+              <Tab icon={<ReceiptLongIcon />} label="CLIENT BILLING" />
+              <Tab icon={<VpnLockIcon />} label="ENTERPRISE ADMIN" />
+            </Tabs>
+
+            {loginMode === 0 ? (
+              <>
+                <ReceiptLongIcon sx={{ fontSize: 60, color: '#10b981', mb: 1, filter: 'drop-shadow(0 0 10px rgba(16,185,129,0.3))' }} />
+                <Typography variant="h4" fontWeight={900} color="white" gutterBottom sx={{ letterSpacing: '-1px' }}>
+                  Billing Center
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 4 }}>
+                  Access invoices, settle debts, and manage fleet subscriptions.
+                </Typography>
+              </>
+            ) : (
+              <>
+                <VpnKeyIcon sx={{ fontSize: 60, color: '#3b82f6', mb: 1, filter: 'drop-shadow(0 0 10px rgba(59,130,246,0.3))' }} />
+                <Typography variant="h4" fontWeight={900} color="white" gutterBottom sx={{ letterSpacing: '-1px' }}>
+                  Sovereign Control
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 4 }}>
+                  Restricted access for platform administrators and financial controllers.
+                </Typography>
+              </>
+            )}
+
+            <form onSubmit={handleBillingLogin}>
+              <TextField
+                fullWidth
+                label="Registered Identity"
+                variant="outlined"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                sx={{
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    color: 'white',
+                    borderRadius: '20px',
+                    background: 'rgba(255,255,255,0.03)',
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
+                  },
+                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)', fontWeight: 600 },
+                }}
+              />
+              <TextField
+                fullWidth
+                label="Secure Access Key"
+                type="password"
+                variant="outlined"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                sx={{
+                  mb: 3,
+                  '& .MuiOutlinedInput-root': {
+                    color: 'white',
+                    borderRadius: '20px',
+                    background: 'rgba(255,255,255,0.03)',
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
+                  },
+                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)', fontWeight: 600 },
+                }}
+              />
+              {authError && (
+                <Typography color="error" variant="caption" sx={{ mb: 2, display: 'block', fontWeight: 800 }}>
+                  CREDENTIAL VALIDATION FAILED. PLEASE RETRY.
+                </Typography>
+              )}
+              <Button
+                fullWidth
+                type="submit"
+                variant="contained"
+                size="large"
+                sx={{
+                  py: 2.5,
+                  borderRadius: '20px',
+                  fontWeight: 900,
+                  fontSize: '1rem',
+                  background: loginMode === 1 
+                    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' 
+                    : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  boxShadow: loginMode === 1 
+                    ? '0 10px 30px rgba(59,130,246,0.4)' 
+                    : '0 10px 30px rgba(16,185,129,0.3)',
+                  '&:hover': { 
+                    transform: 'translateY(-2px)',
+                    boxShadow: loginMode === 1 
+                      ? '0 15px 35px rgba(59,130,246,0.5)' 
+                      : '0 15px 35px rgba(16,185,129,0.4)' 
+                  },
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                {loginMode === 0 ? 'ENTER BILLING PORTAL' : 'INITIALIZE SOVEREIGN ACCESS'}
+              </Button>
+            </form>
+
+            <Box sx={{ mt: 4 }}>
+              <Button
+                onClick={() => navigate('/login')}
+                variant="text"
+                sx={{ color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'none', '&:hover': { color: '#fff' } }}
+              >
+                Return to Global Fleet Intelligence
+              </Button>
+            </Box>
+          </Box>
+        </Paper>
+      </Box>
+    );
+  }
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 10 }}>
@@ -909,7 +1220,7 @@ const BillingPage = () => {
                 size="large"
                 onClick={
                   !analytics?.config?.paymentLink || analytics?.config?.paymentLink === '#'
-                    ? handleRazorpay
+                    ? handleDemoPay
                     : () => window.open(analytics.config.paymentLink, '_blank')
                 }
                 sx={{ borderRadius: '16px', px: 6, py: 2, fontWeight: 900, fontSize: '1.1rem' }}
@@ -945,6 +1256,7 @@ const BillingPage = () => {
                   <TableCell>UNITS</TableCell>
                   <TableCell align="right">AMOUNT (INR)</TableCell>
                   <TableCell align="center">STATUS</TableCell>
+                  <TableCell align="center">ACTION</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -977,6 +1289,15 @@ const BillingPage = () => {
                             color: '#4ade80',
                           }}
                         />
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          onClick={() => setSelectedInvoice(entry)}
+                          sx={{ color: '#3b82f6', '&:hover': { background: 'rgba(59,130,246,0.1)' } }}
+                          size="small"
+                        >
+                          <ReceiptIcon fontSize="small" />
+                        </IconButton>
                       </TableCell>
                     </TableRow>
                   ))
@@ -1332,6 +1653,27 @@ const BillingPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <InvoiceDialog
+        open={Boolean(selectedInvoice)}
+        onClose={() => setSelectedInvoice(null)}
+        invoice={selectedInvoice}
+      />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%', borderRadius: '12px', fontWeight: 700 }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

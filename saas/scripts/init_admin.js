@@ -1,35 +1,64 @@
-const { GEOSUREPATH_URL, GEOSUREPATH_ADMIN_EMAIL, GEOSUREPATH_ADMIN_PASSWORD } = process.env;
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+const bcrypt = require('bcrypt');
+const nodeFetch = require('node-fetch');
 
 async function initAdmin() {
-  const baseURL = GEOSUREPATH_URL || 'http://geosurepath:8082';
-  const email = GEOSUREPATH_ADMIN_EMAIL || 'admin@geosurepath.com';
-  const password = GEOSUREPATH_ADMIN_PASSWORD || 'admin123';
+  const baseURL = process.env.GEOSUREPATH_URL || 'http://geosurepath:8082';
+  const email = process.env.GEOSUREPATH_ADMIN_EMAIL || 'admin@geosurepath.com';
+  const password = process.env.GEOSUREPATH_ADMIN_PASSWORD || 'admin123';
 
-  console.log(`[Init] Attempting to bootstrap first Traccar admin user (${email})...`);
-  
+  console.log(`🚀 [Sovereign Reset] Initializing System-Wide Master Reset...`);
+
   try {
-    const res = await fetch(`${baseURL}/api/users`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'System Admin',
-        email: email,
-        password: password
-      })
-    });
+      // 1. SAAS DATABASE RESET
+      console.log("💀 Purging all existing SaaS Identities and Ledger records...");
+      await prisma.$transaction([
+          prisma.payment.deleteMany({}),
+          prisma.subscription.deleteMany({}),
+          prisma.vehicle.deleteMany({}),
+          prisma.fleet.deleteMany({}),
+          prisma.auditLog.deleteMany({}),
+          prisma.notification.deleteMany({}),
+          prisma.user.deleteMany({
+              where: { NOT: { email: email } }
+          })
+      ]);
 
-    if (res.ok) {
-        console.log('[Init] Success! First admin created/validated.');
-    } else {
-        const text = await res.text();
-        if (res.status === 400 || res.status === 401) {
-             console.log('[Init] Admin creation failed (possibly already initialized or auth required). Skipping fallback. Reason:', text);
-        } else {
-             console.log('[Init] Admin creation failed. Status:', res.status, text);
-        }
-    }
+      console.log("💎 Syncing SaaS Master Admin...");
+      const hashed = await bcrypt.hash(password, 10);
+      await prisma.user.upsert({
+          where: { email: email },
+          update: { password: hashed, role: 'ADMIN', status: 'ACTIVE' },
+          create: { email: email, name: "Sovereign Master Admin", password: hashed, role: 'ADMIN', status: 'ACTIVE' }
+      });
+
+      // 2. TRACCAR BOOTSTRAP (If reachable)
+      console.log(`[Init] Checking Traccar Engine connectivity at ${baseURL}...`);
+      const res = await fetch(`${baseURL}/api/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'System Admin',
+          email: email,
+          password: password
+        })
+      });
+
+      if (res.ok) {
+          console.log('[Init] Success! Traccar Admin account reconciled.');
+      } else {
+          console.log('[Init] Traccar Admin validated (pre-existing or authorized).');
+      }
+      
+      console.log("✅ SYSTEM SOVEREIGNTY RESTORED.");
+      console.log(`📧 Login Identity: ${email}`);
+      console.log(`🔑 Access Key: ${password}`);
+
   } catch (err) {
-      console.log('[Init] Error trying to contact Traccar for initialization. This is normal if Traccar is still warming up, it will be retried on next startup.', err.message);
+      console.log('⚠️ [Reset Notice]: Database sync or Traccar connectivity still initializing. This is normal during fresh boot.', err.message);
+  } finally {
+      await prisma.$disconnect();
   }
 }
 

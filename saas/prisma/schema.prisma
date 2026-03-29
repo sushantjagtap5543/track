@@ -127,10 +127,12 @@ model Subscription {
   price       Float
   deviceCount Int      @default(1)
   expiresAt   DateTime
+  invoiceId   String?  @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([userId])
+  @@index([invoiceId])
 }
 
 model Plan {

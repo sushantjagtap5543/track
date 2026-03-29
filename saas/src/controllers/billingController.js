@@ -54,15 +54,15 @@ const refreshPlans = () => {
   CACHED_PLANS = [];
 };
 
-// ✅ FIX 3: Generate a meaningful invoice number using subscription count as sequence.
-const generateInvoiceNumber = async (precomputedCount = null) => {
+// ✅ FIX 3: Generate a meaningful invoice number using current timestamp and random suffix.
+// We no longer rely on subscription count alone to avoid sequence gaps/collisions.
+const generateInvoiceNumber = () => {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
-  const count = precomputedCount !== null ? precomputedCount : await prisma.subscription.count();
-  const seq = String(count + 1).padStart(5, '0'); // ✅ REFINEMENT: 5-digit sequence
-  const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase(); // ✅ REFINEMENT: 6-char random suffix
-  return `GSP-INV-${year}${month}-${seq}-${randomSuffix}`;
+  const day = String(now.getDate()).padStart(2, '0');
+  const randomSuffix = crypto.randomBytes(4).toString('hex').toUpperCase(); 
+  return `GSP-INV-${year}${month}${day}-${randomSuffix}`;
 };
 
 const GST_RATE = 0.18;
@@ -139,9 +139,21 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
     maxUnpaidDays <= 0 ? 'PAID' : maxUnpaidDays <= 7 ? 'GRACE' : 'OVERDUE';
 
   const plans = await getPlans();
-
-  const totalSubCount = precomputedSubCount !== null ? precomputedSubCount : await prisma.subscription.count();
   
+  // ✅ FIX: Use stored invoiceId from database. Generate deterministic one for legacy subs if missing.
+  const history = user.subscriptions.map((sub) => {
+    let invId = sub.invoiceId;
+    if (!invId) {
+      // Fallback for legacy subscriptions: Use a deterministic ID based on sub ID
+      const datePart = sub.createdAt.toISOString().slice(0, 10).replace(/-/g, '');
+      invId = `GSP-LEGACY-${datePart}-${sub.id.slice(0, 8).toUpperCase()}`;
+    }
+    return {
+      ...sub,
+      invoiceId: invId
+    };
+  });
+
   return {
     userId: user.id,
     userEmail: user.email,
@@ -153,12 +165,7 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
       breakdown: calculateBreakdown(p.price)
     })),
     devices: deviceDetails,
-    history: await Promise.all(
-      (user.subscriptions || []).map(async (sub) => ({
-        ...sub,
-        invoiceId: await generateInvoiceNumber(totalSubCount)
-      }))
-    ),
+    history,
     sentry: {
       status: accessStatus,
       unpaidDays: maxUnpaidDays,
@@ -282,6 +289,7 @@ const settleCash = async (req, res) => {
       }
     });
 
+    const invoiceId = await generateInvoiceNumber();
     const subscription = await prisma.subscription.create({
       data: {
         userId: targetUserId,
@@ -289,7 +297,8 @@ const settleCash = async (req, res) => {
         price: amountToSettle,
         status: 'ACTIVE',
         deviceCount: user.vehicles.length,
-        expiresAt
+        expiresAt,
+        invoiceId
       }
     });
 
@@ -357,6 +366,7 @@ const demoSettle = async (req, res) => {
       }
     });
 
+    const invoiceId = await generateInvoiceNumber();
     const subscription = await prisma.subscription.create({
       data: {
         userId,
@@ -364,7 +374,8 @@ const demoSettle = async (req, res) => {
         price: parseFloat(amount),
         status: 'ACTIVE',
         deviceCount: user.vehicles.length,
-        expiresAt
+        expiresAt,
+        invoiceId
       }
     });
 
@@ -498,6 +509,7 @@ const handleWebhook = async (req, res) => {
           const now = new Date();
           const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
+          const invoiceId = await generateInvoiceNumber();
           const subscription = await prisma.subscription.create({
             data: {
               userId: payment.userId,
@@ -505,7 +517,8 @@ const handleWebhook = async (req, res) => {
               price: payment.amount,
               status: 'ACTIVE',
               deviceCount: payment.user.vehicles.length,
-              expiresAt
+              expiresAt,
+              invoiceId
             }
           });
 

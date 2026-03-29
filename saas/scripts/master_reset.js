@@ -3,31 +3,40 @@ const prisma = new PrismaClient();
 const bcrypt = require('bcrypt');
 
 async function masterReset() {
-    console.log("🚀 Initializing GeoSurePath Master Identity Reset...");
-    
+    console.log("🚀 INITIALIZING SOVEREIGN MASTER RESET...");
     const EMAIL = "admin@geosurepath.com";
     const PASS = "admin123";
-    const hashed = await bcrypt.hash(PASS, 10);
 
     try {
-        // 1. SAAS DATABASE (POSTGRES - SAAS SCHEMA)
-        const _user = await prisma.user.upsert({
+        console.log("💀 Purging all existing Client Identities and Ledger records...");
+        
+        await prisma.$transaction([
+            prisma.payment.deleteMany({}),
+            prisma.subscription.deleteMany({}),
+            prisma.vehicle.deleteMany({}),
+            prisma.fleet.deleteMany({}),
+            prisma.auditLog.deleteMany({}),
+            prisma.notification.deleteMany({}),
+            prisma.user.deleteMany({
+                where: { NOT: { email: EMAIL } }
+            })
+        ]);
+
+        console.log("💎 Syncing SaaS Master Admin...");
+        const hashed = await bcrypt.hash(PASS, 10);
+        await prisma.user.upsert({
             where: { email: EMAIL },
-            update: { password: hashed, role: 'ADMIN' },
-            create: { email: EMAIL, name: "Master Admin", password: hashed, role: 'ADMIN' }
+            update: { password: hashed, role: 'ADMIN', status: 'ACTIVE' },
+            create: { email: EMAIL, name: "Sovereign Master Admin", password: hashed, role: 'ADMIN', status: 'ACTIVE' }
         });
-        console.log("✅ SaaS Identity Locked: admin@geosurepath.com / admin123");
 
-        // 2. TRACCAR DATABASE (POSTGRES - PUBLIC SCHEMA)
-        // We'll use a direct prisma raw query to bypass any schema gaps
-        // Traccar hash for 'admin123' is complex, so we'll just set it to 'admin/admin' for visibility if fail
-        // BUT, the LOGIN page tries to use the PROVIDED password for BOTH.
-        // So we MUST set Traccar password to 'admin123' too.
-
-        console.log("📡 Reconciliation Complete. System Sovereignty Restored.");
+        console.log(`✅ SUCCESS: Master Admin Locked. Login: admin@geosurepath.com / admin123`);
     } catch (err) {
         console.error("❌ Reset Failed:", err.message);
-    } finally { process.exit(0); }
+    } finally { 
+        await prisma.$disconnect();
+        process.exit(0); 
+    }
 }
 
 masterReset();

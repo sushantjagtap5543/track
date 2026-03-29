@@ -47,19 +47,10 @@ const useStyles = makeStyles()((theme) => ({
   header: {
     pointerEvents: 'auto',
     zIndex: 6,
-    background: 'rgba(255, 255, 255, 0.8) !important',
-    backdropFilter: 'blur(12px)',
-    borderRadius: '0 16px 0 0',
-    border: '1px solid rgba(255, 255, 255, 0.3)',
   },
   footer: {
     pointerEvents: 'auto',
     zIndex: 5,
-    background: 'rgba(255, 255, 255, 0.8) !important',
-    backdropFilter: 'blur(12px)',
-    borderRadius: '0 0 16px 0',
-    border: '1px solid rgba(255, 255, 255, 0.3)',
-    marginTop: 0,
   },
   middle: { flex: 1, display: 'grid', minHeight: 0 },
   contentMap: { pointerEvents: 'auto', gridArea: '1 / 1' },
@@ -69,13 +60,6 @@ const useStyles = makeStyles()((theme) => ({
     zIndex: 4,
     display: 'flex',
     minHeight: 0,
-    background: 'rgba(255, 255, 255, 0.7) !important',
-    backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    borderTop: 'none',
-    borderBottom: 'none',
-    '& ::-webkit-scrollbar': { width: '6px' },
-    '& ::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '3px' },
   },
 }));
 
@@ -84,45 +68,6 @@ const MainPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const theme = useTheme();
-
-  const [showGraceModal, setShowGraceModal] = useState(false);
-  const [billData, setBillData] = useState(null);
-
-  useEffect(() => {
-    /** 🛡️ SMART-GRACE SENTRY GATEWAY */
-    const checkSubscriptionCycle = async () => {
-      const token = localStorage.getItem('saas_token');
-      if (token) {
-        try {
-          const res = await fetch('/api/billing/my-bill', {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const bill = await res.json();
-          setBillData(bill);
-
-          if (bill?.sentry?.status === 'OVERDUE') {
-            // --- STAGE 2: HARD-LOCK (8+ Days) ---
-            navigate('/billing', { replace: true });
-          } else if (bill?.sentry?.status === 'GRACE') {
-            // --- STAGE 1: SOFT-GRACE (1-7 Days) ---
-            const lastShown = localStorage.getItem('sentry_shown_date');
-            const today = new Date().toLocaleDateString();
-            if (lastShown !== today) {
-              setShowGraceModal(true);
-            }
-          }
-        } catch {
-          console.error('Subscription sentry failed');
-        }
-      }
-    };
-    checkSubscriptionCycle();
-  }, [navigate]);
-
-  const handleDismissGrace = () => {
-    localStorage.setItem('sentry_shown_date', new Date().toLocaleDateString());
-    setShowGraceModal(false);
-  };
 
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const mapOnSelect = useAttributePreference('mapOnSelect', true);
@@ -215,63 +160,6 @@ const MainPage = () => {
           desktopPadding={theme.dimensions.drawerWidthDesktop}
         />
       )}
-
-      {/* --- 🪙 PRE-EXPIRE DAILY GRACE POPUP --- */}
-      <Dialog
-        open={showGraceModal}
-        onClose={handleDismissGrace}
-        PaperProps={{
-          sx: {
-            background: 'rgba(15, 23, 42, 0.95)',
-            backdropFilter: 'blur(20px)',
-            border: '2px solid #3b82f6',
-            borderRadius: '24px',
-            p: 2,
-            color: 'white',
-          },
-        }}
-      >
-        <DialogTitle sx={{ textAlign: 'center', fontWeight: 900 }}>
-          <WarningIcon color="warning" sx={{ fontSize: 50, mb: 1 }} />
-          <br />
-          SETTLEMENT REMINDER
-        </DialogTitle>
-        <DialogContent sx={{ textAlign: 'center' }}>
-          <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
-            Your subscription balance is pending!
-          </Typography>
-          <Typography variant="body1" sx={{ opacity: 0.8, mb: 3 }}>
-            Your fleet is currently in the **One-Week Grace Period**. You have **
-            {billData?.sentry?.graceDaysRemaining} days** of safety coverage remaining before a
-            platform lock.
-          </Typography>
-          <Box sx={{ p: 2, background: 'rgba(255,255,255,0.05)', borderRadius: '16px' }}>
-            <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>
-              CURRENT UNPAID BALANCE
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 900, color: 'primary.light' }}>
-              ₹{billData?.totalDue}
-            </Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ justifyContent: 'center', pb: 3, gap: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={handleDismissGrace}
-            sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)', borderRadius: '12px' }}
-          >
-            PAY LATER (DISMISS)
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => navigate('/billing')}
-            startIcon={<PaymentsIcon />}
-            sx={{ borderRadius: '12px', fontWeight: 900 }}
-          >
-            SECURE FLEET NOW
-          </Button>
-        </DialogActions>
-      </Dialog>
     </div>
   );
 };
