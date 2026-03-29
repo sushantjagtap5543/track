@@ -14,12 +14,14 @@ const {
   updateGatewayConfig,
   updatePlan,
   createOrder,
+  demoSettle,
   handleWebhook
 } = require('../controllers/billingController');
 const { authenticateToken, requireRole } = require('../middleware/authMiddleware');
 
 // Client routes (any authenticated user)
 router.get('/my-bill', authenticateToken, getMyBill);
+router.post('/demo-settle', authenticateToken, demoSettle);
 router.post('/create-order', authenticateToken, createOrder);
 
 // Webhook (Public, signature verified in controller)

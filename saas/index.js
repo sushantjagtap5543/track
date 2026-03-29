@@ -34,28 +34,33 @@ const { Server } = require('socket.io');
 const socketService = require('./src/services/socketService');
 const { fetchFreeModels } = require('./src/services/modelScheduler'); // Initialize weekly free model fetch
 const cookieParser = require('cookie-parser');
-const xss = require('xss-clean');
+// const xss = require('xss-clean');
+
 const rateLimit = require('express-rate-limit');
 const { startWorkers, stopWorkers, redisConnection } = require('./src/services/queue');
 const { startGuardian } = require('./src/services/aiGuardian');
+const { startSubscriptionCron } = require('./src/services/subscriptionCron');
 const prisma = require('./src/lib/prisma');
 
 const app = express();
+app.set('trust proxy', 1); // Trust the first proxy (Nginx)
 
 // --- Start background services ---
 startWorkers();
 startGuardian();
+startSubscriptionCron();
 
 // --- Security Middleware ---
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(helmet());
 app.use(cookieParser());
-app.use(xss());
+// Removed xss-clean due to incompatibility with Express 5.x (req.query is read-only)
+
 
 // Global Rate Limiter
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per window
+  max: 1000, // Limit each IP to 1000 requests per window (Relaxed from 100)
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' }
@@ -64,8 +69,8 @@ app.use(globalLimiter);
 
 // Auth Rate Limiter (Stricter)
 const authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // Limit each IP to 20 requests per hour for auth
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window for auth (Relaxed from 20/hr)
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many authentication attempts, please try again in an hour.' }

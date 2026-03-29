@@ -8,6 +8,7 @@ router.use(authenticateToken);
 
 // Vehicle Fleet Management
 router.get('/', vehicleController.getVehicles);
+router.get('/:vehicleId', vehicleController.getVehicleById); // NEW: Get single vehicle
 router.post('/', vehicleController.createVehicle);
 router.put('/:vehicleId', vehicleController.updateVehicle);
 router.delete('/:vehicleId', vehicleController.deleteVehicle);

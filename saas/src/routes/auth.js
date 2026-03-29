@@ -12,6 +12,6 @@ router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 
 router.post('/change-password', authenticateToken, authController.changePassword);
-router.get('/sync', authController.syncSession);
+router.get('/sync', authenticateToken, authController.syncSession);
 
 module.exports = router;

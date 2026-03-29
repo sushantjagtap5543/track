@@ -18,14 +18,14 @@
     <!-- PERFORMANCE ENGINE CONFIGURATION -->
     <entry key='database.maxPoolSize'>50</entry>
     <entry key='status.ignoreOffline'>false</entry>
-    <entry key='status.updateDelay'>2</entry>
+    <entry key='status.updateDelay'>0</entry>
     <entry key='status.timeout'>120</entry>
     <entry key='event.geofence.handler'>true</entry>
     <entry key='event.ignition.handler'>true</entry>
     <entry key='event.motion.handler'>true</entry>
     <entry key='event.fuel.handler'>true</entry>
     <entry key='filter.enable'>true</entry>
-    <entry key='filter.distance'>5</entry>
+    <entry key='filter.distance'>2</entry>
     <entry key='geocoder.processOnRequest'>true</entry>
     
     <!-- WEB SOCKET & CACHE OPTIMIZATION -->
@@ -44,8 +44,12 @@
     <entry key='web.overrideAttributes'>timezone,unitSpeed,distanceUnit,altitudeUnit</entry>
     <entry key='web.defaultAttributes'>{"timezone":"Asia/Kolkata","unitSpeed":"kmh","distanceUnit":"km","altitudeUnit":"m"}</entry>
 
-    <!-- EVENT FORWARDING TO SAAS API -->
+    <!-- EVENT & POSITION FORWARDING TO SAAS API -->
     <entry key='event.forward.enable'>true</entry>
     <entry key='event.forward.url'>http://saas-api:3001/api/geosurepath/events</entry>
     <entry key='event.forward.header'>Content-Type: application/json</entry>
+
+    <entry key='forward.enable'>true</entry>
+    <entry key='forward.url'>http://saas-api:3001/api/notifications/webhook/position</entry>
+    <entry key='forward.header'>Content-Type: application/json</entry>
 </properties>

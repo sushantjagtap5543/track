@@ -20,4 +20,10 @@ router.post('/bulk-status', adminController.bulkUpdateStatus);
 router.post('/bulk-delete', adminController.bulkDeleteUsers);
 router.post('/adjust-expiry', adminController.adjustExpiry);
 
+// Sovereign Management
+router.get('/settings', adminController.getSettings);
+router.post('/settings', adminController.updateSettings);
+router.get('/health/full', adminController.getFullStatus);
+router.post('/user-subscription', adminController.updateUserSubscription);
+
 module.exports = router;

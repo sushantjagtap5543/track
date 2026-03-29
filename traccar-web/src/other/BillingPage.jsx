@@ -22,6 +22,14 @@ import {
   TextField,
   InputAdornment,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import VerifiedIcon from '@mui/icons-material/Verified';
@@ -35,13 +43,27 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import LinkIcon from '@mui/icons-material/Link';
 import StarsIcon from '@mui/icons-material/Stars'; // ✅ New icon
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'; // ✅ New icon
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
+import CancelIcon from '@mui/icons-material/Cancel';
 
 import { useNavigate } from 'react-router-dom';
 import { useAdministrator } from '../common/util/permissions';
 
 const BillingPage = () => {
   const traccarAdmin = useAdministrator();
-  const [saasRole] = useState(() => localStorage.getItem('saas_role'));
+  const [saasRole] = useState(() => {
+    const role = localStorage.getItem('saas_role');
+    if (role) return role;
+    try {
+      const saasUser = JSON.parse(localStorage.getItem('saas_user'));
+      return saasUser?.role;
+    } catch (e) {
+      return null;
+    }
+  });
   const admin = traccarAdmin || saasRole === 'ADMIN';
   const navigate = useNavigate();
   const [tabIndex, setTabIndex] = useState(0);
@@ -57,6 +79,18 @@ const BillingPage = () => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   // eslint-disable-next-line no-unused-vars
   const [error, setError] = useState(null);
+  const [systemStats, setSystemStats] = useState(null);
+  const [adminSettings, setAdminSettings] = useState({
+    paymentLink: '',
+    razorpayId: '',
+    razorpaySecret: '',
+    razorpayWebhookSecret: '',
+    firebaseConfig: '',
+    openrouterKey: '',
+    supportEmail: '',
+  });
+  const [editingUser, setEditingUser] = useState(null);
+  const [editForm, setEditForm] = useState({ planId: '', status: '', expiresAt: '' });
 
   const fetchAnalyticsAndLedger = async () => {
     try {
@@ -83,6 +117,30 @@ const BillingPage = () => {
       }
     } catch (err) {
       console.error('Admin Analytics Error:', err);
+    }
+  };
+
+  const fetchFullSystemStatus = async () => {
+    try {
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch('/api/admin/health/full', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setSystemStats(await res.json());
+    } catch (err) {
+      console.error('System Status Error:', err);
+    }
+  };
+
+  const fetchAdminSettings = async () => {
+    try {
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch('/api/admin/settings', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setAdminSettings(await res.json());
+    } catch (err) {
+      console.error('Admin Settings Error:', err);
     }
   };
 
@@ -115,7 +173,11 @@ const BillingPage = () => {
   useEffect(() => {
     fetchMyBill();
 
-    if (admin) fetchAnalyticsAndLedger();
+    if (admin) {
+      fetchAnalyticsAndLedger();
+      fetchFullSystemStatus();
+      fetchAdminSettings();
+    }
     // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [admin]);
 
@@ -130,6 +192,45 @@ const BillingPage = () => {
       if (res.ok) alert('Sovereign Gateway Updated Successfully');
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  const handleUpdateSovereignSettings = async () => {
+    try {
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(adminSettings),
+      });
+      if (res.ok) {
+        alert('Sovereign Configuration Saved Successfully.');
+        fetchAdminSettings();
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleManualUserUpdate = async () => {
+    if (!editingUser) return;
+    setSettling(true);
+    try {
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch('/api/admin/user-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId: editingUser.id, ...editForm }),
+      });
+      if (res.ok) {
+        alert('User Management sync applied.');
+        setEditingUser(null);
+        fetchAnalyticsAndLedger();
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSettling(false);
     }
   };
 
@@ -179,6 +280,88 @@ const BillingPage = () => {
       alert(err.message);
     } finally {
       setSettling(false);
+    }
+  };
+
+  const handleRazorpay = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('saas_token');
+      // 1. Create Order on Backend
+      const orderRes = await fetch('/api/billing/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          planId: selectedPlan,
+          amount: totalFleetAmount,
+        }),
+      });
+
+      if (!orderRes.ok) throw new Error('Order creation failed on server');
+      const orderData = await orderRes.json();
+
+      // 2. Initialize Razorpay Modal
+      const options = {
+        key: orderData.key,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'GeoSurePath Professional',
+        description: `Plan: ${currentPlan?.name}`,
+        image: '/apple-touch-icon-180x180.png',
+        order_id: orderData.orderId,
+        handler: async (response) => {
+          // Response will contain razorpay_payment_id, razorpay_order_id, razorpay_signature
+          // Note: Webhook handles the actual backend state update, but we should refresh here
+          alert('Payment Successful! We are activating your subscription...');
+          setTimeout(fetchMyBill, 3000); // Give webhook a moment
+        },
+        prefill: {
+          email: bill?.userEmail || '',
+        },
+        theme: {
+          color: '#3b82f6',
+        },
+      };
+
+      const rzp1 = new window.Razorpay(options);
+      rzp1.on('payment.failed', function (response) {
+        alert(`Payment Failed: ${response.error.description}`);
+      });
+      rzp1.open();
+    } catch (err) {
+      alert(`Razorpay Initialization Error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoPay = async () => {
+    if (!window.confirm('Simulate successful payment for this plan? (Demo Mode)')) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch('/api/billing/demo-settle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          planId: selectedPlan,
+          amount: totalFleetAmount,
+        }),
+      });
+      if (res.ok) {
+        alert('Payment Simulated Successfully! Subscription Activated.');
+        fetchMyBill();
+      } else {
+        const errData = await res.json();
+        alert(errData.error || 'Demo Payment Failed');
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -246,6 +429,8 @@ const BillingPage = () => {
             <Tab icon={<ReceiptIcon />} label="FLEET SETTLEMENT" />
             <Tab icon={<StorageIcon />} label="DATABASE & LOGS" />
             <Tab icon={<SettingsIcon />} label="COMMAND SETTINGS" />
+            <Tab icon={<MonitorHeartIcon />} label="SYSTEM STATUS" />
+            <Tab icon={<VpnKeyIcon />} label="SECRETS MANAGER" />
           </Tabs>
         </Paper>
       )}
@@ -499,6 +684,18 @@ const BillingPage = () => {
                         >
                           EXTEND GRACE
                         </Button>
+                        <Button
+                          variant="contained"
+                          color="secondary"
+                          onClick={() => {
+                            setEditingUser(u);
+                            setEditForm({ planId: u.planId || 'monthly', status: u.status, expiresAt: '' });
+                          }}
+                          sx={{ borderRadius: '8px', fontWeight: 900, fontSize: '0.7rem' }}
+                          disabled={settling}
+                        >
+                          <EditIcon sx={{ fontSize: '1rem', mr: 0.5 }} /> MANAGE
+                        </Button>
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -710,12 +907,15 @@ const BillingPage = () => {
               <Button
                 variant="contained"
                 size="large"
-                onClick={() => window.open(analytics?.config?.paymentLink || '#', '_blank')}
+                onClick={
+                  !analytics?.config?.paymentLink || analytics?.config?.paymentLink === '#'
+                    ? handleRazorpay
+                    : () => window.open(analytics.config.paymentLink, '_blank')
+                }
                 sx={{ borderRadius: '16px', px: 6, py: 2, fontWeight: 900, fontSize: '1.1rem' }}
-                disabled={!analytics?.config?.paymentLink || analytics?.config?.paymentLink === '#'}
               >
                 {!analytics?.config?.paymentLink || analytics?.config?.paymentLink === '#'
-                  ? 'GATEWAY UNCONFIGURED'
+                  ? 'ACTIVATE VIA DEMO PAY'
                   : 'PROCEED TO SECURE PAYMENT'}
               </Button>
             </Box>
@@ -865,7 +1065,6 @@ const BillingPage = () => {
           </TableContainer>
         </Paper>
       )}
-
       {/* --- TAB 5: COMMAND SETTINGS --- */}
       {admin && tabIndex === 5 && (
         <Paper
@@ -898,8 +1097,8 @@ const BillingPage = () => {
                 </Typography>
                 <TextField
                   fullWidth
-                  value={gatewayLink}
-                  onChange={(e) => setGatewayLink(e.target.value)}
+                  value={adminSettings.paymentLink}
+                  onChange={(e) => setAdminSettings({ ...adminSettings, paymentLink: e.target.value })}
                   placeholder="https://rzp.io/l/..."
                   sx={{
                     mb: 3,
@@ -918,7 +1117,7 @@ const BillingPage = () => {
                 />
                 <Button
                   variant="contained"
-                  onClick={handleUpdateGateway}
+                  onClick={handleUpdateSovereignSettings}
                   sx={{ borderRadius: '12px', fontWeight: 900, px: 4 }}
                 >
                   SAVE GLOBAL CONFIGURATION
@@ -928,6 +1127,211 @@ const BillingPage = () => {
           </Grid>
         </Paper>
       )}
+
+      {/* --- TAB 6: SYSTEM STATUS --- */}
+      {admin && tabIndex === 6 && (
+        <Paper
+          sx={{
+            p: 4,
+            borderRadius: '24px',
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid rgba(255,255,255,0.05)',
+          }}
+        >
+          <Typography variant="h5" fontWeight={900} sx={{ mb: 4 }}>
+            REAL-TIME PLATFORM HEALTH
+          </Typography>
+          <Grid container spacing={4}>
+            {[
+              { label: 'SaaS API Engine', value: systemStats?.status || 'Active', color: '#4ade80' },
+              { label: 'Database (Postgres)', value: systemStats?.db || 'Connected', color: '#4ade80' },
+              { label: 'Traccar Core', value: systemStats?.traccar || 'Running', color: '#4ade80' },
+              { label: 'CPU Load', value: `${systemStats?.cpu?.[0]?.toFixed(2) || '0.00'}`, color: '#60a5fa' },
+              { label: 'Memory Usage', value: `${systemStats?.memory?.free} / ${systemStats?.memory?.total}`, color: '#60a5fa' },
+              { label: 'System Uptime', value: `${(systemStats?.uptime / 3600).toFixed(1)} Hours`, color: '#facc15' },
+            ].map((stat, i) => (
+              <Grid item xs={12} md={4} key={i}>
+                <Box
+                  sx={{
+                    p: 3,
+                    borderRadius: '16px',
+                    bgcolor: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ opacity: 0.5, fontWeight: 900 }}>
+                    {stat.label.toUpperCase()}
+                  </Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 900, color: stat.color, mt: 1 }}>
+                    {stat.value}
+                  </Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
+      )}
+
+      {/* --- TAB 7: SECRETS MANAGER --- */}
+      {admin && tabIndex === 7 && (
+        <Paper
+          sx={{
+            p: 4,
+            borderRadius: '24px',
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid rgba(255,255,255,0.05)',
+          }}
+        >
+          <Typography variant="h5" fontWeight={900} sx={{ mb: 4 }}>
+            SOVEREIGN SECRETS & API COMMAND
+          </Typography>
+          <Grid container spacing={4}>
+            <Grid item xs={12} md={6}>
+              <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Payment Gateway (Razorpay)</Typography>
+              <TextField
+                fullWidth
+                label="Razorpay Key ID"
+                value={adminSettings.razorpayId}
+                onChange={(e) => setAdminSettings({ ...adminSettings, razorpayId: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                label="Razorpay Secret Key"
+                type="password"
+                value={adminSettings.razorpaySecret}
+                onChange={(e) => setAdminSettings({ ...adminSettings, razorpaySecret: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+               <TextField
+                fullWidth
+                label="Razorpay Webhook Secret"
+                type="password"
+                value={adminSettings.razorpayWebhookSecret}
+                onChange={(e) => setAdminSettings({ ...adminSettings, razorpayWebhookSecret: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Platform Infrastructure</Typography>
+              <TextField
+                fullWidth
+                label="Firebase Server Key"
+                value={adminSettings.firebaseConfig}
+                onChange={(e) => setAdminSettings({ ...adminSettings, firebaseConfig: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                label="AI Engine (OpenRouter) Key"
+                value={adminSettings.openrouterKey}
+                onChange={(e) => setAdminSettings({ ...adminSettings, openrouterKey: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                label="Support Contact Email"
+                value={adminSettings.supportEmail}
+                onChange={(e) => setAdminSettings({ ...adminSettings, supportEmail: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+            </Grid>
+          </Grid>
+          <Box sx={{ mt: 4, textAlign: 'right' }}>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<SaveIcon />}
+              onClick={handleUpdateSovereignSettings}
+              sx={{ borderRadius: '12px', fontWeight: 900, px: 6 }}
+            >
+              SAVE SOVEREIGN CONFIGURATION
+            </Button>
+          </Box>
+        </Paper>
+      )}
+
+      {/* --- MANUAL MANAGEMENT DIALOG --- */}
+      <Dialog
+        open={Boolean(editingUser)}
+        onClose={() => setEditingUser(null)}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: {
+            borderRadius: '24px',
+            background: '#0f172a',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: 'white',
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 900, fontSize: '1.5rem' }}>
+          MANAGE CLIENT: {editingUser?.email}
+        </DialogTitle>
+        <DialogContent sx={{ p: 4 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel sx={{ color: 'rgba(255,255,255,0.5)' }}>Subscription Plan</InputLabel>
+              <Select
+                value={editForm.planId}
+                label="Subscription Plan"
+                onChange={(e) => setEditForm({ ...editForm, planId: e.target.value })}
+                sx={{ borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)', color: 'white' }}
+              >
+                {bill?.plans?.map(p => (
+                  <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel sx={{ color: 'rgba(255,255,255,0.5)' }}>Activation Status</InputLabel>
+              <Select
+                value={editForm.status}
+                label="Activation Status"
+                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                sx={{ borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)', color: 'white' }}
+              >
+                <MenuItem value="ACTIVE">ACTIVE (Full Service)</MenuItem>
+                <MenuItem value="EXPIRED">EXPIRED (Suspended)</MenuItem>
+                <MenuItem value="CANCELLED">CANCELLED</MenuItem>
+              </Select>
+            </FormControl>
+
+            <TextField
+              fullWidth
+              label="New Expiration Date"
+              type="date"
+              value={editForm.expiresAt}
+              onChange={(e) => setEditForm({ ...editForm, expiresAt: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)' },
+                '& input': { color: 'white' }
+              }}
+            />
+            <Typography variant="caption" sx={{ opacity: 0.5 }}>
+              * Updates will sync to the Traccar tracking engine immediately.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 4 }}>
+          <Button onClick={() => setEditingUser(null)} color="inherit" sx={{ fontWeight: 900 }}>
+            CANCEL
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleManualUserUpdate}
+            disabled={settling}
+            sx={{ borderRadius: '12px', fontWeight: 900, px: 4 }}
+          >
+            {settling ? <CircularProgress size={24} /> : 'APPLY MANAGEMENT SYNC'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

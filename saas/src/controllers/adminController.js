@@ -4,6 +4,9 @@
 const os = require('os');
 const prisma = require('../lib/prisma');
 const geosurepathService = require('../services/geosurepath');
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
 
 // Get System Health (CPU, Memory, Uptime)
 exports.getSystemHealth = async (req, res) => {
@@ -287,5 +290,159 @@ exports.adjustExpiry = async (req, res) => {
     res.json({ message: `VIP Override active. Account secured for another ${extensionDays} days.` });
   } catch (error) {
     res.status(500).json({ error: 'Failed to adjust expiry.' });
+  }
+};
+
+// NEW: Get Admin Settings (Masked)
+exports.getSettings = async (req, res) => {
+  try {
+    const settings = await prisma.adminSetting.upsert({
+      where: { id: 'GLOBAL' },
+      update: {},
+      create: { id: 'GLOBAL' }
+    });
+
+    const masked = {
+      paymentLink: settings.paymentLink || '',
+      razorpayId: settings.razorpayId ? '••••••••' : '',
+      razorpaySecret: settings.razorpaySecret ? '••••••••' : '',
+      razorpayWebhookSecret: settings.razorpayWebhookSecret ? '••••••••' : '',
+      firebaseConfig: settings.firebaseConfig ? '••••••••' : '',
+      openrouterKey: settings.openrouterKey ? '••••••••' : '',
+      supportEmail: settings.supportEmail || ''
+    };
+
+    res.json(masked);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+};
+
+// NEW: Update Admin Settings
+exports.updateSettings = async (req, res) => {
+  const { paymentLink, razorpayId, razorpaySecret, razorpayWebhookSecret, firebaseConfig, openrouterKey, supportEmail } = req.body;
+
+  try {
+    const data = {};
+    if (paymentLink !== undefined) data.paymentLink = paymentLink;
+    if (razorpayId && razorpayId !== '••••••••') data.razorpayId = razorpayId;
+    if (razorpaySecret && razorpaySecret !== '••••••••') data.razorpaySecret = razorpaySecret;
+    if (razorpayWebhookSecret && razorpayWebhookSecret !== '••••••••') data.razorpayWebhookSecret = razorpayWebhookSecret;
+    if (firebaseConfig && firebaseConfig !== '••••••••') data.firebaseConfig = firebaseConfig;
+    if (openrouterKey && openrouterKey !== '••••••••') data.openrouterKey = openrouterKey;
+    if (supportEmail !== undefined) data.supportEmail = supportEmail;
+    
+    data.updatedBy = req.user.userId;
+
+    await prisma.adminSetting.update({
+      where: { id: 'GLOBAL' },
+      data
+    });
+
+    res.json({ message: 'Sovereign Configuration Updated Successfully' });
+
+    // Audit Log
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        action: 'UPDATE_GLOBAL_SETTINGS',
+        details: `System secrets updated: ${Object.keys(data).join(', ')}`
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Configuration update failed' });
+  }
+};
+
+// NEW: Manual User Subscription Update
+exports.updateUserSubscription = async (req, res) => {
+  const { userId, planId, status, expiresAt } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const updateData = {};
+    if (status) updateData.status = status;
+    if (planId) updateData.planId = planId;
+    if (expiresAt) updateData.expiresAt = new Date(expiresAt);
+
+    const subscription = await prisma.subscription.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (subscription) {
+      await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: updateData
+      });
+    } else if (planId && expiresAt) {
+      // Create new if none exists
+      await prisma.subscription.create({
+        data: {
+          userId,
+          planId,
+          status: status || 'ACTIVE',
+          expiresAt: new Date(expiresAt),
+          price: 0 // Manual override
+        }
+      });
+    }
+
+    // Sync status to Traccar if suspended
+    if (status === 'EXPIRED' || status === 'CANCELLED') {
+      if (user.geosurepathUserId) {
+        await geosurepathService.updateUser(user.geosurepathUserId, { disabled: true });
+      }
+    } else if (status === 'ACTIVE') {
+      if (user.geosurepathUserId) {
+        await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false });
+      }
+    }
+
+    res.json({ message: 'User subscription updated successfully' });
+
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        userId,
+        action: 'MANUAL_SUBSCRIPTION_UPDATE',
+        details: `Plan: ${planId}, Status: ${status}, expiresAt: ${expiresAt}`
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Subscription update failed' });
+  }
+};
+
+// NEW: Enhanced System Status
+exports.getFullStatus = async (req, res) => {
+  try {
+    // Check DB Status
+    const dbStatus = await prisma.$queryRaw`SELECT 1`.then(() => 'online').catch(() => 'offline');
+    
+    // Check Traccar API
+    const traccarStatus = await geosurepathService.getAllDevices().then(() => 'online').catch(() => 'offline');
+
+    // System stats (Host-level view from container)
+    const stats = {
+      cpu: os.loadavg(),
+      memory: {
+        total: (os.totalmem() / 1e9).toFixed(2) + ' GB',
+        free: (os.freemem() / 1e9).toFixed(2) + ' GB',
+      },
+      uptime: os.uptime(),
+      db: dbStatus,
+      traccar: traccarStatus,
+      node: process.version,
+      platform: os.platform()
+    };
+
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: 'System monitoring failed' });
   }
 };

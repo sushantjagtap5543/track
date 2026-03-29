@@ -2,9 +2,13 @@ import { parse, stringify } from 'wellknown';
 import turfCircle from '@turf/circle';
 
 export const loadImage = (url) =>
-  new Promise((imageLoaded) => {
+  new Promise((resolve, reject) => {
     const image = new Image();
-    image.onload = () => imageLoaded(image);
+    image.onload = () => resolve(image);
+    image.onerror = () => {
+      console.warn(`[MAP] Failed to load asset: ${url}`);
+      resolve(null); // Resolve with null so we don't hang the loop
+    };
     image.src = url;
   });
 
@@ -57,6 +61,12 @@ export const prepareIcon = (background, icon, color) => {
   context.shadowBlur = 2 * devicePixelRatio;
   context.shadowColor = 'rgba(0,0,0,0.1)';
   context.fill();
+
+  // --- Draw the Icon Entity ---
+  if (icon) {
+    const iconSize = radius * 0.7;
+    context.drawImage(icon, -iconSize / 2, -iconSize / 2, iconSize, iconSize);
+  }
 
   context.restore();
 

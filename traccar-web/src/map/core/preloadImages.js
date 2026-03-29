@@ -48,23 +48,34 @@ const theme = createTheme({
 
 export default async () => {
   const background = await loadImage(backgroundSvg);
+  if (!background) {
+    console.error('[MAP] Failed to load core background asset. GPS UI may be degraded.');
+  }
+
   mapImages.background = await prepareIcon(background);
   mapImages.direction = await prepareIcon(await loadImage(directionSvg));
-  await Promise.all(
-    Object.keys(mapIcons).map(async (category) => {
-      const results = [];
-      ['info', 'success', 'error', 'neutral'].forEach((color) => {
-        results.push(
-          loadImage(mapIcons[category]).then((icon) => {
-            mapImages[`${category}-${color}`] = prepareIcon(
-              background,
-              icon,
-              theme.palette[color].main,
-            );
-          }),
+  
+  const categories = Object.keys(mapIcons);
+  const colors = ['info', 'success', 'error', 'neutral'];
+  
+  const allIconPromises = categories.map(async (category) => {
+    const iconBase = await loadImage(mapIcons[category]);
+    if (!iconBase) return;
+
+    for (const color of colors) {
+      try {
+        const colorValue = theme.palette[color]?.main || theme.palette.info.main;
+        mapImages[`${category}-${color}`] = await prepareIcon(
+          background,
+          iconBase,
+          colorValue,
         );
-      });
-      await Promise.all(results);
-    }),
-  );
+      } catch (e) {
+        console.warn(`[MAP] Skip icon: ${category}-${color}`, e);
+      }
+    }
+  });
+  
+  await Promise.all(allIconPromises);
+  console.log(`[MAP] ${Object.keys(mapImages).length} assets preloaded.`);
 };

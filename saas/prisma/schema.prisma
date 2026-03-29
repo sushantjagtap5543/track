@@ -169,6 +169,7 @@ model Payment {
   razorpayPaymentId String? @unique
   razorpaySignature String?
   
+  planId            String? // Store plan ID to create subscription on capture
   subscriptionId    String? // Link to subscription if created via payment
   
   createdAt     DateTime @default(now())
@@ -217,6 +218,21 @@ model DeviceToken {
 model AdminSetting {
   id          String   @id @default("GLOBAL")
   paymentLink String?
+  
+  // Razorpay
+  razorpayId            String?
+  razorpaySecret        String?
+  razorpayWebhookSecret String?
+  
+  // Firebase
+  firebaseConfig String? // Store as JSON string or Server Key
+  
+  // AI/OpenRouter
+  openrouterKey String?
+  
+  // System Contact
+  supportEmail String?
+
   updatedBy   String?
   updatedAt   DateTime @updatedAt
 }

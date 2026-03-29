@@ -1,8 +1,8 @@
 import { sessionActions } from './session';
 import { devicesActions } from './devices';
 
-const threshold = 20; // per second (Higher for smoother UI during movement)
-const minInterval = 300; // Lowered to 300ms for fluid updates
+const threshold = 50; // increased for lower latency
+const minInterval = 100; // lowered to 100ms for near-instant updates
 const maxInterval = 10000;
 const scaleFactor = 1000;
 

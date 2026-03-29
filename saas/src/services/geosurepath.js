@@ -1,9 +1,5 @@
 // src/services/geosurepath.js
-// ✅ FIX 1 (CRITICAL): Session cookie is now cleared on any 401/403 response so
-//    `ensureSession()` re-authenticates on the next call. Previously, a stale/expired
-//    session cookie was cached forever and every subsequent API call would fail until
-//    the server was restarted.
-// ✅ FIX 2: Added `clearSession()` helper and call it automatically on auth failures.
+// ✅ FIX: Integrated loginUser for session relaying.
 
 const { GEOSUREPATH_URL, GEOSUREPATH_ADMIN_EMAIL, GEOSUREPATH_ADMIN_PASSWORD } = process.env;
 
@@ -87,6 +83,32 @@ const ensureSession = async () => {
   }
 };
 
+const loginUser = async (email, password) => {
+  const params = new URLSearchParams();
+  params.append('email', email);
+  params.append('password', password);
+
+  const response = await fetch(`${GEOSUREPATH_URL}/api/session`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': 'GeoSurePath-Sovereign-Guardian/1.0',
+      'X-Sovereign-Source': 'SaaS-API'
+    },
+    body: params
+  });
+
+  if (!response.ok) {
+    throw new Error(`Traccar login failed: ${response.status}`);
+  }
+
+  const setCookie = response.headers.get('set-cookie');
+  return {
+    cookie: setCookie ? setCookie.split(';')[0] : null,
+    data: await response.json()
+  };
+};
+
 /**
  * ✅ FIX: Wrapper that checks for 401/403 responses and auto-refreshes the session
  * before retrying once. Prevents stale-session failures from persisting.
@@ -111,7 +133,7 @@ const fetchWithSessionRefresh = async (url, options, retried = false) => {
 
 const createUser = async (name, email, password, options = {}) => {
   await ensureSession();
-  const userData = { name, email, password, ...options };
+  const userData = { name, email, password, deviceLimit: 10, ...options };
   const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/users`, {
     method: 'POST',
     headers: getAuthHeaders(),
@@ -320,5 +342,6 @@ module.exports = {
   linkGeofenceToDevice,
   getAllLatestPositions,
   getUserDevices,
-  getAllDevices
+  getAllDevices,
+  loginUser
 };

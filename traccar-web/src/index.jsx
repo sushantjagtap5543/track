@@ -12,26 +12,36 @@ import ServerProvider from './ServerProvider';
 import ErrorBoundary from './ErrorBoundary';
 import AppThemeProvider from './AppThemeProvider';
 
-preloadImages();
+console.log('[BOOTSTRAP] Entry point reached.');
 
-const root = createRoot(document.getElementById('root'));
-root.render(
-  <ErrorBoundary>
-    <Provider store={store}>
-      <LocalizationProvider>
-        <AppThemeProvider>
-          <StyledEngineProvider injectFirst>
-            <CssBaseline />
-            <ServerProvider>
-              <BrowserRouter>
-                <Navigation />
-              </BrowserRouter>
-              <ErrorHandler />
-              <NativeInterface />
-            </ServerProvider>
-          </StyledEngineProvider>
-        </AppThemeProvider>
-      </LocalizationProvider>
-    </Provider>
-  </ErrorBoundary>,
-);
+// Safety: Mount React even if preloading hangs
+const bootstrap = () => {
+  console.log('[BOOTSTRAP] Initializing root...');
+  const loader = document.querySelector('.loader');
+  if (loader) loader.remove();
+
+  const root = createRoot(document.getElementById('root'));
+  root.render(
+    <ErrorBoundary>
+      <Provider store={store}>
+        <LocalizationProvider>
+          <AppThemeProvider>
+            <StyledEngineProvider injectFirst>
+              <CssBaseline />
+              <ServerProvider>
+                <BrowserRouter>
+                  <Navigation />
+                </BrowserRouter>
+                <ErrorHandler />
+                <NativeInterface />
+              </ServerProvider>
+            </StyledEngineProvider>
+          </AppThemeProvider>
+        </LocalizationProvider>
+      </Provider>
+    </ErrorBoundary>,
+  );
+};
+
+// Completely bypass preloading for now to fix the buffering issue
+bootstrap();

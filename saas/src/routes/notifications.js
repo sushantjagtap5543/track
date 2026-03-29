@@ -3,6 +3,48 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../lib/prisma');
 const socketService = require('../services/socketService');
+const { authenticateToken } = require('../middleware/authMiddleware');
+
+/**
+ * GET /api/notifications/types
+ * Returns a list of supported notification types for the frontend.
+ */
+router.get('/types', authenticateToken, async (req, res) => {
+  const types = [
+    { type: 'allEvents', title: 'All Events' },
+    { type: 'deviceOnline', title: 'Device Online' },
+    { type: 'deviceOffline', title: 'Device Offline' },
+    { type: 'deviceMoving', title: 'Device Moving' },
+    { type: 'deviceStopped', title: 'Device Stopped' },
+    { type: 'ignitionOn', title: 'Ignition ON' },
+    { type: 'ignitionOff', title: 'Ignition OFF' },
+    { type: 'geofenceEnter', title: 'Geofence Enter' },
+    { type: 'geofenceExit', title: 'Geofence Exit' },
+    { type: 'overspeed', title: 'Overspeed' },
+    { type: 'alarm', title: 'Alarms (SOS, Tampering, etc.)' },
+    { type: 'fuelDrop', title: 'Fuel Drop' },
+    { type: 'maintenance', title: 'Maintenance Required' }
+  ];
+  res.json(types);
+});
+
+/**
+ * GET /api/notifications/
+ * Returns a list of notifications for the authenticated user.
+ */
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { userId: req.user.userId },
+      orderBy: { createdAt: 'desc' },
+      take: 50 // Limit to last 50
+    });
+    res.json(notifications);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
 
 // Webhook for Traccar Forwarding (Positions)
 router.post('/webhook/position', async (req, res) => {

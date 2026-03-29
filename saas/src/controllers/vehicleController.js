@@ -218,7 +218,7 @@ exports.toggleSafeParking = async (req, res) => {
   }
 };
 
-// Custom Alert Rules... (kept same but could add logs)
+// Custom Alert Rules
 exports.createAlertRule = async (req, res) => {
   const { vehicleId, type, parameters } = req.body;
   try {
@@ -245,4 +245,33 @@ exports.deleteAlertRule = async (req, res) => {
     await prisma.alertRule.delete({ where: { id: ruleId } });
     res.json({ message: 'Alert rule deleted successfully' });
   } catch (_error) { res.status(500).json({ error: 'Failed to delete alert rule' }); }
+};
+
+// NEW: Get single vehicle with real-time status
+exports.getVehicleById = async (req, res) => {
+  const { vehicleId } = req.params;
+  try {
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id: vehicleId, userId: req.user.userId },
+      include: {
+        alertRules: { where: { isActive: true } },
+        vehicleLogs: { take: 5, orderBy: { createdAt: 'desc' } }
+      }
+    });
+
+    if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+
+    let realTime = null;
+    if (vehicle.geosurepathDeviceId) {
+      try {
+        realTime = await geosurepathService.getLatestPosition(vehicle.geosurepathDeviceId);
+      } catch (err) {
+        console.warn(`[VehicleController] Failed position fetch: \${err.message}`);
+      }
+    }
+
+    res.json({ ...vehicle, realTime });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed' });
+  }
 };

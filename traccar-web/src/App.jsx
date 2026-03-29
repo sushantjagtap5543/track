@@ -63,6 +63,7 @@ const App = () => {
           if (saasData.token) {
             window.localStorage.setItem('saas_token', saasData.token);
             window.localStorage.setItem('saas_user', JSON.stringify(saasData));
+            window.localStorage.setItem('saas_role', saasData.role);
             // Reload to apply Traccar session (handled by hyper-sync or similar)
             window.location.reload();
           }

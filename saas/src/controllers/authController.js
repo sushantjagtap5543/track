@@ -192,8 +192,27 @@ exports.login = async (req, res) => {
 
     const { accessToken, refreshToken } = await generateTokens(user.id, user.role, user.geosurepathUserId);
 
-    res.cookie('token', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 15 * 60 * 1000 });
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: REFRESH_TOKEN_EXPIRATION });
+    const isSecure = process.env.SECURE_COOKIES === 'true';
+    res.cookie('token', accessToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 15 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: REFRESH_TOKEN_EXPIRATION });
+
+    // ✅ NEW: Silent Traccar Login and Cookie Relay
+    try {
+      const traccarSession = await geosurepathService.loginUser(identifier, password);
+      if (traccarSession.cookie) {
+        // Extract session ID and set it as JSESSIONID. Traccar expects this.
+        const jsessionid = traccarSession.cookie.split('=')[1];
+        res.cookie('JSESSIONID', jsessionid, { 
+          httpOnly: true, 
+          secure: isSecure, 
+          sameSite: 'lax', 
+          path: '/' 
+        });
+        console.log(`[Login] Relayed Traccar session cookie for ${identifier}`);
+      }
+    } catch (traccarError) {
+      console.warn(`[Login] Traccar silent login failed for ${identifier}:`, traccarError.message);
+    }
 
     res.json({
       message: 'Login successful',
@@ -225,8 +244,9 @@ exports.refreshToken = async (req, res) => {
     await prisma.refreshToken.delete({ where: { id: storedToken.id } });
     const tokens = await generateTokens(storedToken.user.id, storedToken.user.role, storedToken.user.geosurepathUserId);
 
-    res.cookie('token', tokens.accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 15 * 60 * 1000 });
-    res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: REFRESH_TOKEN_EXPIRATION });
+    const isSecure = process.env.SECURE_COOKIES === 'true';
+    res.cookie('token', tokens.accessToken, { httpOnly: true, secure: isSecure, sameSite: 'strict', maxAge: 15 * 60 * 1000 });
+    res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: isSecure, sameSite: 'strict', maxAge: REFRESH_TOKEN_EXPIRATION });
 
     res.json({ message: 'Token refreshed', accessToken: tokens.accessToken });
   } catch (error) {

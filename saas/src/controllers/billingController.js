@@ -13,10 +13,17 @@ const geosurepathService = require('../services/geosurepath');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+async function getRazorpay() {
+  const settings = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
+  
+  const key_id = settings?.razorpayId || process.env.RAZORPAY_KEY_ID;
+  const key_secret = settings?.razorpaySecret || process.env.RAZORPAY_KEY_SECRET;
+
+  if (key_id && key_secret) {
+    return new Razorpay({ key_id, key_secret });
+  }
+  return null;
+}
 
 let CACHED_PLANS = [];
 
@@ -322,6 +329,67 @@ const settleCash = async (req, res) => {
   }
 };
 
+const demoSettle = async (req, res) => {
+  const { planId, amount } = req.body;
+  const userId = req.user.userId;
+
+  try {
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      include: { vehicles: true }
+    });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const plans = await getPlans();
+    const plan = plans.find((p) => p.id === planId) || plans[0];
+    const days = plan?.billingCycle === 'MONTHLY' ? 30 : 365;
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+    const payment = await prisma.payment.create({
+      data: {
+        userId,
+        amount: parseFloat(amount),
+        status: 'CAPTURED',
+        paymentMethod: 'DEMO_BYPASS',
+        transactionId: `DEMO_${Date.now()}`
+      }
+    });
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId,
+        planId: plan.id,
+        price: parseFloat(amount),
+        status: 'ACTIVE',
+        deviceCount: user.vehicles.length,
+        expiresAt
+      }
+    });
+
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { subscriptionId: subscription.id }
+    });
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isActive: true }
+    });
+
+    if (user.geosurepathUserId) {
+      await geosurepathService
+        .updateUser(user.geosurepathUserId, { disabled: false })
+        .catch((e) => console.error('[DemoSettle] sync failed:', e.message));
+    }
+
+    res.json({ message: 'Demo Payment Successful! Subscription Activated.', subscription });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to process demo payment' });
+  }
+};
+
 const updatePlan = async (req, res) => {
   const { planId, name, pricePerDevice, billingCycle } = req.body;
   try {
@@ -354,13 +422,17 @@ const createOrder = async (req, res) => {
   const userId = req.user.userId;
 
   try {
+    const rzp = await getRazorpay();
+    if (!rzp) {
+      return res.status(400).json({ error: 'Payment gateway is not configured.' });
+    }
     const options = {
       amount: Math.round(amount * 100), // amount in the smallest currency unit (paise)
       currency: "INR",
       receipt: `receipt_${Date.now()}`,
     };
 
-    const order = await razorpay.orders.create(options);
+    const order = await rzp.orders.create(options);
 
     // Track the payment attempt
     await prisma.payment.create({
@@ -369,11 +441,15 @@ const createOrder = async (req, res) => {
         amount: parseFloat(amount),
         status: 'PENDING',
         razorpayOrderId: order.id,
-        planId: planId // ✅ FIX: Save planId to associate with subscription later
+        planId: planId
       }
     });
 
+    const settings = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
+    const key = settings?.razorpayId || process.env.RAZORPAY_KEY_ID;
+
     res.json({
+      key,
       orderId: order.id,
       amount: order.amount,
       currency: order.currency
@@ -385,7 +461,9 @@ const createOrder = async (req, res) => {
 };
 
 const handleWebhook = async (req, res) => {
-  const secret = process.env.RAZORPAY_WEBHOOK_SECRET || 'gsp_webhook_secret';
+  const settings = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
+  const secret = settings?.razorpayWebhookSecret || process.env.RAZORPAY_WEBHOOK_SECRET || 'gsp_webhook_secret';
+  
   const shasum = crypto.createHmac('sha256', secret);
   shasum.update(JSON.stringify(req.body));
   const digest = shasum.digest('hex');
@@ -395,27 +473,27 @@ const handleWebhook = async (req, res) => {
     const { payload } = req.body;
 
     if (event === 'payment.captured') {
+      const { payload } = req.body;
       const orderId = payload.payment.entity.order_id;
       const paymentId = payload.payment.entity.id;
 
       try {
-        // Idempotent update: Only proceed if status is still PENDING
-        // ✅ REFINEMENT: Absolute idempotency check using both Order ID and Payment ID
+        // Idempotent update: Only proceed if status is still PENDING or if it's a new payment ID for this order
         let payment = await prisma.payment.findFirst({
           where: { 
             OR: [
               { razorpayOrderId: orderId, status: 'PENDING' },
-              { razorpayPaymentId: paymentId } // Already processed?
+              { razorpayPaymentId: paymentId } 
             ]
           },
           include: { user: { include: { vehicles: true } } }
         });
 
         if (payment && payment.status === 'PENDING') {
-          // ✅ FIX: Use planId from payment record
           const planId = payment.planId;
-          const plan = planId ? await prisma.plan.findUnique({ where: { id: planId } }) : null;
-          const days = plan ? (plan.billingCycle === 'MONTHLY' ? 30 : 365) : 30;
+          const plans = await getPlans();
+          const plan = plans.find(p => p.id === planId) || plans[0];
+          const days = plan.days || 30;
 
           const now = new Date();
           const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
@@ -423,7 +501,7 @@ const handleWebhook = async (req, res) => {
           const subscription = await prisma.subscription.create({
             data: {
               userId: payment.userId,
-              planId: payment.planId,
+              planId: plan.id,
               price: payment.amount,
               status: 'ACTIVE',
               deviceCount: payment.user.vehicles.length,
@@ -445,10 +523,35 @@ const handleWebhook = async (req, res) => {
             data: { isActive: true }
           });
 
+          // Sync with Traccar
+          if (payment.user.geosurepathUserId) {
+              await geosurepathService.updateUser(payment.user.geosurepathUserId, { disabled: false })
+                .catch(e => console.error('[Webhook] Traccar sync failed:', e.message));
+          }
+
           console.log(`[Webhook] Payment successful and subscription activated for User: ${payment.userId}`);
         }
       } catch (err) {
         console.error('[Webhook Processing Error]', err);
+      }
+    } else if (event === 'payment.failed') {
+      const { payload } = req.body;
+      const orderId = payload.payment.entity.order_id;
+      const paymentId = payload.payment.entity.id;
+      const errorMsg = payload.payment.entity.error_description;
+
+      try {
+        await prisma.payment.updateMany({
+          where: { razorpayOrderId: orderId, status: 'PENDING' },
+          data: { 
+            status: 'FAILED',
+            razorpayPaymentId: paymentId,
+            transactionId: `FAILED_${errorMsg || 'UNKNOWN'}`
+          }
+        });
+        console.log(`[Webhook] Payment failed for Order: ${orderId}. Reason: ${errorMsg}`);
+      } catch (err) {
+        console.error('[Webhook Failed Event Error]', err);
       }
     }
     res.json({ status: 'ok' });
@@ -461,6 +564,7 @@ module.exports = {
   getMyBill,
   adminUpdateRegistration,
   settleCash,
+  demoSettle,
   getAdminAnalytics,
   getAllUsersLedger,
   updateGatewayConfig,
