@@ -202,8 +202,6 @@ const LoginPage = () => {
 
       if (response.ok) {
         const saasData = await response.json();
-
-        // ✅ FIX: Persist SaaS tokens for BillingPage and other SaaS features
         if (saasData.accessToken) {
           localStorage.setItem('saas_token', saasData.accessToken);
         }
@@ -211,9 +209,6 @@ const LoginPage = () => {
           localStorage.setItem('saas_role', saasData.user.role);
         }
 
-        // --- Traccar Session Logic ---
-        // Backend /api/auth/login already handles Traccar session creation.
-        // We just need to fetch the Traccar user object to update Redux.
         const traccarRes = await fetch('/api/session');
         if (traccarRes.ok) {
           const user = await traccarRes.json();
@@ -234,6 +229,54 @@ const LoginPage = () => {
       setErrorText(e.message || 'Login failed. Please try again.');
       setFailed(true);
       setPassword('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBillingLogin = async (event) => {
+    event.preventDefault();
+    if (!email || !password) {
+      setErrorText('Please enter both email and password');
+      setFailed(true);
+      return;
+    }
+    setFailed(false);
+    setErrorText('');
+    setLoading(true);
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response.ok) {
+        const saasData = await response.json();
+        if (saasData.accessToken) {
+          localStorage.setItem('saas_token', saasData.accessToken);
+        }
+        if (saasData.user?.role) {
+          localStorage.setItem('saas_role', saasData.user.role);
+        }
+
+        // Reconciliation
+        const traccarRes = await fetch('/api/session');
+        if (traccarRes.ok) {
+          const user = await traccarRes.json();
+          dispatch(sessionActions.updateUser(user));
+        }
+
+        generateLoginToken();
+        navigate('/billing', { replace: true });
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setErrorText(data.error || 'Authentication failed for billing access');
+        setFailed(true);
+      }
+    } catch (e) {
+      setErrorText(e.message || 'Billing login failed');
+      setFailed(true);
     } finally {
       setLoading(false);
     }
@@ -397,10 +440,11 @@ const LoginPage = () => {
         {!openIdForced && (
           <div className={classes.extraContainer}>
             <Button
-              onClick={() => navigate('/billing')}
+              onClick={handleBillingLogin}
               variant="outlined"
               color="primary"
               fullWidth
+              disabled={loading}
               sx={{
                 mb: 2,
                 borderRadius: '12px',
