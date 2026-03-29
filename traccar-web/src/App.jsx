@@ -50,26 +50,30 @@ const App = () => {
 
   useEffectAsync(async () => {
     if (!user) {
-      const response = await fetch('/api/session');
-      if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
-        const user = await response.json();
-        dispatch(sessionActions.updateUser(user));
-      } else if (response.status === 404) {
-        // This means we are NOT logged in in Traccar.
-        // We should try to see if we have a SaaS session.
-        const saasSync = await fetch('/api/auth/sync');
-        if (saasSync.ok && saasSync.headers.get('content-type')?.includes('application/json')) {
-          const saasData = await saasSync.json();
-          if (saasData.token) {
-            window.localStorage.setItem('saas_token', saasData.token);
-            window.localStorage.setItem('saas_user', JSON.stringify(saasData));
-            window.localStorage.setItem('saas_role', saasData.role);
-            // Reload to apply Traccar session (handled by hyper-sync or similar)
-            window.location.reload();
+      try {
+        const response = await fetch('/api/session');
+        if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
+          const user = await response.json();
+          dispatch(sessionActions.updateUser(user));
+        } else {
+          // Fallback: If session check fails (404, 500, etc), try SaaS sync or show login
+          const saasSync = await fetch('/api/auth/sync').catch(() => ({ ok: false }));
+          if (saasSync.ok && saasSync.headers.get('content-type')?.includes('application/json')) {
+            const saasData = await saasSync.json();
+            if (saasData.token) {
+              window.localStorage.setItem('saas_token', saasData.token);
+              window.localStorage.setItem('saas_user', JSON.stringify(saasData));
+              window.localStorage.setItem('saas_role', saasData.role);
+              window.location.reload();
+              return null;
+            }
           }
+          window.sessionStorage.setItem('postLogin', pathname + search);
+          navigate(newServer ? '/register' : '/login', { replace: true });
         }
-        window.sessionStorage.setItem('postLogin', pathname + search);
-        navigate(newServer ? '/register' : '/login', { replace: true });
+      } catch (err) {
+        // Network error or crash - redirect to login
+        navigate('/login', { replace: true });
       }
     }
     return null;
