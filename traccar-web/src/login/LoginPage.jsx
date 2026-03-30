@@ -197,6 +197,7 @@ const LoginPage = () => {
 
   const [email, setEmail] = usePersistedState('loginEmail', '');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('CLIENT');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState('');
@@ -231,7 +232,7 @@ const LoginPage = () => {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, role }),
       });
 
       if (response.ok) {
@@ -250,7 +251,8 @@ const LoginPage = () => {
         }
 
         generateLoginToken();
-        const target = window.sessionStorage.getItem('postLogin') || '/';
+        const defaultTarget = saasData.user?.role === 'ADMIN' ? '/billing' : '/';
+        const target = window.sessionStorage.getItem('postLogin') || defaultTarget;
         window.sessionStorage.removeItem('postLogin');
         navigate(target, { replace: true });
       } else {
@@ -384,20 +386,35 @@ const LoginPage = () => {
       </div>
 
       <div className={classes.titleSection}>
-        <Typography className={classes.welcomeText}>Sovereign Intelligence</Typography>
+        <Typography className={classes.welcomeText}>Welcome to GeoSurePath</Typography>
         <Typography className={classes.subText}>
-          Authorized Personnel Only - Encryption Active
+          Sign in to access your account
         </Typography>
       </div>
 
       <form className={classes.container} onSubmit={handlePasswordLogin}>
         {!openIdForced && (
           <>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <Select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                sx={{
+                    borderRadius: '12px',
+                    bgcolor: 'rgba(255,255,255,0.05)',
+                    color: '#fff',
+                    '& .MuiSelect-icon': { color: 'rgba(255,255,255,0.5)' }
+                }}
+              >
+                <MenuItem value="CLIENT">Client Login</MenuItem>
+                <MenuItem value="ADMIN">Admin Login</MenuItem>
+              </Select>
+            </FormControl>
             <TextField
               required
               fullWidth
               error={failed}
-              label={t('userEmail')}
+              label="Email Address"
               name="email"
               value={email}
               autoComplete="email"
@@ -482,14 +499,14 @@ const LoginPage = () => {
               sx={{ mb: 1.5 }}
               startIcon={<ReceiptLongIcon />}
             >
-              PAY SUBSCRIPTION BILL
+              Pay Subscription Bill
             </Button>
             {registrationEnabled && (
               <Typography
                 variant="body1"
                 sx={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '0.95rem', fontWeight: 600 }}
               >
-                New operative?{' '}
+                New user?{' '}
                 <Box
                   component="span"
                   className={classes.registerLink}
@@ -513,7 +530,7 @@ const LoginPage = () => {
               }}
               component="button"
             >
-              System Restoration (Reset Password)
+              Forgot Password? Reset it here
             </Link>
           </div>
         )}

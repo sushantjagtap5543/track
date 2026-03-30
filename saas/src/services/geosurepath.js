@@ -42,8 +42,8 @@ const getAuthHeaders = () => {
       'Basic ' +
       Buffer.from(`${GEOSUREPATH_ADMIN_EMAIL}:${GEOSUREPATH_ADMIN_PASSWORD}`).toString('base64'),
     'Content-Type': 'application/json',
-    'User-Agent': 'GeoSurePath-Sovereign-Guardian/1.0',
-    'X-Sovereign-Source': 'SaaS-API'
+    'User-Agent': 'GeoSurePath-System-Service/1.0',
+    'X-System-Source': 'SaaS-API'
   };
   if (sessionCookie) {
     headers['Cookie'] = sessionCookie;
@@ -64,8 +64,8 @@ const ensureSession = async () => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'GeoSurePath-Sovereign-Guardian/1.0',
-      'X-Sovereign-Source': 'SaaS-API'
+      'User-Agent': 'GeoSurePath-System-Service/1.0',
+      'X-System-Source': 'SaaS-API'
     },
     body: params
   });
@@ -92,8 +92,8 @@ const loginUser = async (email, password) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'GeoSurePath-Sovereign-Guardian/1.0',
-      'X-Sovereign-Source': 'SaaS-API'
+      'User-Agent': 'GeoSurePath-System-Service/1.0',
+      'X-System-Source': 'SaaS-API'
     },
     body: params
   });

@@ -149,12 +149,12 @@ const LoginLayout = ({ children }) => {
           >
             <LogoImage color="#fff" width={isMobile ? 120 : 200} />
             <Typography className={classes.tagline}>
-              Sovereign Global
+              GeoSurePath
               <br />
-              Intelligence
+              Global Tracking
             </Typography>
             <Typography className={classes.subTagline}>
-              Elite Fleet Protection & Real-Time Strategic Monitoring. Powered by GeoSurePath Advanced SaaS Infrastructure.
+              Smart Logistics & Real-Time Fleet Monitoring. Powered by GeoSurePath Advanced Tracking Infrastructure.
             </Typography>
           </motion.div>
         </div>

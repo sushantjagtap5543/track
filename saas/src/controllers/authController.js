@@ -485,8 +485,8 @@ exports.getSessions = async (req, res) => {
         id: s.id,
         createdAt: s.createdAt,
         expiresAt: s.expiresAt,
-        device: 'Authorized Sovereign Browser',
-        ip: req.ip || 'Detected Sovereign IP'
+        device: 'Web Dashboard',
+        ip: req.ip || 'Current Location IP'
     }));
     res.json(enriched);
   } catch (error) {

@@ -351,7 +351,17 @@ const BillingPage = () => {
         });
         const data = await res.json();
         if (res.ok) {
-            setSuccess('Client onboarded successfully. Welcome email queued.');
+            // Trigger welcome email
+            try {
+              await fetch('/api/auth/welcome-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ email: onboardData.email }),
+              });
+            } catch (e) {
+              console.warn('Welcome email failed', e);
+            }
+            setSuccess('User added successfully. A welcome email has been sent.');
             setShowOnboardDialog(false);
             setOnboardData({ name: '', email: '', password: '', role: 'CLIENT' });
             fetchFullSystemStatus(); 
@@ -522,16 +532,16 @@ const BillingPage = () => {
         fetchData();
       } else {
         const d = await res.json();
-        showFeedback(d.error || 'Demo Protocol Interrupted', 'error');
+        showFeedback(d.error || 'Payment failed. Please try again.', 'error');
       }
     } catch (err) {
-      showFeedback('Network Disruption during Demo Settlement', 'error');
+      showFeedback('Network error. Please try again.', 'error');
     } finally {
       setSettling(false);
     }
   }
 
-  async function handleUpdateSovereignSettings() {
+  async function handleUpdateAdminSettings() {
     try {
       const token = localStorage.getItem('saas_token');
       const res = await fetch('/api/admin/settings', {
@@ -540,12 +550,12 @@ const BillingPage = () => {
         body: JSON.stringify({ ...adminSettings, paymentLink: adminSettings.paymentLink }),
       });
       if (res.ok) {
-        showFeedback('Gateway Optimized');
+        showFeedback('Settings updated successfully');
       } else {
-        showFeedback('Optimization Failed', 'error');
+        showFeedback('Failed to update settings', 'error');
       }
     } catch (err) {
-      showFeedback('Gateway Access Error', 'error');
+      showFeedback('Network error. Please try again.', 'error');
     }
   }
 
@@ -559,14 +569,14 @@ const BillingPage = () => {
         body: JSON.stringify({ userId: editingUser.id, ...editForm }),
       });
       if (res.ok) {
-        showFeedback('User Status Refined');
+        showFeedback('User status updated successfully');
         setEditingUser(null);
         fetchAnalyticsAndLedger();
       } else {
         showFeedback('Manual Update Failed', 'error');
       }
     } catch (err) {
-      showFeedback('System Access Error', 'error');
+      showFeedback('Network error. Please try again.', 'error');
     }
   }
 
@@ -581,13 +591,13 @@ const BillingPage = () => {
         body: JSON.stringify({ userId: targetId, planId, total }),
       });
       if (res.ok) {
-        showFeedback('Manual Ledger Settlement Complete');
+        showFeedback('Payment processed successfully.');
         fetchAnalyticsAndLedger();
       } else {
-        showFeedback('Settlement Protocol Interrupted', 'error');
+        showFeedback('Payment failed. Please try again.', 'error');
       }
     } catch (err) {
-      showFeedback('Network Disruption during Settlement', 'error');
+      showFeedback('Network error. Please try again.', 'error');
     } finally {
       setSettling(false);
     }
@@ -605,13 +615,13 @@ const BillingPage = () => {
             localStorage.setItem('saas_token', data.accessToken);
             localStorage.setItem('saas_user', JSON.stringify(data.user));
             localStorage.setItem('saas_role', data.user.role);
-            showFeedback(`GHOSTING ACTIVE: Now viewing as ${data.user.email}`, 'info');
+            showFeedback(`Viewing as ${data.user.email}`, 'info');
             setTimeout(() => window.location.href = '/', 1000);
         } else {
             showFeedback(data.error, 'error');
         }
     } catch (e) {
-        showFeedback('Impersonation engine failure.', 'error');
+        showFeedback('Failed to switch user.', 'error');
     }
   };
 
@@ -635,20 +645,20 @@ const BillingPage = () => {
         body: JSON.stringify({ id: editingPlan.id, ...planForm }),
       });
       if (res.ok) {
-        showFeedback('Billing Plan Architecture Updated');
+        showFeedback('Billing plan updated successfully');
         setEditingPlan(null);
         fetchData(); // Refresh plans
       } else {
         const errorData = await res.json();
-        showFeedback(errorData.error || 'Plan harmonization failed', 'error');
+        showFeedback(errorData.error || 'Failed to update plan', 'error');
       }
     } catch (err) {
-      showFeedback('Network Disruption during plan sync', 'error');
+      showFeedback('Network error. Please try again', 'error');
     }
   };
 
   async function handleAdjustExpiry(targetId, email) {
-    const days = prompt(`Strategic Expiry Override for ${email}: Enter number of days to extend:`, '30');
+    const days = prompt(`Manual Expiry Update for ${email}: Enter number of days to extend:`, '30');
     if (!days) return;
     try {
       const token = localStorage.getItem('saas_token');
@@ -658,13 +668,13 @@ const BillingPage = () => {
         body: JSON.stringify({ userId: targetId, days: parseInt(days, 10) }),
       });
       if (res.ok) {
-        showFeedback('User Expiry recalibrated successfully');
+        showFeedback('Expiry updated successfully');
         fetchAnalyticsAndLedger();
       } else {
-        showFeedback('Override Denied', 'error');
+        showFeedback('Failed to update expiry', 'error');
       }
     } catch (err) {
-      showFeedback('Network Disruption during recalibration', 'error');
+      showFeedback('Network error. Please try again.', 'error');
     }
   }
 
@@ -673,7 +683,7 @@ const BillingPage = () => {
     setSettling(true);
     try {
       const supported = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
-      if (!supported) throw new Error('Payment Engine unavailable');
+      if (!supported) throw new Error('Payment service unavailable.');
 
       const token = localStorage.getItem('saas_token');
       const orderRes = await fetch('/api/billing/create-order', {
@@ -682,7 +692,7 @@ const BillingPage = () => {
         body: JSON.stringify({ amount: bill.amount }),
       });
 
-      if (!orderRes.ok) throw new Error('Order Synchronization Failed');
+      if (!orderRes.ok) throw new Error('Failed to create payment order.');
       const order = await orderRes.json();
 
       const options = {
@@ -690,7 +700,7 @@ const BillingPage = () => {
         amount: order.amount,
         currency: 'INR',
         name: 'GeoSurePath',
-        description: 'Monthly Strategic Protection Fee',
+        description: 'Monthly Subscription Fee',
         order_id: order.id,
         handler: async (response) => {
           const verifyRes = await fetch('/api/billing/verify', {
@@ -699,10 +709,10 @@ const BillingPage = () => {
             body: JSON.stringify({ ...response, amount: order.amount }),
           });
           if (verifyRes.ok) {
-            showFeedback('Payment Synchronized - Access Restored');
+            showFeedback('Payment successful. Access restored.');
             fetchData();
           } else {
-            showFeedback('Verification Failed - Contact Strategy Support', 'error');
+            showFeedback('Verification failed. Please contact support.', 'error');
           }
         },
         prefill: { email: bill.user.email, name: bill.user.name },
@@ -722,7 +732,7 @@ const BillingPage = () => {
   const currentPlan = bill?.plans?.find((p) => p.id === selectedPlan) || bill?.plans?.[0];
   const deviceCount = bill?.devices?.length || 0;
   const planCost = (currentPlan?.price || 0) * deviceCount;
-  const totalFleetAmount = planCost + (bill?.totalDue || 0);
+  const totalFleetAmount = planCost + (bill?.totalDue || 0) * 1.18;
 
   const filteredLedger = Array.isArray(ledger)
     ? ledger.filter((u) => u.email?.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -731,7 +741,7 @@ const BillingPage = () => {
   async function handleBillingLogin(e) {
     if (e) e.preventDefault();
     if (!loginEmail || !loginPassword) {
-      showFeedback('Incomplete Intel: Both credentials required', 'warning');
+      showFeedback('Please enter both email and password.', 'warning');
       return;
     }
     setLoading(true);
@@ -751,14 +761,14 @@ const BillingPage = () => {
           localStorage.setItem('saas_role', saasData.user.role);
           setSaasRole(saasData.user.role);
         }
-        showFeedback('Authentication Synchronized - Accessing Ledger');
+        showFeedback('Login successful. Accessing account...');
         fetchData();
       } else {
         const d = await response.json();
-        showFeedback(d.error || 'Unauthorized Intel Access', 'error');
+        showFeedback(d.error || 'Access denied. Please check your credentials.', 'error');
       }
     } catch (e) {
-      showFeedback('Authentication System Offline', 'error');
+      showFeedback('Connection error. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -780,7 +790,7 @@ const BillingPage = () => {
       >
         <CircularProgress size={60} thickness={4} sx={{ color: '#3b82f6' }} />
         <Typography variant="h6" sx={{ color: 'white', fontWeight: 900, opacity: 0.6 }}>
-          INITIALIZING SOVEREIGN LEDGER...
+          Loading your account...
         </Typography>
       </Box>
     );
@@ -837,7 +847,7 @@ const BillingPage = () => {
             GeoSurePath
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 5, fontWeight: 600 }}>
-            SOVEREIGN BILLING & SUBSCRIPTION
+            Billing &amp; Subscription Portal
           </Typography>
 
           <Tabs
@@ -851,17 +861,17 @@ const BillingPage = () => {
               '& .Mui-selected': { color: '#3b82f6 !important' },
             }}
           >
-            <Tab label="CLIENT ACCESS" />
-            <Tab label="ENTERPRISE ADMIN" />
+            <Tab label="Client Login" />
+            <Tab label="Admin Login" />
           </Tabs>
 
             <form onSubmit={handleBillingLogin}>
               <TextField
                 fullWidth
-                label={loginMode === 0 ? "Fleet Email / Login" : "Administrator ID"}
+                label="Email Address"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
-                autoComplete="email" 
+                autoComplete="email"
                 sx={{
                   mb: 3,
                   '& .MuiOutlinedInput-root': {
@@ -875,7 +885,7 @@ const BillingPage = () => {
               />
               <TextField
                 fullWidth
-                label="Secure Password"
+                label="Password"
                 type="password"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
@@ -892,8 +902,8 @@ const BillingPage = () => {
                 }}
               />
               {authError && (
-                <Typography color="error" variant="caption" sx={{ mb: 2, display: 'block', fontWeight: 800 }}>
-                  CREDENTIAL VALIDATION FAILED. PLEASE RETRY.
+                <Typography color="error" variant="caption" sx={{ mb: 2, display: 'block', fontWeight: 700 }}>
+                  Invalid email or password. Please try again.
                 </Typography>
               )}
               <Button
@@ -921,7 +931,7 @@ const BillingPage = () => {
                   transition: 'all 0.3s ease',
                 }}
               >
-                {loginMode === 0 ? 'ENTER BILLING PORTAL' : 'INITIALIZE SOVEREIGN ACCESS'}
+                {loginMode === 0 ? 'Sign In to Billing Portal' : 'Sign In as Admin'}
               </Button>
             </form>
 
@@ -931,7 +941,7 @@ const BillingPage = () => {
                 variant="text"
                 sx={{ color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'none', '&:hover': { color: '#fff' } }}
               >
-                Return to Global Fleet Intelligence
+                Return to Map
               </Button>
             </Box>
           </Box>
@@ -955,7 +965,7 @@ const BillingPage = () => {
                 '&:hover': { color: '#3b82f6', borderColor: '#3b82f6', bgcolor: 'rgba(59,130,246,0.05)' }
             }}
         >
-            RETURN TO MAP
+            Back to Map
         </Button>
         <Button
             variant="outlined"
@@ -970,10 +980,10 @@ const BillingPage = () => {
                 '&:hover': { color: '#ef4444', borderColor: '#ef4444', bgcolor: 'rgba(239, 68, 68, 0.05)' }
             }}
         >
-            {settling ? 'DE-AUTHENTICATING...' : 'LOGOUT PORTAL'}
+            {settling ? 'Logging out...' : 'Logout'}
         </Button>
       </Box>
-      {/* --- PRIMARY SOVEREIGN TABS --- */}
+      {/* --- Primary Tabs --- */}
       {admin && (
         <Paper
           sx={{
@@ -999,16 +1009,16 @@ const BillingPage = () => {
               '& .Mui-selected': { color: '#3b82f6 !important' },
             }}
           >
-            <Tab icon={<AssessmentIcon />} label="PLATFORM ANALYTICS" />
-            <Tab icon={<GroupIcon />} label="USER LEDGER" />
-            <Tab icon={<ReceiptLongIcon />} label="AUDIT LOGS" />
-            <Tab icon={<ReceiptIcon />} label="FLEET SETTLEMENT" />
-            <Tab icon={<StorageIcon />} label="DATABASE & LOGS" />
-            <Tab icon={<SettingsIcon />} label="COMMAND SETTINGS" />
-            <Tab icon={<MonitorHeartIcon />} label="SYSTEM STATUS" />
-            <Tab icon={<VpnKeyIcon />} label="SECRETS MANAGER" />
-            <Tab icon={<StarsIcon />} label="PLAN MANAGEMENT" />
-            <Tab icon={<SecurityIcon />} label="SECURITY & GOVERNANCE" />
+            <Tab icon={<AssessmentIcon />} label="Analytics" />
+            <Tab icon={<GroupIcon />} label="All Users" />
+            <Tab icon={<ReceiptLongIcon />} label="Audit Logs" />
+            <Tab icon={<ReceiptIcon />} label="Payments" />
+            <Tab icon={<StorageIcon />} label="System Logs" />
+            <Tab icon={<SettingsIcon />} label="Settings" />
+            <Tab icon={<MonitorHeartIcon />} label="System Health" />
+            <Tab icon={<VpnKeyIcon />} label="API Keys" />
+            <Tab icon={<StarsIcon />} label="Billing Plans" />
+            <Tab icon={<SecurityIcon />} label="Security" />
           </Tabs>
         </Paper>
       )}
@@ -1061,7 +1071,7 @@ const BillingPage = () => {
 
           <Paper sx={{ p: 4, borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', mb: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6" fontWeight={900} sx={{ color: '#0f172a' }}>SOVEREIGN STATUS DISTRIBUTION</Typography>
+                <Typography variant="h6" fontWeight={900} sx={{ color: '#0f172a' }}>CLIENT STATUS OVERVIEW</Typography>
                 <Button 
                     variant="contained" 
                     startIcon={<PersonAddIcon />}
@@ -1086,7 +1096,7 @@ const BillingPage = () => {
           </Paper>
 
           <Paper sx={{ p: 4, borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', mb: 4 }}>
-            <Typography variant="h6" fontWeight={900} sx={{ mb: 3, color: '#0f172a' }}>SOVEREIGN PLAN PENETRATION</Typography>
+            <Typography variant="h6" fontWeight={900} sx={{ mb: 3, color: '#0f172a' }}>PLAN POPULARITY</Typography>
             <Grid container spacing={2}>
               {Object.entries(analytics?.planDistribution || {}).map(([pId, count]) => (
                 <Grid item xs={6} md={3} key={pId}>
@@ -1134,7 +1144,7 @@ const BillingPage = () => {
               ) : (
                 <Grid item xs={12}>
                   <Typography variant="body2" sx={{ opacity: 0.5 }}>
-                    Synchronizing Time-Series Data...
+                    Loading statistics...
                   </Typography>
                 </Grid>
               )}
@@ -1193,12 +1203,12 @@ const BillingPage = () => {
                     },
                   }}
                 >
-                  <TableCell>CLIENT IDENTITY</TableCell>
-                  <TableCell>FLEET SIZE</TableCell>
-                  <TableCell>SENTRY STATUS</TableCell>
-                  <TableCell align="center">UNPAID DAYS</TableCell>
-                  <TableCell align="right">PENDING DEBT (INR)</TableCell>
-                  <TableCell align="center">COMMANDS</TableCell>
+                  <TableCell>User Email</TableCell>
+                  <TableCell>Devices</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell align="center">Days Unpaid</TableCell>
+                  <TableCell align="right">Pending Amount (₹)</TableCell>
+                  <TableCell align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -1253,15 +1263,15 @@ const BillingPage = () => {
                     </TableCell>
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                        <Button
-                          variant="contained"
-                          onClick={() => handleSettleForUser(u.id, 'monthly', u.totalDue)}
-                          sx={{ borderRadius: '8px', fontWeight: 900, fontSize: '0.7rem' }}
-                          disabled={u.totalDue <= 0 || settling}
-                        >
-                          FORCE SETTLE
-                        </Button>
-                        <Tooltip title="Update Role">
+                          <Button
+                            variant="contained"
+                            onClick={() => handleSettleForUser(u.id, 'monthly', u.totalDue)}
+                            sx={{ borderRadius: '8px', fontWeight: 900, fontSize: '0.7rem' }}
+                            disabled={u.totalDue <= 0 || settling}
+                          >
+                            SETTLE NOW
+                          </Button>
+                        <Tooltip title="Refresh Status">
                             <IconButton 
                                 size="small" 
                                 color="primary" 
@@ -1281,7 +1291,7 @@ const BillingPage = () => {
                                 <DirectionsCarIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                        <Tooltip title="Ghost (Impersonate for Support)">
+                        <Tooltip title="View as User">
                             <IconButton 
                                 size="small" 
                                 color="info" 
@@ -1298,7 +1308,7 @@ const BillingPage = () => {
                           sx={{ borderRadius: '8px', fontWeight: 900, fontSize: '0.7rem' }}
                           disabled={settling}
                         >
-                          EXTEND GRACE
+                          EXTEND DEADLINE
                         </Button>
                         <Button
                           variant="contained"
@@ -1334,7 +1344,7 @@ const BillingPage = () => {
           }}
         >
           <Typography variant="h5" fontWeight={900} sx={{ mb: 4, color: '#1e293b' }}>
-            SOVEREIGN AUDIT TRAIL
+            Audit Logs
           </Typography>
           <TableContainer>
             <Table>
@@ -1404,18 +1414,18 @@ const BillingPage = () => {
                 </Box>
                 <Box sx={{ flex: 1 }}>
                     <Typography variant="h6" fontWeight={900} sx={{ color: '#1e293b', mb: 0.5 }}>
-                        {(bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? 'SUBSCRIPTION ACTIVE' : 'RENEWAL REQUIRED'}
+                        {(bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? 'Active Subscription' : 'Renewal Required'}
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 600 }}>
                         {(bill?.status === 'PAID' || bill?.status === 'ACTIVE')
-                            ? `Your fleet protection is secured until ${new Date(bill?.expiresAt).toLocaleDateString()}`
-                            : 'Access to your tracking ledger is currently restricted.'}
+                            ? `Your subscription is valid until ${new Date(bill?.expiresAt).toLocaleDateString()}`
+                            : 'Your account access is currently limited.'}
                     </Typography>
                 </Box>
                 <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
                 <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="caption" display="block" sx={{ color: '#94a3b8', fontWeight: 900 }}>
-                        PROTECTED ASSETS
+                        Total Devices
                     </Typography>
                     <Typography variant="h4" fontWeight={900} sx={{ color: '#0f172a' }}>
                         {deviceCount}
@@ -1442,7 +1452,7 @@ const BillingPage = () => {
                     letterSpacing: '-1px'
                     }}
                 >
-                    Fleet Protection Settlement
+                    Subscription Plans
                 </Typography>
 
                 <Grid container spacing={3} sx={{ mb: 6 }}>
@@ -1499,7 +1509,7 @@ const BillingPage = () => {
                     }}
                 >
                     <Typography variant="h6" fontWeight={900} sx={{ mb: 3, color: '#1e293b' }}>
-                    FEE & TAX BREAKDOWN (INCLUSIVE)
+                    Bill Details (Including GST)
                     </Typography>
                     <Grid container spacing={4}>
                     <Grid item xs={6} md={3}>
@@ -1507,7 +1517,7 @@ const BillingPage = () => {
                         <VerifiedUserIcon sx={{ color: '#3b82f6' }} fontSize="small" />
                         <Box>
                             <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700 }}>
-                            BASIC ACCESS
+                            Service Plan
                             </Typography>
                             <Typography fontWeight={900} sx={{ color: '#0f172a' }}>
                             ₹{((currentPlan?.breakdown?.basic || 0) * deviceCount).toFixed(2)}
@@ -1520,7 +1530,7 @@ const BillingPage = () => {
                         <StorageIcon sx={{ color: '#8b5cf6' }} fontSize="small" />
                         <Box>
                             <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700 }}>
-                            SERVER CHARGE
+                            Maintenance
                             </Typography>
                             <Typography fontWeight={900} sx={{ color: '#0f172a' }}>
                             ₹{((currentPlan?.breakdown?.server || 0) * deviceCount).toFixed(2)}
@@ -1533,7 +1543,7 @@ const BillingPage = () => {
                         <CloudQueueIcon sx={{ color: '#06b6d4' }} fontSize="small" />
                         <Box>
                             <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700 }}>
-                            CLOUD INFRA
+                            Infrastructure
                             </Typography>
                             <Typography fontWeight={900} sx={{ color: '#0f172a' }}>
                             ₹{((currentPlan?.breakdown?.cloud || 0) * deviceCount).toFixed(2)}
@@ -1584,7 +1594,7 @@ const BillingPage = () => {
                             '&:hover': { transform: 'translateY(-2px)' }
                         }}
                     >
-                        {(bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? 'RENEW SUBSCRIPTION' : 'ACTIVATE FLEET SENTRY'}
+                        {(bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? 'Renew Plan' : 'Activate Plan'}
                     </Button>
                     </Box>
                 </Paper>
@@ -1789,10 +1799,10 @@ const BillingPage = () => {
                 />
                 <Button
                   variant="contained"
-                  onClick={handleUpdateSovereignSettings}
+                  onClick={handleUpdateAdminSettings}
                   sx={{ borderRadius: '12px', fontWeight: 900, px: 4 }}
                 >
-                  SAVE GLOBAL CONFIGURATION
+                  Save Settings
                 </Button>
               </Box>
             </Grid>
@@ -1812,11 +1822,11 @@ const BillingPage = () => {
           }}
         >
           <Typography variant="h5" fontWeight={900} sx={{ mb: 4, color: '#1e293b' }}>
-            REAL-TIME PLATFORM HEALTH
+            System Health
           </Typography>
           <Grid container spacing={4}>
             {[
-              { label: 'SaaS API Engine', value: systemStats?.status || 'Active', color: '#10b981' },
+              { label: 'API Status', value: systemStats?.status || 'Active', color: '#10b981' },
               { label: 'Database (Postgres)', value: systemStats?.db || 'Connected', color: '#10b981' },
               { label: 'Traccar Core', value: systemStats?.traccar || 'Running', color: '#10b981' },
               { label: 'CPU Load', value: `${systemStats?.cpu?.[0]?.toFixed(2) || '0.00'}`, color: '#3b82f6' },
@@ -1858,7 +1868,7 @@ const BillingPage = () => {
           }}
         >
           <Typography variant="h5" fontWeight={900} sx={{ mb: 4, color: '#1e293b' }}>
-            SOVEREIGN SECRETS & API COMMAND
+            API Keys & External Services
           </Typography>
           <Grid container spacing={4}>
             <Grid item xs={12} md={6}>
@@ -1917,10 +1927,10 @@ const BillingPage = () => {
               variant="contained"
               size="large"
               startIcon={<SaveIcon />}
-              onClick={handleUpdateSovereignSettings}
+              onClick={handleUpdateAdminSettings}
               sx={{ borderRadius: '16px', fontWeight: 900, px: 6, py: 1.5 }}
             >
-              SAVE SOVEREIGN CONFIGURATION
+              Save Configuration
             </Button>
           </Box>
         </Paper>
@@ -1944,7 +1954,7 @@ const BillingPage = () => {
         }}
       >
         <DialogTitle sx={{ fontWeight: 900, fontSize: '1.5rem', color: '#0f172a' }}>
-          MANAGE CLIENT: {editingUser?.email}
+          Manage User: {editingUser?.email}
         </DialogTitle>
         <DialogContent sx={{ p: 4 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
@@ -2013,7 +2023,7 @@ const BillingPage = () => {
                 onClick={handleManualUserUpdate}
                 sx={{ borderRadius: '12px', px: 4, fontWeight: 900, bgcolor: '#0f172a', '&:hover': { bgcolor: '#000' } }}
             >
-                SAVE CHANGES
+                Save Changes
             </Button>
         </DialogActions>
       </Dialog>
@@ -2028,9 +2038,9 @@ const BillingPage = () => {
       {admin && tab === 8 && (
         <Paper sx={{ p: 4, borderRadius: '24px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4, alignItems: 'center' }}>
-            <Typography variant="h5" fontWeight={900} sx={{ color: '#0f172a' }}>BILLING PLAN ARCHITECTURE</Typography>
+            <Typography variant="h5" fontWeight={900} sx={{ color: '#0f172a' }}>Billing Plans</Typography>
             <Button variant="contained" startIcon={<StarsIcon />} sx={{ borderRadius: '12px', fontWeight: 900, bgcolor: '#0f172a' }}>
-              NEW SOVEREIGN PLAN
+              New Plan
             </Button>
           </Box>
           <Grid container spacing={3}>
@@ -2078,7 +2088,7 @@ const BillingPage = () => {
         onClose={() => setEditingPlan(null)}
         PaperProps={{ sx: { borderRadius: '25px', background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' } }}
       >
-        <DialogTitle sx={{ fontWeight: 900, color: '#0f172a' }}>EDIT BILLING PLAN</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 900, color: '#0f172a' }}>Edit Billing Plan</DialogTitle>
         <DialogContent>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
                 <TextField 
@@ -2117,7 +2127,7 @@ const BillingPage = () => {
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
             <Button onClick={() => setEditingPlan(null)} sx={{ color: '#64748b', fontWeight: 700 }}>CANCEL</Button>
-            <Button variant="contained" onClick={handleUpdatePlan} sx={{ fontWeight: 900, borderRadius: '12px', bgcolor: '#0f172a', '&:hover': { bgcolor: '#000' } }}>SAVE CHANGES</Button>
+            <Button variant="contained" onClick={handleUpdatePlan} sx={{ fontWeight: 900, borderRadius: '12px', bgcolor: '#0f172a', '&:hover': { bgcolor: '#000' } }}>Save Changes</Button>
         </DialogActions>
       </Dialog>
 
@@ -2135,7 +2145,7 @@ const BillingPage = () => {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
             <Typography variant="h5" fontWeight={900} sx={{ color: '#0f172a', display: 'flex', alignItems: 'center', gap: 2 }}>
                 <SecurityIcon sx={{ fontSize: 32, color: '#3b82f6' }} />
-                SOVEREIGN SECURITY & ACCESS HUB
+                Security & Access Control
             </Typography>
             <Button 
                 variant="outlined" 
@@ -2144,23 +2154,23 @@ const BillingPage = () => {
                 sx={{ borderRadius: '12px', fontWeight: 900, borderColor: '#e2e8f0', color: '#64748b' }}
                 disabled={securityLoading}
             >
-                REFRESH AUDIT
+                Refresh
             </Button>
           </Box>
           
           <Grid container spacing={4}>
             <Grid item xs={12} md={7}>
                 <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: '#1e293b' }}>
-                    <DnsIcon color="primary" sx={{ fontSize: 20 }} /> ACTIVE SOVEREIGN SESSIONS
+                    <DnsIcon color="primary" sx={{ fontSize: 20 }} /> Active Sessions
                 </Typography>
                 <TableContainer component={Paper} sx={{ bgcolor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: 'none' }}>
                     <Table size="small">
                         <TableHead>
                             <TableRow sx={{ '& th': { fontWeight: 900, color: '#64748b', py: 2 } }}>
-                                <TableCell>AUTHORIZED DEVICE</TableCell>
-                                <TableCell>IP / SOURCE</TableCell>
-                                <TableCell>CREATED</TableCell>
-                                <TableCell align="right">ACTION</TableCell>
+                                <TableCell>Device</TableCell>
+                                <TableCell>IP Address</TableCell>
+                                <TableCell>Login Time</TableCell>
+                                <TableCell align="right">Action</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -2176,7 +2186,7 @@ const BillingPage = () => {
                                             onClick={() => handleRevokeSession(session.id)}
                                             sx={{ fontWeight: 900, borderRadius: '8px' }}
                                         >
-                                            TERMINATE
+                                            Logout
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -2192,17 +2202,17 @@ const BillingPage = () => {
 
                 <Paper sx={{ p: 3, mt: 3, borderRadius: '20px', background: '#f0f9ff', border: '1px solid #e0f2fe' }}>
                     <Typography variant="subtitle2" sx={{ color: '#0369a1', fontWeight: 900, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <VpnLockIcon sx={{ fontSize: 18 }} /> SOVEREIGN GOVERNANCE POLICY
+                        <VpnLockIcon sx={{ fontSize: 18 }} /> Security Policy
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#075985', opacity: 0.8 }}>
-                        Inactivity timeout is currently enforced at <strong>15 Minutes</strong>. All administrative ghosting events are cryptographically signed and logged for compliance auditing.
+                        Inactivity timeout is currently enforced at <strong>15 Minutes</strong>. All administrative viewing events are cryptographically signed and logged for compliance auditing.
                     </Typography>
                 </Paper>
             </Grid>
             
             <Grid item xs={12} md={5}>
                 <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: '#1e293b' }}>
-                    <HistoryIcon color="secondary" sx={{ fontSize: 20 }} /> ACCESS RECONNAISSANCE
+                    <HistoryIcon color="secondary" sx={{ fontSize: 20 }} /> Login History
                 </Typography>
                 <Box sx={{ background: '#f8fafc', p: 2, borderRadius: '16px', border: '1px solid #e2e8f0', maxHeight: 450, overflowY: 'auto' }}>
                     {loginHistory.map((entry, idx) => (
@@ -2240,7 +2250,7 @@ const BillingPage = () => {
         fullWidth
         PaperProps={{ sx: { borderRadius: '25px', background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' } }}
       >
-        <DialogTitle sx={{ fontWeight: 900, color: '#0f172a' }}>ONBOARD NEW CLIENT</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 900, color: '#0f172a' }}>Add New User</DialogTitle>
         <DialogContent>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
                 <TextField 
@@ -2266,7 +2276,7 @@ const BillingPage = () => {
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
             <Button onClick={() => setShowOnboardDialog(false)} sx={{ color: '#64748b', fontWeight: 700 }}>CANCEL</Button>
-            <Button variant="contained" onClick={handleOnboard} sx={{ fontWeight: 900, borderRadius: '12px', bgcolor: '#0f172a', '&:hover': { bgcolor: '#000' } }}>START ONBOARDING</Button>
+            <Button variant="contained" onClick={handleOnboard} sx={{ fontWeight: 900, borderRadius: '12px', bgcolor: '#0f172a', '&:hover': { bgcolor: '#000' } }}>Add User</Button>
         </DialogActions>
       </Dialog>
 
@@ -2276,10 +2286,10 @@ const BillingPage = () => {
         onClose={() => setShowRoleDialog(false)}
         PaperProps={{ sx: { borderRadius: '25px', background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' } }}
       >
-        <DialogTitle sx={{ fontWeight: 900, color: '#0f172a' }}>UPDATE USER ROLE</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 900, color: '#0f172a' }}>Update User Role</DialogTitle>
         <DialogContent>
             <Typography variant="body2" sx={{ mb: 3, opacity: 0.7 }}>
-                Elevate or demote <strong>{targetUser?.email}</strong>.
+                Change role for <strong>{targetUser?.email}</strong>.
             </Typography>
             <Select
                 fullWidth
@@ -2306,7 +2316,7 @@ const BillingPage = () => {
         fullWidth
         PaperProps={{ sx: { borderRadius: '25px', background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' } }}
       >
-        <DialogTitle sx={{ fontWeight: 900, color: '#0f172a' }}>BULK DEVICE PROVISIONING</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 900, color: '#0f172a' }}>Add Multiple Devices</DialogTitle>
         <DialogContent>
             <Typography variant="body2" sx={{ mb: 2, opacity: 0.7 }}>
                 Enter devices for <strong>{targetUser?.email}</strong> (one per line).
@@ -2333,7 +2343,7 @@ const BillingPage = () => {
                     startIcon={provisioning && <CircularProgress size={20} color="inherit" />}
                     sx={{ borderRadius: '12px', fontWeight: 900, bgcolor: '#3b82f6' }}
                 >
-                    {provisioning ? 'PROVISIONING...' : 'START IMPORT'}
+                    {provisioning ? 'Adding...' : 'Add Devices'}
                 </Button>
             </Box>
         </DialogContent>
@@ -2347,7 +2357,7 @@ const BillingPage = () => {
         PaperProps={{ sx: { borderRadius: '25px', background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' } }}
       >
         <DialogTitle sx={{ fontWeight: 900, display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#0f172a' }}>
-            AUDIT EVENT DETAILS
+            Log Details
             <Chip label={selectedAuditLog?.action} size="small" sx={{ fontWeight: 900, bgcolor: '#f1f5f9', color: '#475569' }} />
         </DialogTitle>
         <DialogContent>
@@ -2362,7 +2372,7 @@ const BillingPage = () => {
                 <Typography variant="body1" fontWeight={700} sx={{ color: '#1e293b' }}>{selectedAuditLog?.user?.email || selectedAuditLog?.userId || 'N/A'}</Typography>
             </Box>
             
-            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mb: 1 }}>STRUCTURED EVENT DATA</Typography>
+            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mb: 1 }}>Details</Typography>
             <Paper sx={{ p: 2, background: 'black', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: 300, overflow: 'auto' }}>
                 <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#4ade80', fontSize: '0.85rem', fontFamily: 'monospace' }}>
                     {(() => {

@@ -15,7 +15,8 @@ const {
   updatePlan,
   createOrder,
   demoSettle,
-  handleWebhook
+  handleWebhook,
+  verifyPayment
 } = require('../controllers/billingController');
 const { authenticateToken, requireRole } = require('../middleware/authMiddleware');
 
@@ -23,6 +24,7 @@ const { authenticateToken, requireRole } = require('../middleware/authMiddleware
 router.get('/my-bill', authenticateToken, getMyBill);
 router.post('/demo-settle', authenticateToken, demoSettle);
 router.post('/create-order', authenticateToken, createOrder);
+router.post('/verify', authenticateToken, verifyPayment);
 
 // Webhook (Public, signature verified in controller)
 router.post('/webhook', handleWebhook);

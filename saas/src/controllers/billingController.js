@@ -333,7 +333,7 @@ const settleCash = async (req, res) => {
       }
     });
 
-    res.json({ message: 'Sovereign Settle Success. User re-activated.' });
+    res.json({ message: 'Manual payment processed. User re-activated.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -584,6 +584,86 @@ const handleWebhook = async (req, res) => {
   }
 };
 
+const verifyPayment = async (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
+  const userId = req.user.userId;
+
+  try {
+    const settings = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
+    const secret = settings?.razorpaySecret || process.env.RAZORPAY_KEY_SECRET;
+
+    if (!secret) {
+        throw new Error('Payment gateway is not configured (missing secret).');
+    }
+
+    const generated_signature = crypto
+      .createHmac('sha256', secret)
+      .update(razorpay_order_id + "|" + razorpay_payment_id)
+      .digest('hex');
+
+    if (generated_signature !== razorpay_signature) {
+      return res.status(400).json({ error: 'Transaction signature mismatch. Security breach blocked.' });
+    }
+
+    // Process successful payment
+    const payment = await prisma.payment.findFirst({
+        where: { razorpayOrderId: razorpay_order_id, status: 'PENDING' },
+        include: { user: { include: { vehicles: true } } }
+    });
+
+    if (!payment) {
+        return res.status(404).json({ error: 'Order not found or already processed.' });
+    }
+
+    const planId = payment.planId || 'BASIC_MONTHLY';
+    const plans = await getPlans();
+    const plan = plans.find(p => p.id === planId) || plans[0];
+    const days = plan.days || 30;
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+    const invoiceId = await generateInvoiceNumber();
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId: payment.userId,
+        planId: plan.id,
+        price: payment.amount,
+        status: 'ACTIVE',
+        deviceCount: payment.user.vehicles.length,
+        expiresAt,
+        invoiceId
+      }
+    });
+
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: 'CAPTURED',
+        razorpayPaymentId: razorpay_payment_id,
+        subscriptionId: subscription.id
+      }
+    });
+
+    await prisma.user.update({
+      where: { id: payment.userId },
+      data: { isActive: true }
+    });
+
+    // Sync with Traccar
+    if (payment.user.geosurepathUserId) {
+        await geosurepathService.updateUser(payment.user.geosurepathUserId, { disabled: false })
+          .catch(e => console.error('[VerifyPayment] Traccar sync failed:', e.message));
+    }
+
+    res.json({ message: 'Payment verified and subscription activated.', subscription });
+
+  } catch (err) {
+    console.error('[VerifyPayment Error]', err);
+    res.status(500).json({ error: 'Failed to verify payment.' });
+  }
+};
+
 module.exports = {
   getMyBill,
   adminUpdateRegistration,
@@ -595,5 +675,6 @@ module.exports = {
   updatePlan,
   getPlans,
   createOrder,
-  handleWebhook
+  handleWebhook,
+  verifyPayment
 };

@@ -240,7 +240,7 @@ exports.getAdvancedStats = async (req, res) => {
   }
 };
 
-// Get Sovereign Audit Logs
+// Get System Audit Logs
 exports.getAuditLogs = async (req, res) => {
   try {
     const logs = await prisma.auditLog.findMany({
@@ -300,7 +300,7 @@ exports.adjustExpiry = async (req, res) => {
       ipAddress: req.ip
     });
 
-    res.json({ message: `VIP Override active. Account secured for another ${extensionDays} days.` });
+    res.json({ message: `Access granted. Account active for another ${extensionDays} days.` });
   } catch (error) {
     res.status(500).json({ error: 'Failed to adjust expiry.' });
   }
@@ -352,7 +352,7 @@ exports.updateSettings = async (req, res) => {
       data
     });
 
-    res.json({ message: 'Sovereign Configuration Updated Successfully' });
+    res.json({ message: 'Configuration settings updated successfully' });
 
     // Audit Log
     logAction({
@@ -539,7 +539,7 @@ exports.deletePlan = async (req, res) => {
   }
 };
 
-// NEW: Impersonation Engine (Ghosting)
+// NEW: Administrative Session Proxy (View as User)
 exports.impersonateUser = async (req, res) => {
   const { userId } = req.body;
   try {
@@ -572,7 +572,7 @@ exports.impersonateUser = async (req, res) => {
     logAction({
       adminId: req.user.userId,
       userId: targetUser.id,
-      action: AUDIT_ACTIONS.GHOST_USER_SESSION,
+      action: AUDIT_ACTIONS.ADMIN_VIEW_USER_SESSION,
       details: { target: targetUser.email, reason: 'Administrative Support' },
       ipAddress: req.ip
     });
@@ -592,12 +592,12 @@ exports.exitImpersonation = async (req, res) => {
         logAction({
             adminId: req.user.impersonatedBy,
             userId: req.user.userId,
-            action: AUDIT_ACTIONS.EXIT_GHOST_SESSION,
+            action: AUDIT_ACTIONS.EXIT_ADMIN_VIEW_SESSION,
             details: { message: 'Admin exited ghost session' },
             ipAddress: req.ip
         });
 
-        res.json({ message: 'Ghost session terminated. Returning to sovereign authority.' });
+        res.json({ message: 'Session terminated. Returning to administrator view.' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to exit impersonation.' });
     }
@@ -643,7 +643,7 @@ exports.createUser = async (req, res) => {
     // 4. Send Welcome Email
     emailQueue.add('welcome-email', {
       to: user.email,
-      subject: 'Welcome to GeoSurePath - Sovereign Onboarding',
+      subject: 'Welcome to GeoSurePath - Admin Onboarding',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
           <h2 style="color: #3b82f6;">Welcome to GeoSurePath</h2>

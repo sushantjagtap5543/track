@@ -36,12 +36,12 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: 'center',
   },
   title: {
-    color: '#fff',
+    color: theme.palette.text.primary,
     fontWeight: 600,
     fontSize: '2rem',
   },
   subText: {
-    color: '#ffffff',
+    color: theme.palette.text.primary,
     fontSize: '1.05rem',
     fontWeight: 500,
     textAlign: 'center',
@@ -53,7 +53,7 @@ const useStyles = makeStyles()((theme) => ({
     left: theme.spacing(2),
     color: 'rgba(255, 255, 255, 0.5)',
     '&:hover': {
-      color: '#fff',
+      color: theme.palette.primary.main,
       background: 'rgba(255, 255, 255, 0.1)',
     },
   },
@@ -63,7 +63,11 @@ const useStyles = makeStyles()((theme) => ({
     fontSize: '1rem',
     fontWeight: 600,
     textTransform: 'none',
-    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
+    '&:hover': {
+      background: 'linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)',
+    },
   },
   footer: {
     display: 'flex',
@@ -145,6 +149,16 @@ const RegisterPage = () => {
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
+        // Trigger welcome email
+        try {
+          await fetch('/api/auth/welcome-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+        } catch (e) {
+          console.warn('Welcome email failed', e);
+        }
         setErrorText('Registration Successful! Redirecting to login...');
         setSnackbarSeverity('success');
         setSnackbarOpen(true);

@@ -4,9 +4,11 @@ import {
   TextField,
   Typography,
   Snackbar,
+  Alert,
   IconButton,
   Link,
   CircularProgress,
+  InputAdornment,
 } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useTheme } from '@mui/material/styles';
@@ -30,13 +32,13 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: 'center',
   },
   title: {
-    color: '#ffffff',
+    color: theme.palette.text.primary,
     fontWeight: 700,
     fontSize: '2.2rem',
     textShadow: '0 2px 4px rgba(0,0,0,0.5)',
   },
   subText: {
-    color: '#ffffff',
+    color: theme.palette.text.primary,
     fontSize: '1.05rem',
     fontWeight: 500,
     textAlign: 'center',
@@ -58,7 +60,11 @@ const useStyles = makeStyles()((theme) => ({
     fontSize: '1rem',
     fontWeight: 600,
     textTransform: 'none',
-    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
+    '&:hover': {
+      background: 'linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)',
+    },
   },
   footer: {
     display: 'flex',
@@ -86,11 +92,20 @@ const ResetPasswordPage = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
   const handleSubmit = useCatch(async (event) => {
     event.preventDefault();
+    setPasswordError('');
+    if (token && password !== confirmPassword) {
+      setPasswordError('Passwords do not match. Please try again.');
+      return;
+    }
     setLoading(true);
     try {
       if (!token) {
@@ -98,6 +113,8 @@ const ResetPasswordPage = () => {
           method: 'POST',
           body: new URLSearchParams(`email=${encodeURIComponent(email)}`),
         });
+        setSnackbarMessage('Password reset email sent. Please check your inbox.');
+        setSnackbarSeverity('success');
       } else {
         await fetchOrThrow('/api/password/update', {
           method: 'POST',
@@ -105,7 +122,13 @@ const ResetPasswordPage = () => {
             `token=${encodeURIComponent(token)}&password=${encodeURIComponent(password)}`,
           ),
         });
+        setSnackbarMessage('Password updated successfully. You can now log in.');
+        setSnackbarSeverity('success');
       }
+      setSnackbarOpen(true);
+    } catch (e) {
+      setSnackbarMessage(e.message || 'Something went wrong. Please try again.');
+      setSnackbarSeverity('error');
       setSnackbarOpen(true);
     } finally {
       setLoading(false);
@@ -120,51 +143,73 @@ const ResetPasswordPage = () => {
 
       <form className={classes.container} onSubmit={handleSubmit}>
         <div className={classes.header}>
-          <Typography className={classes.title}>{t('loginReset')}</Typography>
+          <Typography className={classes.title}>
+            {!token ? 'Forgot Password?' : 'Set New Password'}
+          </Typography>
           <Typography className={classes.subText}>
             {!token
-              ? 'Enter your email to receive a password reset link'
-              : 'Enter your new password to secure your account'}
+              ? 'Enter your email and we will send you a reset link'
+              : 'Enter and confirm your new password below'}
           </Typography>
         </div>
+
+        {passwordError && (
+          <Alert severity="error" sx={{ borderRadius: '12px', fontWeight: 600 }}>
+            {passwordError}
+          </Alert>
+        )}
 
         {!token ? (
           <TextField
             required
             fullWidth
             type="email"
-            label={t('userEmail')}
+            label="Your Email"
             name="email"
             value={email}
             autoComplete="email"
             onChange={(event) => setEmail(event.target.value)}
           />
         ) : (
-          <TextField
-            required
-            fullWidth
-            label={t('userPassword')}
-            name="password"
-            value={password}
-            type="password"
-            autoComplete="new-password"
-            onChange={(event) => setPassword(event.target.value)}
-          />
+          <>
+            <TextField
+              required
+              fullWidth
+              label="New Password"
+              name="password"
+              value={password}
+              type="password"
+              autoComplete="new-password"
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <TextField
+              required
+              fullWidth
+              label="Confirm New Password"
+              name="confirmPassword"
+              value={confirmPassword}
+              type="password"
+              autoComplete="new-password"
+              error={!!confirmPassword && password !== confirmPassword}
+              helperText={confirmPassword && password !== confirmPassword ? 'Passwords do not match' : ''}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+            />
+          </>
         )}
         <Button
           variant="contained"
           color="primary"
           className={classes.resetButton}
           type="submit"
-          disabled={loading}
+          disabled={loading || (!!token && (!password || password !== confirmPassword))}
           fullWidth
           startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
         >
-          {loading ? 'Processing...' : t('loginReset')}
+          {loading ? 'Please wait...' : (!token ? 'Send Reset Link' : 'Update Password')}
         </Button>
 
         <div className={classes.footer}>
-          <Typography variant="body1" sx={{ color: '#ffffff', fontSize: '1rem', fontWeight: 500 }}>
+          <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '1rem', fontWeight: 500 }}>
             Remembered your password?{' '}
             <Link
               className={classes.loginLink}
@@ -184,10 +229,13 @@ const ResetPasswordPage = () => {
       </form>
       <Snackbar
         open={snackbarOpen}
-        onClose={() => navigate('/login')}
-        autoHideDuration={snackBarDurationShortMs}
-        message={!token ? t('loginResetSuccess') : t('loginUpdateSuccess')}
-      />
+        onClose={() => { setSnackbarOpen(false); if (snackbarSeverity === 'success') navigate('/login'); }}
+        autoHideDuration={4000}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} variant="filled" sx={{ width: '100%', borderRadius: '12px', fontWeight: 700 }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </LoginLayout>
   );
 };

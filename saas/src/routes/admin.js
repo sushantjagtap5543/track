@@ -23,7 +23,7 @@ router.post('/users', adminController.createUser);
 router.post('/users/role', adminController.updateUserRole);
 router.post('/users/bulk-devices', adminController.bulkCreateDevices);
 
-// Sovereign Management
+// Administrative Management
 router.get('/settings', adminController.getSettings);
 router.post('/settings', adminController.updateSettings);
 router.get('/health/full', adminController.getFullStatus);
