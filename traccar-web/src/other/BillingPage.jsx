@@ -163,51 +163,35 @@ const BillingPage = () => {
   });
   const admin = traccarAdmin || saasRole === 'ADMIN';
   const navigate = useNavigate();
-  const [tabIndex, setTabIndex] = useState(() => {
-    const saved = localStorage.getItem('billing_tab_index');
-    return saved ? parseInt(saved, 10) : 0;
-  });
-  useEffect(() => {
-    localStorage.setItem('billing_tab_index', tabIndex);
-  }, [tabIndex]);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
-  const [loading, setLoading] = useState(true);
+  // --- STATE LIFTED TO TOP ---
+  const [tab, setTab] = useState(parseInt(localStorage.getItem('billing_tab_index') || '0', 10));
   const [bill, setBill] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [settling, setSettling] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [analytics, setAnalytics] = useState(null);
   const [ledger, setLedger] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [settling, setSettling] = useState(false);
-  const [gatewayLink, setGatewayLink] = useState('');
-  const [selectedPlan, setSelectedPlan] = useState('monthly');
-  // eslint-disable-next-line no-unused-vars
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-
-  // --- NEW: ONBOARDING STATE ---
-  const [showOnboardDialog, setShowOnboardDialog] = useState(false);
   const [onboardData, setOnboardData] = useState({ name: '', email: '', password: '', role: 'CLIENT' });
   const [onboarding, setOnboarding] = useState(false);
-
-  // --- NEW: ROLE & DEVICE PROVISIONING STATE ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showOnboardDialog, setShowOnboardDialog] = useState(false);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [targetUser, setTargetUser] = useState(null);
   const [newRole, setNewRole] = useState('CLIENT');
-  
-  const [showProvisionDialog, setShowProvisionDialog] = useState(false);
-  const [provisionText, setProvisionText] = useState(''); // "Name,UniqueId\nName2,UniqueId2"
+  const [provisionText, setProvisionText] = useState('');
   const [provisioning, setProvisioning] = useState(false);
   const [systemStats, setSystemStats] = useState(null);
-  const [adminSettings, setAdminSettings] = useState({
+  const [adminSettings, setAdminSettings] = useState({ 
+    razorpayId: '', 
     paymentLink: '',
-    razorpayId: '',
-    razorpaySecret: '',
-    razorpayWebhookSecret: '',
-    firebaseConfig: '',
-    openrouterKey: '',
-    supportEmail: '',
+    onboardingEmailEnabled: true 
   });
+  const [showProvisionDialog, setShowProvisionDialog] = useState(false);
+
   const [plans, setPlans] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({ planId: '', status: '', expiresAt: '' });
@@ -215,7 +199,15 @@ const BillingPage = () => {
   const [lastActivity, setLastActivity] = useState(Date.now());
   const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 Minutes
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const [mySessions, setMySessions] = useState([]);
+  const [loginHistory, setLoginHistory] = useState([]);
+  const [securityLoading, setSecurityLoading] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [loginMode, setLoginMode] = useState(0); 
 
+  // --- HELPERS LIFTED AFTER STATE ---
   function showFeedback(message, severity = 'success') {
     setSnackbar({ open: true, message, severity });
   }
@@ -233,10 +225,6 @@ const BillingPage = () => {
     setSettling(false);
     navigate('/login');
   }
-
-  const [mySessions, setMySessions] = useState([]);
-  const [loginHistory, setLoginHistory] = useState([]);
-  const [securityLoading, setSecurityLoading] = useState(false);
 
   // --- SOVEREIGN RE-ORDERED HELPERS (HOISTED) ---
 
@@ -669,7 +657,7 @@ const BillingPage = () => {
     }
   }
 
-  // --- SOVEREIGN SAFE CALCS ---
+  // SAFE CALCS
   const currentPlan = bill?.plans?.find((p) => p.id === selectedPlan) || bill?.plans?.[0];
   const deviceCount = bill?.devices?.length || 0;
   const planCost = (currentPlan?.price || 0) * deviceCount;
@@ -678,11 +666,6 @@ const BillingPage = () => {
   const filteredLedger = Array.isArray(ledger)
     ? ledger.filter((u) => u.email?.toLowerCase().includes(searchQuery.toLowerCase()))
     : [];
-
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [authError, setAuthError] = useState('');
-  const [loginMode, setLoginMode] = useState(0); // 0: Client, 1: Admin
 
   async function handleBillingLogin(e) {
     if (e) e.preventDefault();
