@@ -437,7 +437,7 @@ const BillingPage = () => {
       fetchAdminSettings();
     }
     
-    if (tabIndex === 9) {
+    if (tab === 9) {
         fetchSecurityData();
     }
 
@@ -456,7 +456,7 @@ const BillingPage = () => {
         .catch(() => {});
     }
     // eslint-disable-next-line @eslint-react/exhaustive-deps
-  }, [admin, tabIndex]);
+  }, [admin, tab]);
 
   // ✅ NEW: Session Heartbeat (Check token every 2 minutes)
   useEffect(() => {
@@ -955,8 +955,8 @@ const BillingPage = () => {
           }}
         >
           <Tabs
-            value={tabIndex}
-            onChange={(e, v) => setTabIndex(v)}
+            value={tab}
+            onChange={(e, v) => settab(v)}
             variant="fullWidth"
             sx={{
               '& .MuiTabs-indicator': { height: 4, borderRadius: '4px' },
@@ -984,7 +984,7 @@ const BillingPage = () => {
       )}
 
       {/* --- TAB 0: ANALYTICS HUB (SAAFE) --- */}
-      {admin && tabIndex === 0 && (
+      {admin && tab === 0 && (
         <Box>
           <Grid container spacing={3} sx={{ mb: 6 }}>
             <Grid item xs={12} md={2.4}>
@@ -1114,7 +1114,7 @@ const BillingPage = () => {
       )}
 
       {/* --- TAB 1: GLOBAL USER LEDGER --- */}
-      {admin && tabIndex === 1 && (
+      {admin && tab === 1 && (
         <Paper
           sx={{
             p: 4,
@@ -1292,7 +1292,7 @@ const BillingPage = () => {
       )}
 
       {/* --- TAB 2: AUDIT LOGS --- */}
-      {admin && tabIndex === 2 && (
+      {admin && tab === 2 && (
         <Paper
           sx={{
             p: 4,
@@ -1346,7 +1346,7 @@ const BillingPage = () => {
       )}
 
       {/* --- TAB 3: FLEET SETTLEMENT (User view or Admin view) --- */}
-      {(admin && tabIndex === 3) || (!admin && tabIndex === 0) ? (
+      {(admin && tab === 3) || (!admin && tab === 0) ? (
         <Paper
           elevation={3}
           sx={{
@@ -1590,7 +1590,7 @@ const BillingPage = () => {
       ) : null}
 
       {/* --- TAB 4: DATABASE & LOGS --- */}
-      {admin && tabIndex === 4 && (
+      {admin && tab === 4 && (
         <Paper
           sx={{
             p: 4,
@@ -1663,7 +1663,7 @@ const BillingPage = () => {
         </Paper>
       )}
       {/* --- TAB 5: COMMAND SETTINGS --- */}
-      {admin && tabIndex === 5 && (
+      {admin && tab === 5 && (
         <Paper
           sx={{
             p: 4,
@@ -1726,7 +1726,7 @@ const BillingPage = () => {
       )}
 
       {/* --- TAB 6: SYSTEM STATUS --- */}
-      {admin && tabIndex === 6 && (
+      {admin && tab === 6 && (
         <Paper
           sx={{
             p: 4,
@@ -1771,7 +1771,7 @@ const BillingPage = () => {
       )}
 
       {/* --- TAB 7: SECRETS MANAGER --- */}
-      {admin && tabIndex === 7 && (
+      {admin && tab === 7 && (
         <Paper
           sx={{
             p: 4,
@@ -1937,7 +1937,7 @@ const BillingPage = () => {
       />
 
       {/* --- TAB 8: PLAN MANAGEMENT --- */}
-      {admin && tabIndex === 8 && (
+      {admin && tab === 8 && (
         <Paper sx={{ p: 4, borderRadius: '24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4, alignItems: 'center' }}>
             <Typography variant="h5" fontWeight={900}>BILLING PLAN ARCHITECTURE</Typography>
@@ -1974,7 +1974,7 @@ const BillingPage = () => {
       )}
 
       {/* --- TAB 9: SECURITY & SESSIONS --- */}
-      {admin && tabIndex === 9 && (
+      {admin && tab === 9 && (
         <Paper
           sx={{
             p: 4,
@@ -2163,7 +2163,7 @@ const BillingPage = () => {
       </Dialog>
 
       {/* --- TAB 9: SECURITY & GOVERNANCE --- */}
-      {admin && tabIndex === 9 && (
+      {admin && tab === 9 && (
         <Box>
             <Typography variant="h4" fontWeight={900} sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
                 <SecurityIcon sx={{ fontSize: 40, color: '#3b82f6' }} />
