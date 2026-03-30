@@ -197,6 +197,7 @@ const LoginPage = () => {
 
   const [email, setEmail] = usePersistedState('loginEmail', '');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -415,9 +416,6 @@ const LoginPage = () => {
             >
               {loading ? 'Authenticating...' : t('loginLogin')}
             </Button>
-          </>
-        )}
-
         {openIdEnabled && (
           <Button
             onClick={() => handleOpenIdLogin()}
