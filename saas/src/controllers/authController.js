@@ -342,6 +342,16 @@ exports.resetPassword = async (req, res) => {
       data: { password: hashedPassword, resetToken: null, resetTokenExpires: null }
     });
 
+    // ✅ FIX: Sync password change to GeoSurePath
+    try {
+      if (user.geosurepathUserId) {
+        await geosurepathService.updateUser(user.id, { password: newPassword });
+        console.log(`[ResetPassword] Synchronized password for GeoSurePath user ${user.geosurepathUserId}`);
+      }
+    } catch (gsErr) {
+      console.error('[ResetPassword] GeoSurePath sync failed:', gsErr.message);
+    }
+
     res.json({ message: 'Password reset successful' });
   } catch (error) {
     res.status(500).json({ error: 'Error resetting password' });
@@ -364,6 +374,16 @@ exports.changePassword = async (req, res) => {
       where: { id: userId },
       data: { password: hashedPassword }
     });
+
+    // ✅ FIX: Sync password change to GeoSurePath 
+    try {
+      if (user.geosurepathUserId) {
+        await geosurepathService.updateUser(userId, { password: newPassword });
+        console.log(`[ChangePassword] Synchronized password for GeoSurePath user ${user.geosurepathUserId}`);
+      }
+    } catch (gsErr) {
+      console.error('[ChangePassword] GeoSurePath sync failed:', gsErr.message);
+    }
 
     res.json({ message: 'Password updated successfully' });
   } catch (error) {

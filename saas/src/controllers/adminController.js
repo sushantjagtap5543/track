@@ -4,6 +4,7 @@
 const os = require('os');
 const prisma = require('../lib/prisma');
 const geosurepathService = require('../services/geosurepath');
+const analyticsService = require('../services/analyticsService');
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
@@ -41,39 +42,15 @@ exports.getSystemHealth = async (req, res) => {
 // Get Dashboard Statistics (Enhanced for Business Analysis)
 exports.getStats = async (req, res) => {
   try {
-    const totalClients = await prisma.user.count({ where: { role: 'CLIENT', deletedAt: null } });
-    const totalVehicles = await prisma.vehicle.count();
+    const stats = await analyticsService.getSummaryStats();
     
-    // Calculate total revenue from completed payments (CAPTURED)
-    const payments = await prisma.payment.findMany({
-      where: { status: 'CAPTURED' },
-      select: { amount: true, createdAt: true }
-    });
-    const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
-
-    // 1. Revenue Projections (Next 30 Days)
-    const activeSubs = await prisma.subscription.findMany({
-      where: { status: 'ACTIVE' },
-      select: { price: true }
-    });
-    const projectedRevenue = activeSubs.reduce((sum, sub) => sum + sub.price, 0);
-
-    // 2. Status Distribution
-    const statusCounts = await prisma.subscription.groupBy({
-      by: ['status'],
-      _count: { _all: true }
-    });
-    const distribution = statusCounts.reduce((acc, curr) => {
-      acc[curr.status] = curr._count._all;
-      return acc;
-    }, {});
-
     res.json({ 
-      totalClients, 
-      totalVehicles, 
-      totalRevenue,
-      projectedRevenue,
-      distribution
+      totalClients: stats.totalClients, 
+      totalVehicles: stats.totalVehicles, 
+      totalRevenue: stats.totalRevenue,
+      projectedRevenue: stats.mrr,
+      distribution: stats.distribution,
+      planDistribution: stats.planDistribution || {} // ✅ New: Breakdown by plan
     });
   } catch (_error) {
     console.error('Stats error:', _error);
@@ -181,6 +158,16 @@ exports.bulkUpdateStatus = async (req, res) => {
     });
 
     res.json({ message: `Successfully ${isActive ? 'activated' : 'suspended'} ${userIds.length} users` });
+
+    // Audit Log for Bulk Action
+    prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        action: isActive ? 'BULK_ACTIVATE_USERS' : 'BULK_SUSPEND_USERS',
+        details: `Updated ${userIds.length} users: [${userIds.join(', ')}]`
+      }
+    }).catch(e => console.error('Bulk Audit fail:', e));
+
   } catch (error) {
     res.status(500).json({ error: 'Bulk status update failed' });
   }
@@ -206,38 +193,11 @@ exports.bulkDeleteUsers = async (req, res) => {
 // Get Advanced Analytics (MRR, Churn, Heatmap)
 exports.getAdvancedStats = async (req, res) => {
   try {
-    // 1. Calculate MRR (Filter out trials with price 0)
-    const activeSubscriptions = await prisma.subscription.findMany({
-      where: { status: 'ACTIVE', price: { gt: 0 } },
-      include: { plan: true }
-    });
-
-    const mrr = activeSubscriptions.reduce((sum, sub) => {
-      const monthlyPrice = sub.plan?.billingCycle === 'YEARLY' ? sub.price / 12 : sub.price;
-      return sum + monthlyPrice;
-    }, 0);
-
-    // 2. Calculate Churn Rate (Last 30 Days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const churnedUsers = await prisma.subscription.count({
-      where: {
-        status: 'EXPIRED',
-        updatedAt: { gte: thirtyDaysAgo }
-      }
-    });
-
-    const totalSubscribedUsers = await prisma.user.count({
-      where: {
-        subscriptions: { some: { status: 'ACTIVE' } }
-      }
-    });
-
-    const churnRate = totalSubscribedUsers > 0 ? (churnedUsers / (totalSubscribedUsers + churnedUsers)) * 100 : 0;
-
-    // 3. Get Heatmap Data (Vehicle Positions)
-    const heatmapData = await geosurepathService.getAllLatestPositions();
+    const [mrr, churnRate, heatmapData] = await Promise.all([
+      analyticsService.calculateMRR(),
+      analyticsService.calculateChurnRate(),
+      geosurepathService.getAllLatestPositions()
+    ]);
 
     res.json({
       mrr,
@@ -489,6 +449,15 @@ exports.updatePlan = async (req, res) => {
       data: { name, description, pricePerDevice, billingCycle }
     });
     res.json(plan);
+
+    // Audit Log
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        action: 'UPDATE_BILLING_PLAN',
+        details: `Plan ${name} updated. Price: ${pricePerDevice}, Cycle: ${billingCycle}`
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update plan' });
   }
@@ -501,6 +470,15 @@ exports.createPlan = async (req, res) => {
       data: { name, description, pricePerDevice, billingCycle }
     });
     res.json(plan);
+
+    // Audit Log
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        action: 'CREATE_BILLING_PLAN',
+        details: `New Plan: ${name}, Price: ${pricePerDevice}, Cycle: ${billingCycle}`
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to create plan' });
   }
@@ -511,6 +489,15 @@ exports.deletePlan = async (req, res) => {
   try {
     await prisma.plan.delete({ where: { id } });
     res.json({ message: 'Plan deleted successfully' });
+
+    // Audit Log
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        action: 'DELETE_BILLING_PLAN',
+        details: `Deleted plan ID: ${id}`
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete plan' });
   }

@@ -12,6 +12,7 @@ import SendIcon from '@mui/icons-material/Send';
 import DnsIcon from '@mui/icons-material/Dns';
 import HelpIcon from '@mui/icons-material/Help';
 import PaymentIcon from '@mui/icons-material/Payment';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import { useLocation } from 'react-router-dom';
@@ -119,6 +120,12 @@ const SettingsMenu = () => {
             )}
           </>
         )}
+        <MenuItem
+            title={admin ? 'Sovereign Hub' : 'Billing & Subscriptions'}
+            link="/billing"
+            icon={admin ? <AdminPanelSettingsIcon /> : <PaymentIcon />}
+            selected={location.pathname === '/billing'}
+        />
         {billingLink && (
           <MenuItem title={t('userBilling')} link={billingLink} icon={<PaymentIcon />} />
         )}

@@ -10,6 +10,7 @@
 
 const prisma = require('../lib/prisma');
 const geosurepathService = require('../services/geosurepath');
+const analyticsService = require('../services/analyticsService');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 
@@ -217,29 +218,20 @@ const getAllUsersLedger = async (req, res) => {
 
 const getAdminAnalytics = async (req, res) => {
   try {
-    const subscriptions = await prisma.subscription.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
-    const usersCount = await prisma.user.count();
-    const devicesCount = await prisma.vehicle.count();
-    const monthlyRevenue = {};
-    subscriptions.forEach((sub) => {
-      const m = sub.createdAt ? sub.createdAt.toISOString().slice(0, 7) : 'N/A';
-      monthlyRevenue[m] = (monthlyRevenue[m] || 0) + sub.price;
-    });
-    const latestMonth = Object.keys(monthlyRevenue).sort().reverse()[0] || 'N/A';
+    const stats = await analyticsService.getSummaryStats();
     const config = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
+    
     res.json({
       summary: {
-        totalRevenue: subscriptions.reduce((s, it) => s + it.price, 0),
-        latestMonth,
-        latestRevenue: latestMonth !== 'N/A' ? monthlyRevenue[latestMonth] : 0,
-        totalUsers: usersCount,
-        totalDevices: devicesCount,
-        approxCollection: devicesCount * 200,
-        churnRate: 2.5
+        totalRevenue: stats.totalRevenue,
+        latestMonth: stats.latestMonth,
+        latestRevenue: stats.latestRevenue,
+        totalUsers: stats.totalClients,
+        totalDevices: stats.totalVehicles,
+        approxCollection: stats.totalVehicles * (parseFloat(process.env.AVG_REVENUE_PER_DEVICE) || 200),
+        churnRate: stats.churnRate
       },
-      monthlyBreakdown: monthlyRevenue,
+      monthlyBreakdown: stats.monthlyBreakdown,
       config: config || { paymentLink: process.env.DEFAULT_PAYMENT_LINK || '#' }
     });
   } catch (err) {

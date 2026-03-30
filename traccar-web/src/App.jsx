@@ -62,8 +62,8 @@ const App = () => {
             const saasData = await saasSync.json();
             if (saasData.token) {
               window.localStorage.setItem('saas_token', saasData.token);
-              window.localStorage.setItem('saas_user', JSON.stringify(saasData));
-              window.localStorage.setItem('saas_role', saasData.role);
+              window.localStorage.setItem('saas_user', JSON.stringify(saasData.user));
+              window.localStorage.setItem('saas_role', saasData.user.role);
               window.location.reload();
               return null;
             }
@@ -75,9 +75,22 @@ const App = () => {
         // Network error or crash - redirect to login
         navigate('/login', { replace: true });
       }
+    } else {
+      // ✅ NEW: If user exists in Traccar, but saas_token is missing, try a background sync
+      const token = window.localStorage.getItem('saas_token');
+      if (!token) {
+        fetch('/api/auth/sync').then(res => res.json()).then(data => {
+            if (data.token) {
+                window.localStorage.setItem('saas_token', data.token);
+                window.localStorage.setItem('saas_user', JSON.stringify(data.user));
+                window.localStorage.setItem('saas_role', data.user.role);
+                console.log('[App] SaaS session synchronized in background');
+            }
+        }).catch(() => {});
+      }
     }
     return null;
-  }, []);
+  }, [user]);
 
   if (user == null) {
     return <Loader />;

@@ -154,7 +154,13 @@ const BillingPage = () => {
   });
   const admin = traccarAdmin || saasRole === 'ADMIN';
   const navigate = useNavigate();
-  const [tabIndex, setTabIndex] = useState(0);
+  const [tabIndex, setTabIndex] = useState(() => {
+    const saved = localStorage.getItem('billing_tab_index');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  useEffect(() => {
+    localStorage.setItem('billing_tab_index', tabIndex);
+  }, [tabIndex]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   const [loading, setLoading] = useState(true);
@@ -242,6 +248,20 @@ const BillingPage = () => {
     }
   };
 
+  const handleLogout = async () => {
+    setSettling(true);
+    localStorage.removeItem('saas_token');
+    localStorage.removeItem('saas_role');
+    localStorage.removeItem('saas_user');
+    localStorage.removeItem('billing_tab_index');
+    setSaasRole(null); // ✅ Immediate UI reset
+    try {
+        await fetch('/api/session', { method: 'DELETE' });
+    } catch (e) {}
+    setSettling(false);
+    navigate('/login');
+  };
+
   const fetchMyBill = async () => {
     try {
       setLoading(true);
@@ -275,6 +295,19 @@ const BillingPage = () => {
       fetchAnalyticsAndLedger();
       fetchFullSystemStatus();
       fetchAdminSettings();
+    } else if (!token) {
+      // ✅ NEW: Automatic Sync Attempt for already logged-in users
+      fetch('/api/auth/sync')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.token) {
+            localStorage.setItem('saas_token', data.token);
+            localStorage.setItem('saas_role', data.user.role);
+            localStorage.setItem('saas_user', JSON.stringify(data.user));
+            window.location.reload(); // Refresh to load data
+          }
+        })
+        .catch(() => {});
     }
     // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [admin]);
@@ -627,7 +660,7 @@ const BillingPage = () => {
                   Sovereign Hub
                 </Typography>
                 <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', mb: 4, fontStyle: 'italic' }}>
-                  "Precision Intelligence for Enterprise Fleet Controllers"
+                  Dashboard for Enterprise Fleet Controllers
                 </Typography>
               </>
             )}
@@ -718,7 +751,38 @@ const BillingPage = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 10 }}>
+    <Container maxWidth="xl" sx={{ mt: 4, mb: 10, position: 'relative' }}>
+      <Box sx={{ position: 'absolute', top: -10, right: 0, zIndex: 1000, display: 'flex', gap: 2 }}>
+        <Button
+            variant="outlined"
+            onClick={() => navigate('/')}
+            startIcon={<LinkIcon />}
+            sx={{
+                borderRadius: '12px',
+                fontWeight: 900,
+                color: 'rgba(59,130,246,0.6)',
+                borderColor: 'rgba(59,130,246,0.2)',
+                '&:hover': { color: '#3b82f6', borderColor: '#3b82f6', bgcolor: 'rgba(59,130,246,0.05)' }
+            }}
+        >
+            RETURN TO MAP
+        </Button>
+        <Button
+            variant="outlined"
+            onClick={handleLogout}
+            disabled={settling}
+            startIcon={settling ? <CircularProgress size={16} color="inherit" /> : <CancelIcon />}
+            sx={{
+                borderRadius: '12px',
+                fontWeight: 900,
+                color: 'rgba(255,255,255,0.4)',
+                borderColor: 'rgba(255,255,255,0.1)',
+                '&:hover': { color: '#f87171', borderColor: '#f87171', bgcolor: 'rgba(248,113,113,0.05)' }
+            }}
+        >
+            {settling ? 'DE-AUTHENTICATING...' : 'LOGOUT PORTAL'}
+        </Button>
+      </Box>
       {/* --- PRIMARY SOVEREIGN TABS --- */}
       {admin && (
         <Paper
@@ -813,6 +877,20 @@ const BillingPage = () => {
                     <Typography variant="h4" fontWeight={900} color={status === 'PAID' ? 'success.main' : status === 'GRACE' ? 'warning.main' : 'error.main'}>
                       {analytics?.distribution?.[status] || 0}
                     </Typography>
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+          </Paper>
+
+          <Paper sx={{ p: 4, borderRadius: '24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', mb: 4 }}>
+            <Typography variant="h6" fontWeight={900} sx={{ mb: 3 }}>SOVEREIGN PLAN PENETRATION</Typography>
+            <Grid container spacing={2}>
+              {Object.entries(analytics?.planDistribution || {}).map(([pId, count]) => (
+                <Grid item xs={6} md={3} key={pId}>
+                  <Box sx={{ p: 2, borderRadius: '16px', background: 'rgba(59,130,246,0.05)', textAlign: 'center', border: '1px solid rgba(59,130,246,0.1)' }}>
+                    <Typography variant="caption" sx={{ color: '#3b82f6', fontWeight: 900 }}>{pId.toUpperCase()}</Typography>
+                    <Typography variant="h4" fontWeight={900} color="white">{count} USERS</Typography>
                   </Box>
                 </Grid>
               ))}
