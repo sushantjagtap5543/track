@@ -25,6 +25,20 @@ async function initAdmin() {
           })
       ]);
 
+      // 1.5. TRACCAR DATABASE RESET (Raw SQL)
+      console.log("🔥 Purging all existing Traccar Entities (Devices, Geofences, Users)...");
+      try {
+          // Cascade delete from users will handle many relationships, but being explicit is safer
+          await prisma.$executeRawUnsafe(`DELETE FROM "public"."tc_user_device"`);
+          await prisma.$executeRawUnsafe(`DELETE FROM "public"."tc_device_geofence"`);
+          await prisma.$executeRawUnsafe(`DELETE FROM "public"."tc_devices"`);
+          await prisma.$executeRawUnsafe(`DELETE FROM "public"."tc_geofences"`);
+          await prisma.$executeRawUnsafe(`DELETE FROM "public"."tc_users" WHERE email != $1`, email);
+          console.log("✨ Traccar Engine data cleaned successfully.");
+      } catch (sqlError) {
+          console.warn("[Init] Traccar table purge skipped (tables might not exist yet):", sqlError.message);
+      }
+
       console.log("💎 Syncing SaaS Master Admin...");
       const hashed = await bcrypt.hash(password, 10);
       await prisma.user.upsert({
