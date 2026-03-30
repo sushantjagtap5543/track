@@ -10,7 +10,7 @@ const util = require('util');
 const { exec } = require('child_process');
 const execPromise = util.promisify(exec);
 const { logAction, AUDIT_ACTIONS } = require('../services/auditService');
-const { emailQueue } = require('../services/emailService'); // ✅ FIXED: Added missing import
+const { emailQueue } = require('../services/queue'); // ✅ FIXED: Pointing to correct service
 
 // Get System Health (CPU, Memory, Uptime)
 exports.getSystemHealth = async (req, res) => {
