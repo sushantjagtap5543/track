@@ -36,7 +36,7 @@ async function getPlans() {
   CACHED_PLANS = dbPlans.map((p) => {
     let days = p.billingCycle === 'MONTHLY' ? 30 : 365;
     // Handle intermediate plans based on ID or Name
-    if (p.id.includes('half') || p.name.includes('6 Month') || p.name.includes('Half')) {
+    if (p.id.includes('half') || p.name.includes('6 Month') || p.name.includes('Half') || p.name.includes('Safe Shield')) {
       days = 180;
     }
     return {

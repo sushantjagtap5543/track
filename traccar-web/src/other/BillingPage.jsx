@@ -791,8 +791,8 @@ const BillingPage = () => {
       <Box
         sx={{
           minHeight: '100vh',
-          background: '#0f172a',
-          color: 'white', // Enforce white text on dark bg
+          background: '#f8fafc', // Light Slate 50
+          color: '#1e293b', // Dark Slate 800
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -810,102 +810,86 @@ const BillingPage = () => {
             zIndex: 1,
             width: '100%',
             maxWidth: 450,
-            p: 4,
-            borderRadius: '40px',
-            background: 'rgba(30, 41, 59, 0.7)',
-            backdropFilter: 'blur(30px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            p: 5,
+            borderRadius: '35px',
+            background: '#ffffff',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.08)',
+            border: '1px solid #e2e8f0',
             textAlign: 'center',
           }}
         >
-          {/* Decorative Gradient Glow */}
+          {/* Subtle Decorative Element */}
           <Box
             sx={{
               position: 'absolute',
-              top: '-10%',
-              left: '-10%',
-              width: '40%',
-              height: '40%',
-              background: loginMode === 1 ? 'rgba(57, 130, 246, 0.2)' : 'rgba(74, 222, 128, 0.1)',
-              filter: 'blur(60px)',
-              borderRadius: '50%',
-              zIndex: 0,
+              top: -100,
+              right: -100,
+              width: 250,
+              height: 250,
+              background: 'radial-gradient(circle, rgba(59,130,246,0.05) 0%, transparent 70%)',
+              zIndex: -1
             }}
           />
 
           <Box sx={{ position: 'relative', zIndex: 1 }}>
-            <Tabs
-              value={loginMode}
-              onChange={(e, v) => setLoginMode(v)}
-              variant="fullWidth"
-              sx={{
-                mb: 4,
-                '& .MuiTabs-indicator': { height: 3, borderRadius: '4px', bgcolor: loginMode === 1 ? '#3b82f6' : '#10b981' },
-                '& .MuiTab-root': { color: 'rgba(255,255,255,0.4)', fontWeight: 800, py: 2 },
-                '& .Mui-selected': { color: '#fff !important' },
-              }}
-            >
-              <Tab icon={<ReceiptLongIcon />} label="CLIENT BILLING" />
-              <Tab icon={<VpnLockIcon />} label="ENTERPRISE ADMIN" />
-            </Tabs>
+          <Typography variant="h4" fontWeight={900} sx={{ color: '#0f172a', mb: 1, letterSpacing: '-1px' }}>
+            GeoSurePath
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#64748b', mb: 5, fontWeight: 600 }}>
+            SOVEREIGN BILLING & SUBSCRIPTION
+          </Typography>
 
-            {loginMode === 0 ? (
-              <>
-                <ReceiptLongIcon sx={{ fontSize: 60, color: '#10b981', mb: 1, filter: 'drop-shadow(0 0 10px rgba(16,185,129,0.3))' }} />
-                <Typography variant="h4" fontWeight={900} color="white" gutterBottom sx={{ letterSpacing: '-1px' }}>
-                  Billing Center
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 4, fontStyle: 'italic' }}>
-                  Manage invoices and fleet subscriptions.
-                </Typography>
-              </>
-            ) : (
-              <>
-                <VpnLockIcon sx={{ fontSize: 70, color: '#3b82f6', mb: 2, filter: 'drop-shadow(0 0 15px rgba(59,130,246,0.5))' }} />
-                <Typography variant="h3" fontWeight={900} color="white" gutterBottom sx={{ letterSpacing: '-2px', textTransform: 'uppercase' }}>
-                  Sovereign Hub
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', mb: 4, fontStyle: 'italic' }}>
-                  Dashboard for Enterprise Fleet Controllers
-                </Typography>
-              </>
-            )}
+          <Tabs
+            value={loginMode}
+            onChange={(e, v) => setLoginMode(v)}
+            centered
+            sx={{
+              mb: 4,
+              '& .MuiTabs-indicator': { height: 4, borderRadius: '2px', bgcolor: '#3b82f6' },
+              '& .MuiTab-root': { fontWeight: 800, fontSize: '0.85rem', color: '#94a3b8' },
+              '& .Mui-selected': { color: '#3b82f6 !important' },
+            }}
+          >
+            <Tab label="CLIENT ACCESS" />
+            <Tab label="ENTERPRISE ADMIN" />
+          </Tabs>
 
             <form onSubmit={handleBillingLogin}>
               <TextField
                 fullWidth
-                label="Registered Identity"
-                variant="outlined"
+                label={loginMode === 0 ? "Fleet Email / Login" : "Administrator ID"}
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
+                autoComplete="email" 
                 sx={{
-                  mb: 2,
+                  mb: 3,
                   '& .MuiOutlinedInput-root': {
-                    color: 'white',
-                    borderRadius: '20px',
-                    background: 'rgba(255,255,255,0.03)',
-                    '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
+                    color: '#1e293b',
+                    borderRadius: '16px',
+                    background: '#f8fafc',
+                    '& fieldset': { borderColor: '#e2e8f0' },
+                    '&:hover fieldset': { borderColor: '#cbd5e1' },
                   },
-                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)', fontWeight: 600 },
+                  '& .MuiInputLabel-root': { color: '#64748b', fontWeight: 600 },
                 }}
               />
               <TextField
                 fullWidth
-                label="Secure Access Key"
+                label="Secure Password"
                 type="password"
-                variant="outlined"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
+                autoComplete="current-password"
                 sx={{
                   mb: 3,
                   '& .MuiOutlinedInput-root': {
-                    color: 'white',
-                    borderRadius: '20px',
-                    background: 'rgba(255,255,255,0.03)',
-                    '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
+                    color: '#1e293b',
+                    borderRadius: '16px',
+                    background: '#f8fafc',
+                    '& fieldset': { borderColor: '#e2e8f0' },
+                    '&:hover fieldset': { borderColor: '#cbd5e1' },
                   },
-                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)', fontWeight: 600 },
+                  '& .MuiInputLabel-root': { color: '#64748b', fontWeight: 600 },
                 }}
               />
               {authError && (
@@ -919,23 +903,14 @@ const BillingPage = () => {
                 variant="contained"
                 size="large"
                 sx={{
-                  py: 2.5,
-                  borderRadius: '20px',
+                  py: 2.2,
+                  borderRadius: '16px',
                   fontWeight: 900,
-                  fontSize: '1rem',
-                  background: loginMode === 1 
-                    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' 
-                    : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  boxShadow: loginMode === 1 
-                    ? '0 10px 30px rgba(59,130,246,0.4)' 
-                    : '0 10px 30px rgba(16,185,129,0.3)',
-                  '&:hover': { 
-                    transform: 'translateY(-2px)',
-                    boxShadow: loginMode === 1 
-                      ? '0 15px 35px rgba(59,130,246,0.5)' 
-                      : '0 15px 35px rgba(16,185,129,0.4)' 
-                  },
-                  transition: 'all 0.3s ease',
+                  fontSize: '0.95rem',
+                  boxShadow: 'none',
+                  background: loginMode === 1 ? '#0f172a' : '#3b82f6',
+                  '&:hover': { background: loginMode === 1 ? '#000' : '#2563eb' },
+                  transition: 'all 0.2s ease',
                 }}
               >
                 {loginMode === 0 ? 'ENTER BILLING PORTAL' : 'INITIALIZE SOVEREIGN ACCESS'}
@@ -946,7 +921,7 @@ const BillingPage = () => {
               <Button
                 onClick={() => navigate('/login')}
                 variant="text"
-                sx={{ color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'none', '&:hover': { color: '#fff' } }}
+                sx={{ color: '#94a3b8', fontWeight: 700, textTransform: 'none', '&:hover': { color: '#3b82f6' } }}
               >
                 Return to Global Fleet Intelligence
               </Button>
@@ -957,7 +932,7 @@ const BillingPage = () => {
     );
   }
   return (
-    <Box sx={{ minHeight: '100vh', background: '#0f172a', color: 'white', py: 4 }}>
+    <Box sx={{ minHeight: '100vh', background: '#f8fafc', color: '#1e293b', py: 4 }}>
     <Container maxWidth="xl" sx={{ position: 'relative' }}>
       <Box sx={{ position: 'absolute', top: -10, right: 0, zIndex: 1000, display: 'flex', gap: 2 }}>
         <Button
@@ -1034,55 +1009,55 @@ const BillingPage = () => {
         <Box>
           <Grid container spacing={3} sx={{ mb: 6 }}>
             <Grid item xs={12} md={2.4}>
-              <Card sx={{ borderRadius: '24px', background: 'linear-gradient(135deg, rgba(59,130,246,0.2) 0%, rgba(29,78,216,0.1) 100%)', border: '1px solid #3b82f6' }}>
+              <Card sx={{ borderRadius: '24px', background: '#ffffff', border: '1px solid #3b82f6', boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.1)' }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="caption" sx={{ color: '#3b82f6', fontWeight: 900 }}>TOTAL REVENUE</Typography>
-                  <Typography variant="h4" fontWeight={900}>₹{analytics?.totalRevenue || 0}</Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ color: '#0f172a' }}>₹{analytics?.totalRevenue || 0}</Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} md={2.4}>
-              <Card sx={{ borderRadius: '24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <Card sx={{ borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                 <CardContent sx={{ p: 3 }}>
-                  <Typography variant="caption" sx={{ opacity: 0.6 }}>PROJECTED (30D)</Typography>
-                  <Typography variant="h4" fontWeight={900} color="primary.light">₹{analytics?.projectedRevenue || 0}</Typography>
+                  <Typography variant="caption" sx={{ color: '#64748b' }}>PROJECTED (30D)</Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ color: '#3b82f6' }}>₹{analytics?.projectedRevenue || 0}</Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} md={2.4}>
-              <Card sx={{ borderRadius: '24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <Card sx={{ borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                 <CardContent sx={{ p: 3 }}>
-                  <Typography variant="caption" sx={{ opacity: 0.6 }}>ACTIVE USERS</Typography>
-                  <Typography variant="h4" fontWeight={900}>{analytics?.totalClients || 0}</Typography>
+                  <Typography variant="caption" sx={{ color: '#64748b' }}>ACTIVE USERS</Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ color: '#1e293b' }}>{analytics?.totalClients || 0}</Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} md={2.4}>
-              <Card sx={{ borderRadius: '24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <Card sx={{ borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                 <CardContent sx={{ p: 3 }}>
-                  <Typography variant="caption" sx={{ opacity: 0.6 }}>FLEET SIZE</Typography>
-                  <Typography variant="h4" fontWeight={900}>{analytics?.totalVehicles || 0}</Typography>
+                  <Typography variant="caption" sx={{ color: '#64748b' }}>FLEET SIZE</Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ color: '#1e293b' }}>{analytics?.totalVehicles || 0}</Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} md={2.4}>
-              <Card sx={{ borderRadius: '24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <Card sx={{ borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                 <CardContent sx={{ p: 3 }}>
-                  <Typography variant="caption" sx={{ opacity: 0.6 }}>CHURN RISK</Typography>
-                  <Typography variant="h4" fontWeight={900} color="success.main">{analytics?.churnRate || 2.5}%</Typography>
+                  <Typography variant="caption" sx={{ color: '#64748b' }}>CHURN RISK</Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ color: '#10b981' }}>{analytics?.churnRate || 2.5}%</Typography>
                 </CardContent>
               </Card>
             </Grid>
           </Grid>
 
-          <Paper sx={{ p: 4, borderRadius: '24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', mb: 4 }}>
+          <Paper sx={{ p: 4, borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', mb: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6" fontWeight={900}>SOVEREIGN STATUS DISTRIBUTION</Typography>
+                <Typography variant="h6" fontWeight={900} sx={{ color: '#0f172a' }}>SOVEREIGN STATUS DISTRIBUTION</Typography>
                 <Button 
                     variant="contained" 
                     startIcon={<PersonAddIcon />}
                     onClick={() => setShowOnboardDialog(true)}
-                    sx={{ borderRadius: '12px', fontWeight: 800, bgcolor: '#3b82f6', '&:hover': { bgcolor: '#2563eb' } }}
+                    sx={{ borderRadius: '12px', fontWeight: 800, bgcolor: '#3b82f6', color: '#fff', '&:hover': { bgcolor: '#2563eb' } }}
                 >
                     ONBOARD NEW CLIENT
                 </Button>
@@ -1090,8 +1065,8 @@ const BillingPage = () => {
             <Grid container spacing={2}>
               {['PAID', 'GRACE', 'EXPIRED', 'PENDING'].map((status) => (
                 <Grid item xs={6} md={3} key={status}>
-                  <Box sx={{ p: 2, borderRadius: '16px', background: 'rgba(255,255,255,0.03)', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <Typography variant="caption" sx={{ opacity: 0.5, fontWeight: 900 }}>{status} CLIENTS</Typography>
+                  <Box sx={{ p: 2, borderRadius: '16px', background: '#f8fafc', textAlign: 'center', border: '1px solid #f1f5f9' }}>
+                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 900 }}>{status} CLIENTS</Typography>
                     <Typography variant="h4" fontWeight={900} color={status === 'PAID' ? 'success.main' : status === 'GRACE' ? 'warning.main' : 'error.main'}>
                       {analytics?.distribution?.[status] || 0}
                     </Typography>
@@ -1101,14 +1076,14 @@ const BillingPage = () => {
             </Grid>
           </Paper>
 
-          <Paper sx={{ p: 4, borderRadius: '24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', mb: 4 }}>
-            <Typography variant="h6" fontWeight={900} sx={{ mb: 3 }}>SOVEREIGN PLAN PENETRATION</Typography>
+          <Paper sx={{ p: 4, borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', mb: 4 }}>
+            <Typography variant="h6" fontWeight={900} sx={{ mb: 3, color: '#0f172a' }}>SOVEREIGN PLAN PENETRATION</Typography>
             <Grid container spacing={2}>
               {Object.entries(analytics?.planDistribution || {}).map(([pId, count]) => (
                 <Grid item xs={6} md={3} key={pId}>
-                  <Box sx={{ p: 2, borderRadius: '16px', background: 'rgba(59,130,246,0.05)', textAlign: 'center', border: '1px solid rgba(59,130,246,0.1)' }}>
-                    <Typography variant="caption" sx={{ color: '#3b82f6', fontWeight: 900 }}>{pId.toUpperCase()}</Typography>
-                    <Typography variant="h4" fontWeight={900} color="white">{count} USERS</Typography>
+                  <Box sx={{ p: 2, borderRadius: '16px', background: '#f0f9ff', textAlign: 'center', border: '1px solid #e0f2fe' }}>
+                    <Typography variant="caption" sx={{ color: '#0ea5e9', fontWeight: 900 }}>{pId.toUpperCase()}</Typography>
+                    <Typography variant="h4" fontWeight={900} sx={{ color: '#0369a1' }}>{count} USERS</Typography>
                   </Box>
                 </Grid>
               ))}
@@ -1218,8 +1193,8 @@ const BillingPage = () => {
               </TableHead>
               <TableBody>
                 {filteredLedger.map((u) => (
-                  <TableRow key={u.id} sx={{ '&:hover': { background: 'rgba(255,255,255,0.02)' } }}>
-                    <TableCell sx={{ fontWeight: 800 }}>
+                  <TableRow key={u.id} sx={{ '&:hover': { background: '#f8fafc' } }}>
+                    <TableCell sx={{ fontWeight: 800, borderBottom: '1px solid #f1f5f9' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         {u.email}
                         {u.isVIP && (
@@ -1984,37 +1959,41 @@ const BillingPage = () => {
 
       {/* --- TAB 8: PLAN MANAGEMENT --- */}
       {admin && tab === 8 && (
-        <Paper sx={{ p: 4, borderRadius: '24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <Paper sx={{ p: 4, borderRadius: '24px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4, alignItems: 'center' }}>
-            <Typography variant="h5" fontWeight={900}>BILLING PLAN ARCHITECTURE</Typography>
-            <Button variant="contained" startIcon={<StarsIcon />} sx={{ borderRadius: '12px', fontWeight: 900 }}>
+            <Typography variant="h5" fontWeight={900} sx={{ color: '#0f172a' }}>BILLING PLAN ARCHITECTURE</Typography>
+            <Button variant="contained" startIcon={<StarsIcon />} sx={{ borderRadius: '12px', fontWeight: 900, bgcolor: '#0f172a' }}>
               NEW SOVEREIGN PLAN
             </Button>
           </Box>
           <Grid container spacing={3}>
             {plans.map((plan) => (
               <Grid item xs={12} md={4} key={plan.id}>
-                <Card sx={{ borderRadius: '20px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', height: '100%' }}>
-                  <CardContent sx={{ p: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                      <Typography variant="h6" fontWeight={900}>{plan.name}</Typography>
-                      <Chip label={plan.billingCycle} size="small" sx={{ fontWeight: 900, bgcolor: 'rgba(59,130,246,0.1)', color: '#3b82f6' }} />
-                    </Box>
-                    <Typography variant="body2" sx={{ opacity: 0.6, mb: 3, height: 40, overflow: 'hidden' }}>{plan.description}</Typography>
-                    <Box sx={{ mb: 3 }}>
-                       <Typography variant="h3" fontWeight={900} sx={{ display: 'inline' }}>₹{plan.pricePerDevice}</Typography>
-                       <Typography variant="caption" sx={{ opacity: 0.5, ml: 1 }}>/ UNIT</Typography>
+                <Card sx={{ 
+                    borderRadius: '24px', 
+                    background: '#ffffff', 
+                    border: '1px solid #e2e8f0', 
+                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                    transition: 'transform 0.2s',
+                    '&:hover': { transform: 'translateY(-4px)' }
+                }}>
+                  <CardContent sx={{ p: 4 }}>
+                    <Typography variant="h5" fontWeight={900} sx={{ color: '#0f172a', mb: 1 }}>{plan.name}</Typography>
+                    <Typography variant="body2" sx={{ color: '#64748b', mb: 3, height: 40, overflow: 'hidden' }}>{plan.description}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 4 }}>
+                       <Typography variant="h3" fontWeight={900} sx={{ color: '#3b82f6' }}>₹{plan.pricePerDevice}</Typography>
+                       <Typography variant="caption" sx={{ color: '#94a3b8', ml: 1 }}>/ UNIT ({plan.billingCycle})</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <Button 
                         fullWidth 
                         variant="outlined" 
                         onClick={() => handleOpenEditPlan(plan)}
-                        sx={{ borderRadius: '10px', fontWeight: 900, color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}
+                        sx={{ borderRadius: '12px', fontWeight: 900, color: '#475569', borderColor: '#e2e8f0' }}
                       >
-                        EDIT
+                        EDIT PLAN
                       </Button>
-                      <IconButton color="error" sx={{ border: '1px solid rgba(248,113,113,0.2)', borderRadius: '10px' }}>
+                      <IconButton color="error" sx={{ border: '1px solid #fee2e2', borderRadius: '12px', bgcolor: '#fef2f2' }}>
                         <DeleteIcon />
                       </IconButton>
                     </Box>
@@ -2030,37 +2009,37 @@ const BillingPage = () => {
       <Dialog 
         open={Boolean(editingPlan)} 
         onClose={() => setEditingPlan(null)}
-        PaperProps={{ sx: { borderRadius: '25px', background: '#0f172a', color: 'white', border: '1px solid rgba(255,255,255,0.1)' } }}
+        PaperProps={{ sx: { borderRadius: '25px', background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' } }}
       >
-        <DialogTitle sx={{ fontWeight: 900 }}>EDIT BILLING PLAN</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 900, color: '#0f172a' }}>EDIT BILLING PLAN</DialogTitle>
         <DialogContent>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
                 <TextField 
                     fullWidth label="Plan Name" 
                     value={planForm.name} 
                     onChange={e => setPlanForm({...planForm, name: e.target.value})}
-                    sx={{ input: { color: 'white' }, label: { color: 'rgba(255,255,255,0.5)' } }}
+                    sx={{ input: { color: '#0f172a' }, label: { color: '#64748b' } }}
                 />
                 <TextField 
                     fullWidth label="Description" 
                     multiline rows={2}
                     value={planForm.description} 
                     onChange={e => setPlanForm({...planForm, description: e.target.value})}
-                    sx={{ textarea: { color: 'white' }, label: { color: 'rgba(255,255,255,0.5)' } }}
+                    sx={{ textarea: { color: '#0f172a' }, label: { color: '#64748b' } }}
                 />
                 <TextField 
                     fullWidth label="Price Per Device (₹)" 
                     type="number"
                     value={planForm.pricePerDevice} 
                     onChange={e => setPlanForm({...planForm, pricePerDevice: parseFloat(e.target.value)})}
-                    sx={{ input: { color: 'white' }, label: { color: 'rgba(255,255,255,0.5)' } }}
+                    sx={{ input: { color: '#0f172a' }, label: { color: '#64748b' } }}
                 />
                 <FormControl fullWidth>
-                    <InputLabel sx={{ color: 'rgba(255,255,255,0.5)' }}>Billing Cycle</InputLabel>
+                    <InputLabel sx={{ color: '#64748b' }}>Billing Cycle</InputLabel>
                     <Select
                         value={planForm.billingCycle}
                         onChange={e => setPlanForm({...planForm, billingCycle: e.target.value})}
-                        sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}
+                        sx={{ color: '#0f172a', '.MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' } }}
                     >
                         <MenuItem value="MONTHLY">MONTHLY</MenuItem>
                         <MenuItem value="YEARLY">YEARLY</MenuItem>
@@ -2070,8 +2049,8 @@ const BillingPage = () => {
             </Box>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
-            <Button onClick={() => setEditingPlan(null)} sx={{ color: 'white' }}>CANCEL</Button>
-            <Button variant="contained" onClick={handleUpdatePlan} sx={{ fontWeight: 900, borderRadius: '12px' }}>SAVE CHANGES</Button>
+            <Button onClick={() => setEditingPlan(null)} sx={{ color: '#64748b', fontWeight: 700 }}>CANCEL</Button>
+            <Button variant="contained" onClick={handleUpdatePlan} sx={{ fontWeight: 900, borderRadius: '12px', bgcolor: '#0f172a', '&:hover': { bgcolor: '#000' } }}>SAVE CHANGES</Button>
         </DialogActions>
       </Dialog>
 
@@ -2393,22 +2372,22 @@ const BillingPage = () => {
         onClose={() => setSelectedAuditLog(null)}
         maxWidth="md"
         fullWidth
-        PaperProps={{ sx: { borderRadius: '25px', background: '#0f172a', color: 'white', border: '1px solid rgba(255,255,255,0.1)' } }}
+        PaperProps={{ sx: { borderRadius: '25px', background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' } }}
       >
-        <DialogTitle sx={{ fontWeight: 900, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <DialogTitle sx={{ fontWeight: 900, display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#0f172a' }}>
             AUDIT EVENT DETAILS
-            <Chip label={selectedAuditLog?.action} size="small" color="primary" sx={{ fontWeight: 900 }} />
+            <Chip label={selectedAuditLog?.action} size="small" sx={{ fontWeight: 900, bgcolor: '#f1f5f9', color: '#475569' }} />
         </DialogTitle>
         <DialogContent>
-            <Box sx={{ p: 2, background: 'rgba(255,255,255,0.03)', borderRadius: '16px', mb: 3 }}>
-                <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }}>TIMESTAMP</Typography>
-                <Typography variant="body1" fontWeight={700}>{selectedAuditLog && new Date(selectedAuditLog.createdAt).toLocaleString()}</Typography>
+            <Box sx={{ p: 2, background: '#f8fafc', borderRadius: '16px', mb: 3, border: '1px solid #f1f5f9' }}>
+                <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>TIMESTAMP</Typography>
+                <Typography variant="body1" fontWeight={700} sx={{ color: '#1e293b' }}>{selectedAuditLog && new Date(selectedAuditLog.createdAt).toLocaleString()}</Typography>
                 
-                <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mt: 2 }}>PERFORMED BY (ADMIN)</Typography>
-                <Typography variant="body1" sx={{ fontFamily: 'monospace' }}>{selectedAuditLog?.adminId || 'SYSTEM'}</Typography>
+                <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mt: 2 }}>PERFORMED BY (ADMIN)</Typography>
+                <Typography variant="body1" sx={{ fontFamily: 'monospace', color: '#475569' }}>{selectedAuditLog?.adminId || 'SYSTEM'}</Typography>
                 
-                <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mt: 2 }}>AFFECTED CLIENT</Typography>
-                <Typography variant="body1" fontWeight={700}>{selectedAuditLog?.user?.email || selectedAuditLog?.userId || 'N/A'}</Typography>
+                <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mt: 2 }}>AFFECTED CLIENT</Typography>
+                <Typography variant="body1" fontWeight={700} sx={{ color: '#1e293b' }}>{selectedAuditLog?.user?.email || selectedAuditLog?.userId || 'N/A'}</Typography>
             </Box>
             
             <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mb: 1 }}>STRUCTURED EVENT DATA</Typography>
