@@ -142,7 +142,7 @@ const loadScript = (src) => new Promise((resolve) => {
 
 const BillingPage = () => {
   const traccarAdmin = useAdministrator();
-  const [saasRole] = useState(() => {
+  const [saasRole, setSaasRole] = useState(() => {
     const role = localStorage.getItem('saas_role');
     if (role) return role;
     try {
@@ -511,7 +511,13 @@ const BillingPage = () => {
         localStorage.setItem('saas_token', data.accessToken);
         localStorage.setItem('saas_role', data.user.role);
         localStorage.setItem('saas_user', JSON.stringify(data.user));
+        setSaasRole(data.user.role); // ✅ Fix: Update state to trigger re-render
         fetchMyBill();
+        if (data.user.role === 'ADMIN') {
+          fetchAnalyticsAndLedger();
+          fetchFullSystemStatus();
+          fetchAdminSettings();
+        }
       } else {
         const err = await response.json().catch(() => ({}));
         setAuthError(err.error || 'Authentication sequence failed. Verify credentials.');
@@ -616,12 +622,12 @@ const BillingPage = () => {
               </>
             ) : (
               <>
-                <VpnKeyIcon sx={{ fontSize: 60, color: '#3b82f6', mb: 1, filter: 'drop-shadow(0 0 10px rgba(59,130,246,0.3))' }} />
-                <Typography variant="h4" fontWeight={900} color="white" gutterBottom sx={{ letterSpacing: '-1px' }}>
-                  Sovereign Control
+                <VpnLockIcon sx={{ fontSize: 70, color: '#3b82f6', mb: 2, filter: 'drop-shadow(0 0 15px rgba(59,130,246,0.5))' }} />
+                <Typography variant="h3" fontWeight={900} color="white" gutterBottom sx={{ letterSpacing: '-2px', textTransform: 'uppercase' }}>
+                  Sovereign Hub
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 4 }}>
-                  Restricted access for platform administrators and financial controllers.
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', mb: 4, fontStyle: 'italic' }}>
+                  "Precision Intelligence for Enterprise Fleet Controllers"
                 </Typography>
               </>
             )}
