@@ -37,4 +37,7 @@ router.post('/plans', adminController.createPlan);
 router.put('/plans', adminController.updatePlan);
 router.delete('/plans/:id', adminController.deletePlan);
 
+// NEW: Impersonation
+router.post('/impersonate', adminController.impersonateUser);
+
 module.exports = router;

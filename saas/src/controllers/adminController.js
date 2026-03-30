@@ -94,7 +94,7 @@ exports.updateClientStatus = async (req, res) => {
           adminId: req.user.userId,
           userId: clientId,
           action: isActive ? 'ACTIVATE_USER' : 'SUSPEND_USER',
-          details: 'User status changed by admin.'
+          details: JSON.stringify({ userId: clientId, targetStatus: isActive, timestamp: new Date() })
         }
       })
       .catch((e) => console.error('Audit failed:', e.message));
@@ -301,7 +301,7 @@ exports.adjustExpiry = async (req, res) => {
         adminId: req.user.userId,
         userId: userId,
         action: 'EXTEND_GRACE',
-        details: `VIP Access extended for ${extensionDays} days. Expires: ${newGraceDate.toISOString()}`
+        details: JSON.stringify({ userId, extensionDays, newExpiry: newGraceDate, timestamp: new Date() })
       }
     });
 
@@ -489,7 +489,7 @@ exports.updatePlan = async (req, res) => {
       data: {
         adminId: req.user.userId,
         action: 'UPDATE_BILLING_PLAN',
-        details: `Plan ${name} updated. Price: ${pricePerDevice}, Cycle: ${billingCycle}`
+        details: JSON.stringify({ id, name, pricePerDevice, billingCycle, timestamp: new Date() })
       }
     });
   } catch (error) {
@@ -510,7 +510,7 @@ exports.createPlan = async (req, res) => {
       data: {
         adminId: req.user.userId,
         action: 'CREATE_BILLING_PLAN',
-        details: `New Plan: ${name}, Price: ${pricePerDevice}, Cycle: ${billingCycle}`
+        details: JSON.stringify({ name, pricePerDevice, billingCycle, timestamp: new Date() })
       }
     });
   } catch (error) {
@@ -532,8 +532,46 @@ exports.deletePlan = async (req, res) => {
         details: `Deleted plan ID: ${id}`
       }
     });
+// NEW: Impersonation Engine (Ghosting)
+exports.impersonateUser = async (req, res) => {
+  const { userId } = req.body;
+  try {
+    const targetUser = await prisma.user.findUnique({ 
+        where: { id: userId },
+        include: { subscriptions: { orderBy: { createdAt: 'desc' }, take: 1 } }
+    });
+    if (!targetUser) return res.status(404).json({ error: 'User not found' });
+
+    // Ensure we don't impersonate another admin (security measure)
+    if (targetUser.role === 'ADMIN') return res.status(403).json({ error: 'Cannot impersonate another administrator.' });
+
+    // Generate tokens for the target user but keep track of who did it
+    const accessToken = jwt.sign(
+      { 
+        userId: targetUser.id, 
+        role: targetUser.role, 
+        geosurepathUserId: targetUser.geosurepathUserId,
+        isGhost: true,
+        impersonatedBy: req.user.userId 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' } // Short duration for ghost sessions
+    );
+
+    res.json({ accessToken, user: targetUser });
+
+    // Audit Log
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        userId: targetUser.id,
+        action: 'GHOST_USER_SESSION',
+        details: JSON.stringify({ target: targetUser.email, reason: 'Administrative Support' })
+      }
+    });
+
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete plan' });
+    res.status(500).json({ error: 'Impersonation failed.' });
   }
 };
 

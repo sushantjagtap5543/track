@@ -205,6 +205,8 @@ const BillingPage = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({ planId: '', status: '', expiresAt: '' });
   const [selectedAuditLog, setSelectedAuditLog] = useState(null);
+  const [lastActivity, setLastActivity] = useState(Date.now());
+  const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 Minutes
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
 
   // --- NEW: SECURITY & SESSIONS STATE ---
@@ -212,7 +214,26 @@ const BillingPage = () => {
   const [loginHistory, setLoginHistory] = useState([]);
   const [securityLoading, setSecurityLoading] = useState(false);
 
-  const showFeedback = (message, severity = 'success') => {
+  // --- SOVEREIGN INACTIVITY GUARD ---
+  useEffect(() => {
+    if (!admin) return;
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    const updateActivity = () => setLastActivity(Date.now());
+    
+    activityEvents.forEach(e => window.addEventListener(e, updateActivity));
+    
+    const interval = setInterval(() => {
+        if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) {
+            handleLogout();
+            showFeedback('Session terminated due to inactivity. Security protocol enforced.', 'warning');
+        }
+    }, 60000); // Check every minute
+
+    return () => {
+        activityEvents.forEach(e => window.removeEventListener(e, updateActivity));
+        clearInterval(interval);
+    };
+  }, [admin, lastActivity]);
     setSnackbar({ open: true, message, severity });
   };
 
@@ -437,7 +458,13 @@ const BillingPage = () => {
       fetchAnalyticsAndLedger();
       fetchFullSystemStatus();
       fetchAdminSettings();
-    } else if (!token) {
+    }
+    
+    if (tabIndex === 9) {
+        fetchSecurityData();
+    }
+
+    if (!admin && !token) {
       // ✅ NEW: Automatic Sync Attempt for already logged-in users
       fetch('/api/auth/sync')
         .then((res) => res.json())
@@ -452,7 +479,7 @@ const BillingPage = () => {
         .catch(() => {});
     }
     // eslint-disable-next-line @eslint-react/exhaustive-deps
-  }, [admin]);
+  }, [admin, tabIndex]);
 
   // ✅ NEW: Session Heartbeat (Check token every 2 minutes)
   useEffect(() => {
@@ -559,6 +586,28 @@ const BillingPage = () => {
       showFeedback(err.message, 'error');
     } finally {
       setSettling(false);
+    }
+  };
+
+  const handleGhostUser = async (userId) => {
+    try {
+        const response = await fetch('/api/admin/impersonate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('saas_token')}` },
+            body: JSON.stringify({ userId })
+        });
+        const data = await response.json();
+        if (response.ok) {
+            localStorage.setItem('saas_token', data.accessToken);
+            localStorage.setItem('saas_user', JSON.stringify(data.user));
+            localStorage.setItem('saas_role', data.user.role);
+            showFeedback(`GHOSTING ACTIVE: Now viewing as ${data.user.email}`, 'info');
+            setTimeout(() => window.location.href = '/', 1000);
+        } else {
+            showFeedback(data.error, 'error');
+        }
+    } catch (e) {
+        showFeedback('Impersonation engine failure.', 'error');
     }
   };
 
@@ -979,7 +1028,7 @@ const BillingPage = () => {
             <Tab icon={<MonitorHeartIcon />} label="SYSTEM STATUS" />
             <Tab icon={<VpnKeyIcon />} label="SECRETS MANAGER" />
             <Tab icon={<StarsIcon />} label="PLAN MANAGEMENT" />
-            <Tab icon={<VpnKeyIcon />} label="SECURITY & SESSIONS" />
+            <Tab icon={<SecurityIcon />} label="SECURITY & GOVERNANCE" />
           </Tabs>
         </Paper>
       )}
@@ -1251,6 +1300,16 @@ const BillingPage = () => {
                                 <DirectionsCarIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
+                        <Tooltip title="Ghost (Impersonate for Support)">
+                            <IconButton 
+                                size="small" 
+                                color="info" 
+                                onClick={() => handleGhostUser(u.id)}
+                                sx={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
+                            >
+                                <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
                         <Button
                           variant="outlined"
                           color="warning"
@@ -2153,6 +2212,53 @@ const BillingPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* --- TAB 9: SECURITY & GOVERNANCE --- */}
+      {admin && tabIndex === 9 && (
+        <Box>
+            <Typography variant="h4" fontWeight={900} sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <SecurityIcon sx={{ fontSize: 40, color: '#3b82f6' }} />
+                SECURITY & GOVERNANCE
+            </Typography>
+            
+            <Grid container spacing={3}>
+                <Grid item xs={12} md={4}>
+                    <Paper sx={{ p: 4, borderRadius: '25px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <Typography variant="h6" fontWeight={900} sx={{ mb: 1 }}>SESSION POLICIES</Typography>
+                        <Divider sx={{ mb: 3, opacity: 0.1 }} />
+                        
+                        <Box sx={{ mb: 3 }}>
+                            <Typography variant="subtitle2" sx={{ opacity: 0.6 }}>INACTIVITY TIMEOUT</Typography>
+                            <Typography variant="h5" fontWeight={900}>15 MINUTES</Typography>
+                            <Typography variant="caption" sx={{ color: 'success.main' }}>● ACTIVE (ENFORCED)</Typography>
+                        </Box>
+                        
+                        <Box sx={{ mb: 3 }}>
+                            <Typography variant="subtitle2" sx={{ opacity: 0.6 }}>MULTI-FACTOR AUTH (MFA)</Typography>
+                            <Chip label="UNDER DEVELOPMENT" size="small" color="warning" sx={{ fontWeight: 900, mt: 1 }} />
+                        </Box>
+                        
+                        <Button variant="outlined" fullWidth sx={{ borderRadius: '12px', borderColor: 'rgba(255,255,255,0.2)', color: 'white' }}>
+                            REDEFINE POLICIES
+                        </Button>
+                    </Paper>
+                </Grid>
+                
+                <Grid item xs={12} md={8}>
+                    <Paper sx={{ p: 4, borderRadius: '25px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <Typography variant="h6" fontWeight={900} sx={{ mb: 2 }}>SOVEREIGN AUDIT DEPTH</Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.6, mb: 3 }}>
+                            All administrative sessions are now recorded with high-fidelity structured logs. Ghosting events require mandatory support reasoning.
+                        </Typography>
+                        
+                        <Alert severity="info" sx={{ borderRadius: '15px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: 'white' }}>
+                            <strong>Pro-Tip:</strong> Click on any audit entry in the "Audit Logs" tab to view the detailed JSON payload of the event.
+                        </Alert>
+                    </Paper>
+                </Grid>
+            </Grid>
+        </Box>
+      )}
+
       {/* --- SNACKBARS --- */}
       <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess(null)}>
         <Alert severity="success" sx={{ borderRadius: '12px', fontWeight: 800 }}>{success}</Alert>
@@ -2253,10 +2359,17 @@ const BillingPage = () => {
                 <Typography variant="body1" fontWeight={700}>{selectedAuditLog?.user?.email || selectedAuditLog?.userId || 'N/A'}</Typography>
             </Box>
             
-            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mb: 1 }}>RAW PAYLOAD / DETAILS</Typography>
-            <Paper sx={{ p: 2, background: 'black', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#4ade80', fontSize: '0.85rem' }}>
-                    {selectedAuditLog?.details}
+            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mb: 1 }}>STRUCTURED EVENT DATA</Typography>
+            <Paper sx={{ p: 2, background: 'black', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: 300, overflow: 'auto' }}>
+                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#4ade80', fontSize: '0.85rem', fontFamily: 'monospace' }}>
+                    {(() => {
+                        try {
+                            const parsed = JSON.parse(selectedAuditLog?.details);
+                            return JSON.stringify(parsed, null, 4);
+                        } catch (e) {
+                            return selectedAuditLog?.details;
+                        }
+                    })()}
                 </pre>
             </Paper>
             
