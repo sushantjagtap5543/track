@@ -216,11 +216,11 @@ const BillingPage = () => {
   const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 Minutes
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
 
-  const showFeedback = (message, severity = 'success') => {
+  function showFeedback(message, severity = 'success') {
     setSnackbar({ open: true, message, severity });
-  };
+  }
 
-  const handleLogout = async () => {
+  async function handleLogout() {
     setSettling(true);
     localStorage.removeItem('saas_token');
     localStorage.removeItem('saas_role');
@@ -232,33 +232,14 @@ const BillingPage = () => {
     } catch (e) {}
     setSettling(false);
     navigate('/login');
-  };
+  }
 
   // --- NEW: SECURITY & SESSIONS STATE ---
   const [mySessions, setMySessions] = useState([]);
   const [loginHistory, setLoginHistory] = useState([]);
   const [securityLoading, setSecurityLoading] = useState(false);
 
-  // --- SOVEREIGN INACTIVITY GUARD ---
-  useEffect(() => {
-    if (!admin) return;
-    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
-    const updateActivity = () => setLastActivity(Date.now());
-    
-    activityEvents.forEach(e => window.addEventListener(e, updateActivity));
-    
-    const interval = setInterval(() => {
-        if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) {
-            handleLogout();
-            showFeedback('Session terminated due to inactivity. Security protocol enforced.', 'warning');
-        }
-    }, 60000); // Check every minute
 
-    return () => {
-        activityEvents.forEach(e => window.removeEventListener(e, updateActivity));
-        clearInterval(interval);
-    };
-  }, [admin, lastActivity]);
 
   const fetchAnalyticsAndLedger = async () => {
     try {
@@ -805,6 +786,27 @@ const BillingPage = () => {
         </Typography>
       </Box>
     );
+
+  // --- SOVEREIGN INACTIVITY GUARD ---
+  useEffect(() => {
+    if (!admin) return;
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    const updateActivity = () => setLastActivity(Date.now());
+    
+    activityEvents.forEach(e => window.addEventListener(e, updateActivity));
+    
+    const interval = setInterval(() => {
+        if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) {
+            handleLogout();
+            showFeedback('Session terminated due to inactivity. Security protocol enforced.', 'warning');
+        }
+    }, 60000); // Check every minute
+
+    return () => {
+        activityEvents.forEach(e => window.removeEventListener(e, updateActivity));
+        clearInterval(interval);
+    };
+  }, [admin, lastActivity]);
 
   const token = localStorage.getItem('saas_token');
   if (!token) {
