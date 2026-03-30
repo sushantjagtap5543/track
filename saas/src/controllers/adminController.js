@@ -532,6 +532,11 @@ exports.deletePlan = async (req, res) => {
         details: `Deleted plan ID: ${id}`
       }
     });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete plan' });
+  }
+};
+
 // NEW: Impersonation Engine (Ghosting)
 exports.impersonateUser = async (req, res) => {
   const { userId } = req.body;

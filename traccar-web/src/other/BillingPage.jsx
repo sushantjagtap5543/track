@@ -216,6 +216,24 @@ const BillingPage = () => {
   const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 Minutes
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
 
+  const showFeedback = (message, severity = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleLogout = async () => {
+    setSettling(true);
+    localStorage.removeItem('saas_token');
+    localStorage.removeItem('saas_role');
+    localStorage.removeItem('saas_user');
+    localStorage.removeItem('billing_tab_index');
+    setSaasRole(null); 
+    try {
+        await fetch('/api/session', { method: 'DELETE' });
+    } catch (e) {}
+    setSettling(false);
+    navigate('/login');
+  };
+
   // --- NEW: SECURITY & SESSIONS STATE ---
   const [mySessions, setMySessions] = useState([]);
   const [loginHistory, setLoginHistory] = useState([]);
@@ -241,9 +259,6 @@ const BillingPage = () => {
         clearInterval(interval);
     };
   }, [admin, lastActivity]);
-  const showFeedback = (message, severity = 'success') => {
-    setSnackbar({ open: true, message, severity });
-  };
 
   const fetchAnalyticsAndLedger = async () => {
     try {
@@ -337,19 +352,7 @@ const BillingPage = () => {
     }
   };
 
-  const handleLogout = async () => {
-    setSettling(true);
-    localStorage.removeItem('saas_token');
-    localStorage.removeItem('saas_role');
-    localStorage.removeItem('saas_user');
-    localStorage.removeItem('billing_tab_index');
-    setSaasRole(null); // ✅ Immediate UI reset
-    try {
-        await fetch('/api/session', { method: 'DELETE' });
-    } catch (e) {}
-    setSettling(false);
-    navigate('/login');
-  };
+  // handleLogout moved up
 
   const handleOnboardClient = async (e) => {
     e.preventDefault();
