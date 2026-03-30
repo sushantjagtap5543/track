@@ -26,4 +26,10 @@ router.post('/settings', adminController.updateSettings);
 router.get('/health/full', adminController.getFullStatus);
 router.post('/user-subscription', adminController.updateUserSubscription);
 
+// Plan Management
+router.get('/plans', adminController.getPlans);
+router.post('/plans', adminController.createPlan);
+router.put('/plans', adminController.updatePlan);
+router.delete('/plans/:id', adminController.deletePlan);
+
 module.exports = router;

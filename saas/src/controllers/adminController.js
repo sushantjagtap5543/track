@@ -38,7 +38,7 @@ exports.getSystemHealth = async (req, res) => {
   }
 };
 
-// Get Dashboard Statistics
+// Get Dashboard Statistics (Enhanced for Business Analysis)
 exports.getStats = async (req, res) => {
   try {
     const totalClients = await prisma.user.count({ where: { role: 'CLIENT', deletedAt: null } });
@@ -47,12 +47,36 @@ exports.getStats = async (req, res) => {
     // Calculate total revenue from completed payments (CAPTURED)
     const payments = await prisma.payment.findMany({
       where: { status: 'CAPTURED' },
-      select: { amount: true }
+      select: { amount: true, createdAt: true }
     });
     const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
 
-    res.json({ totalClients, totalVehicles, totalRevenue });
+    // 1. Revenue Projections (Next 30 Days)
+    const activeSubs = await prisma.subscription.findMany({
+      where: { status: 'ACTIVE' },
+      select: { price: true }
+    });
+    const projectedRevenue = activeSubs.reduce((sum, sub) => sum + sub.price, 0);
+
+    // 2. Status Distribution
+    const statusCounts = await prisma.subscription.groupBy({
+      by: ['status'],
+      _count: { _all: true }
+    });
+    const distribution = statusCounts.reduce((acc, curr) => {
+      acc[curr.status] = curr._count._all;
+      return acc;
+    }, {});
+
+    res.json({ 
+      totalClients, 
+      totalVehicles, 
+      totalRevenue,
+      projectedRevenue,
+      distribution
+    });
   } catch (_error) {
+    console.error('Stats error:', _error);
     res.status(500).json({ error: 'Failed to fetch platform stats' });
   }
 };
@@ -444,5 +468,50 @@ exports.getFullStatus = async (req, res) => {
     res.json(stats);
   } catch (error) {
     res.status(500).json({ error: 'System monitoring failed' });
+  }
+};
+
+// Manage Billing Plans
+exports.getPlans = async (req, res) => {
+  try {
+    const plans = await prisma.plan.findMany({ orderBy: { pricePerDevice: 'asc' } });
+    res.json(plans);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch plans' });
+  }
+};
+
+exports.updatePlan = async (req, res) => {
+  const { id, name, description, pricePerDevice, billingCycle } = req.body;
+  try {
+    const plan = await prisma.plan.update({
+      where: { id },
+      data: { name, description, pricePerDevice, billingCycle }
+    });
+    res.json(plan);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update plan' });
+  }
+};
+
+exports.createPlan = async (req, res) => {
+  const { name, description, pricePerDevice, billingCycle } = req.body;
+  try {
+    const plan = await prisma.plan.create({
+      data: { name, description, pricePerDevice, billingCycle }
+    });
+    res.json(plan);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create plan' });
+  }
+};
+
+exports.deletePlan = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.plan.delete({ where: { id } });
+    res.json({ message: 'Plan deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete plan' });
   }
 };

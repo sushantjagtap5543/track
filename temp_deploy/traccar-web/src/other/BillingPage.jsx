@@ -178,7 +178,6 @@ const BillingPage = () => {
     openrouterKey: '',
     supportEmail: '',
   });
-  const [plans, setPlans] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({ planId: '', status: '', expiresAt: '' });
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
@@ -191,16 +190,16 @@ const BillingPage = () => {
     try {
       const token = localStorage.getItem('saas_token');
       if (!token) return;
-      const [aRes, lRes, logRes, pRes] = await Promise.all([
-        fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }),
+      const [aRes, lRes, logRes] = await Promise.all([
+        fetch('/api/billing/admin-analytics', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/billing/admin/ledger', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/admin/audit-logs', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/admin/plans', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       if (aRes.ok) {
         const aData = await aRes.json();
         setAnalytics(aData);
+        setGatewayLink(aData?.config?.paymentLink || '');
       }
       if (lRes.ok) {
         const lData = await lRes.json();
@@ -209,9 +208,6 @@ const BillingPage = () => {
       if (logRes.ok) {
         const logData = await logRes.json();
         setAuditLogs(Array.isArray(logData) ? logData : []);
-      }
-      if (pRes.ok) {
-        setPlans(await pRes.json());
       }
     } catch (err) {
       console.error('Admin Analytics Error:', err);
@@ -746,7 +742,6 @@ const BillingPage = () => {
             <Tab icon={<SettingsIcon />} label="COMMAND SETTINGS" />
             <Tab icon={<MonitorHeartIcon />} label="SYSTEM STATUS" />
             <Tab icon={<VpnKeyIcon />} label="SECRETS MANAGER" />
-            <Tab icon={<StarsIcon />} label="PLAN MANAGEMENT" />
           </Tabs>
         </Paper>
       )}
@@ -755,63 +750,80 @@ const BillingPage = () => {
       {admin && tabIndex === 0 && (
         <Box>
           <Grid container spacing={3} sx={{ mb: 6 }}>
-            <Grid item xs={12} md={2.4}>
-              <Card sx={{ borderRadius: '24px', background: 'linear-gradient(135deg, rgba(59,130,246,0.2) 0%, rgba(29,78,216,0.1) 100%)', border: '1px solid #3b82f6' }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="caption" sx={{ color: '#3b82f6', fontWeight: 900 }}>TOTAL REVENUE</Typography>
-                  <Typography variant="h4" fontWeight={900}>₹{analytics?.totalRevenue || 0}</Typography>
+            <Grid item xs={12} md={3}>
+              <Card
+                sx={{
+                  borderRadius: '24px',
+                  background:
+                    'linear-gradient(135deg, rgba(59,130,246,0.2) 0%, rgba(29,78,216,0.1) 100%)',
+                  border: '1px solid #3b82f6',
+                }}
+              >
+                <CardContent sx={{ p: 4 }}>
+                  <Typography variant="caption" sx={{ color: '#3b82f6', fontWeight: 900 }}>
+                    SOVEREIGN REVENUE
+                  </Typography>
+                  <Typography variant="h3" fontWeight={900}>
+                    ₹{analytics?.summary?.totalRevenue || 0}
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={2.4}>
-              <Card sx={{ borderRadius: '24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="caption" sx={{ opacity: 0.6 }}>PROJECTED (30D)</Typography>
-                  <Typography variant="h4" fontWeight={900} color="primary.light">₹{analytics?.projectedRevenue || 0}</Typography>
+            <Grid item xs={12} md={3}>
+              <Card
+                sx={{
+                  borderRadius: '24px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                }}
+              >
+                <CardContent sx={{ p: 4 }}>
+                  <Typography variant="caption" sx={{ opacity: 0.6 }}>
+                    ACTIVE USERS
+                  </Typography>
+                  <Typography variant="h3" fontWeight={900}>
+                    {analytics?.summary?.totalUsers || 0}
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={2.4}>
-              <Card sx={{ borderRadius: '24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="caption" sx={{ opacity: 0.6 }}>ACTIVE USERS</Typography>
-                  <Typography variant="h4" fontWeight={900}>{analytics?.totalClients || 0}</Typography>
+            <Grid item xs={12} md={3}>
+              <Card
+                sx={{
+                  borderRadius: '24px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                }}
+              >
+                <CardContent sx={{ p: 4 }}>
+                  <Typography variant="caption" sx={{ opacity: 0.6 }}>
+                    FLEET SATURATION
+                  </Typography>
+                  <Typography variant="h3" fontWeight={900}>
+                    {analytics?.summary?.totalDevices || 0}
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={2.4}>
-              <Card sx={{ borderRadius: '24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="caption" sx={{ opacity: 0.6 }}>FLEET SIZE</Typography>
-                  <Typography variant="h4" fontWeight={900}>{analytics?.totalVehicles || 0}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={2.4}>
-              <Card sx={{ borderRadius: '24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="caption" sx={{ opacity: 0.6 }}>CHURN RISK</Typography>
-                  <Typography variant="h4" fontWeight={900} color="success.main">{analytics?.churnRate || 2.5}%</Typography>
+            <Grid item xs={12} md={3}>
+              <Card
+                sx={{
+                  borderRadius: '24px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                }}
+              >
+                <CardContent sx={{ p: 4 }}>
+                  <Typography variant="caption" sx={{ opacity: 0.6 }}>
+                    CHURN RISK
+                  </Typography>
+                  <Typography variant="h3" fontWeight={900} color="success.main">
+                    {analytics?.summary?.churnRate || 2.5}%
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
           </Grid>
-
-          <Paper sx={{ p: 4, borderRadius: '24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', mb: 4 }}>
-            <Typography variant="h6" fontWeight={900} sx={{ mb: 3 }}>SOVEREIGN STATUS DISTRIBUTION</Typography>
-            <Grid container spacing={2}>
-              {['PAID', 'GRACE', 'EXPIRED', 'PENDING'].map((status) => (
-                <Grid item xs={6} md={3} key={status}>
-                  <Box sx={{ p: 2, borderRadius: '16px', background: 'rgba(255,255,255,0.03)', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <Typography variant="caption" sx={{ opacity: 0.5, fontWeight: 900 }}>{status} CLIENTS</Typography>
-                    <Typography variant="h4" fontWeight={900} color={status === 'PAID' ? 'success.main' : status === 'GRACE' ? 'warning.main' : 'error.main'}>
-                      {analytics?.distribution?.[status] || 0}
-                    </Typography>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-          </Paper>
 
           <Paper
             sx={{
@@ -1647,43 +1659,6 @@ const BillingPage = () => {
         onClose={() => setSelectedInvoice(null)}
         invoice={selectedInvoice}
       />
-
-      {/* --- TAB 8: PLAN MANAGEMENT --- */}
-      {admin && tabIndex === 8 && (
-        <Paper sx={{ p: 4, borderRadius: '24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4, alignItems: 'center' }}>
-            <Typography variant="h5" fontWeight={900}>BILLING PLAN ARCHITECTURE</Typography>
-            <Button variant="contained" startIcon={<StarsIcon />} sx={{ borderRadius: '12px', fontWeight: 900 }}>
-              NEW SOVEREIGN PLAN
-            </Button>
-          </Box>
-          <Grid container spacing={3}>
-            {plans.map((plan) => (
-              <Grid item xs={12} md={4} key={plan.id}>
-                <Card sx={{ borderRadius: '20px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', height: '100%' }}>
-                  <CardContent sx={{ p: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                      <Typography variant="h6" fontWeight={900}>{plan.name}</Typography>
-                      <Chip label={plan.billingCycle} size="small" sx={{ fontWeight: 900, bgcolor: 'rgba(59,130,246,0.1)', color: '#3b82f6' }} />
-                    </Box>
-                    <Typography variant="body2" sx={{ opacity: 0.6, mb: 3, height: 40, overflow: 'hidden' }}>{plan.description}</Typography>
-                    <Box sx={{ mb: 3 }}>
-                       <Typography variant="h3" fontWeight={900} sx={{ display: 'inline' }}>₹{plan.pricePerDevice}</Typography>
-                       <Typography variant="caption" sx={{ opacity: 0.5, ml: 1 }}>/ UNIT</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button fullWidth variant="outlined" sx={{ borderRadius: '10px', fontWeight: 900 }}>EDIT</Button>
-                      <IconButton color="error" sx={{ border: '1px solid rgba(248,113,113,0.2)', borderRadius: '10px' }}>
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Paper>
-      )}
 
       <Snackbar
         open={snackbar.open}
