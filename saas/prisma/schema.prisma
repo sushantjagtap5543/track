@@ -220,6 +220,7 @@ model DeviceToken {
 model AdminSetting {
   id          String   @id @default("GLOBAL")
   paymentLink String?
+  announcement String? // NEW: Global announcement system
   
   // Razorpay
   razorpayId            String?

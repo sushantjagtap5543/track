@@ -224,18 +224,32 @@ exports.login = async (req, res) => {
     try {
       const traccarSession = await geosurepathService.loginUser(identifier, password);
       if (traccarSession.cookie) {
-        // Extract session ID and set it as JSESSIONID. Traccar expects this.
-        const jsessionid = traccarSession.cookie.split('=')[1];
-        res.cookie('JSESSIONID', jsessionid, { 
-          httpOnly: true, 
-          secure: isSecure, 
-          sameSite: 'lax', 
-          path: '/' 
-        });
-        console.log(`[Login] Relayed Traccar session cookie for ${identifier}`);
+        // Robust parsing for JSESSIONID
+        const match = traccarSession.cookie.match(/JSESSIONID=([^;]+)/);
+        if (match && match[1]) {
+            res.cookie('JSESSIONID', match[1], { 
+              httpOnly: true, 
+              secure: isSecure, 
+              sameSite: 'lax', 
+              path: '/' 
+            });
+            console.log(`[Login] Relayed Traccar session cookie (JSESSIONID=${match[1]}) for ${identifier}`);
+        }
       }
     } catch (traccarError) {
       console.warn(`[Login] Traccar silent login failed for ${identifier}. This may cause map access issues. Error: ${traccarError.message}`);
+    }
+
+    // ✅ FIX: Audit Log for Admin Login
+    if (user.role === 'ADMIN') {
+        prisma.auditLog.create({
+            data: {
+                adminId: user.id,
+                action: 'ADMIN_LOGIN',
+                details: `Admin ${user.email} logged in to platform`,
+                ipAddress: req.ip
+            }
+        }).catch(e => console.error('Audit Log (Login) fail:', e));
     }
 
     res.json({
@@ -409,6 +423,18 @@ exports.syncSession = async (req, res) => {
 
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    // ✅ FIX: Audit Log for Admin Sync (Optional but good for tracking active sessions)
+    if (user.role === 'ADMIN') {
+        prisma.auditLog.create({
+            data: {
+                adminId: user.id,
+                action: 'ADMIN_SESSION_SYNC',
+                details: `Admin ${user.email} synchronized session`,
+                ipAddress: req.ip
+            }
+        }).catch(e => console.error('Audit Log (Sync) fail:', e));
+    }
+
     const authHeader = req.headers['authorization'];
     const token = (authHeader && authHeader.split(' ')[1]) || req.cookies.token;
 
@@ -421,4 +447,51 @@ exports.syncSession = async (req, res) => {
     console.error('[SyncSession] Error:', error);
     res.status(500).json({ error: 'Failed to sync session' });
   }
+};
+// NEW: Get Active Sessions for Current User
+exports.getSessions = async (req, res) => {
+  try {
+    const sessions = await prisma.refreshToken.findMany({
+      where: { userId: req.user.userId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, createdAt: true, expiresAt: true }
+    });
+    const enriched = sessions.map(s => ({
+        id: s.id,
+        createdAt: s.createdAt,
+        expiresAt: s.expiresAt,
+        device: 'Authorized Sovereign Browser',
+        ip: req.ip || 'Detected Sovereign IP'
+    }));
+    res.json(enriched);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch active sessions.' });
+  }
+};
+
+// NEW: Revoke a specific session
+exports.revokeSession = async (req, res) => {
+    const { sessionId } = req.body;
+    try {
+        await prisma.refreshToken.delete({
+            where: { id: sessionId, userId: req.user.userId }
+        });
+        res.json({ message: 'Session successfully terminated.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to revoke session.' });
+    }
+};
+
+// NEW: Get Login History for Current User
+exports.getLoginHistory = async (req, res) => {
+    try {
+        const history = await prisma.loginHistory.findMany({
+            where: { userId: req.user.userId },
+            take: 20,
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(history);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch login ledger.' });
+    }
 };

@@ -3,8 +3,10 @@
 
 const os = require('os');
 const prisma = require('../lib/prisma');
+const bcrypt = require('bcrypt');
 const geosurepathService = require('../services/geosurepath');
 const analyticsService = require('../services/analyticsService');
+const { emailQueue } = require('../services/queue');
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
@@ -152,9 +154,20 @@ exports.bulkUpdateStatus = async (req, res) => {
   if (!Array.isArray(userIds)) return res.status(400).json({ error: 'userIds must be an array' });
 
   try {
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds }, geosurepathUserId: { not: null } },
+      select: { id: true, email: true, geosurepathUserId: true }
+    });
+
     await prisma.user.updateMany({
       where: { id: { in: userIds } },
       data: { isActive }
+    });
+
+    // ✅ FIX: Sync bulk status to GeoSurePath
+    users.forEach(user => {
+        geosurepathService.updateUser(user.geosurepathUserId, { disabled: !isActive })
+            .catch(e => console.error(`[BulkSync] Failed for ${user.email}:`, e.message));
     });
 
     res.json({ message: `Successfully ${isActive ? 'activated' : 'suspended'} ${userIds.length} users` });
@@ -164,7 +177,7 @@ exports.bulkUpdateStatus = async (req, res) => {
       data: {
         adminId: req.user.userId,
         action: isActive ? 'BULK_ACTIVATE_USERS' : 'BULK_SUSPEND_USERS',
-        details: `Updated ${userIds.length} users: [${userIds.join(', ')}]`
+        details: `Updated ${userIds.length} users: [${users.map(u => u.email).join(', ')}]`
       }
     }).catch(e => console.error('Bulk Audit fail:', e));
 
@@ -179,12 +192,33 @@ exports.bulkDeleteUsers = async (req, res) => {
   if (!Array.isArray(userIds)) return res.status(400).json({ error: 'userIds must be an array' });
 
   try {
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds }, geosurepathUserId: { not: null } },
+      select: { id: true, email: true, geosurepathUserId: true }
+    });
+
     await prisma.user.updateMany({
       where: { id: { in: userIds } },
       data: { deletedAt: new Date(), isActive: false }
     });
 
+    // ✅ FIX: Sync bulk deletion to GeoSurePath (Disable users)
+    users.forEach(user => {
+        geosurepathService.updateUser(user.geosurepathUserId, { disabled: true })
+            .catch(e => console.error(`[BulkDeleteSync] Failed for ${user.email}:`, e.message));
+    });
+
     res.json({ message: `Successfully soft-deleted ${userIds.length} users` });
+
+    // Audit Log
+    prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        action: 'BULK_DELETE_USERS',
+        details: `Soft-deleted ${userIds.length} users: [${users.map(u => u.email).join(', ')}]`
+      }
+    }).catch(e => console.error('Bulk Delete Audit fail:', e));
+
   } catch (error) {
     res.status(500).json({ error: 'Bulk deletion failed' });
   }
@@ -500,5 +534,177 @@ exports.deletePlan = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete plan' });
+  }
+};
+
+// NEW: Manual Client Onboarding by Admin
+exports.createUser = async (req, res) => {
+  const { name, email, password, role = 'CLIENT' } = req.body;
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Name, email, and password are required.' });
+  }
+
+  try {
+    // 1. Check if user already exists in SaaS
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) return res.status(400).json({ error: 'User already exists with this email.' });
+
+    // 2. Create in GeoSurePath first
+    let gUser;
+    try {
+      gUser = await geosurepathService.createUser(name, email, password);
+      console.log(`[AdminOnboard] Created GeoSurePath user for ${email} (ID: ${gUser.id})`);
+    } catch (gsErr) {
+      console.error('[AdminOnboard] GeoSurePath creation failed:', gsErr.message);
+      return res.status(500).json({ error: 'Failed to create user in tracking engine.' });
+    }
+
+    // 3. Create in SaaS DB
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        role,
+        geosurepathUserId: gUser.id,
+        isActive: true,
+        isVerified: true 
+      }
+    });
+
+    // 4. Send Welcome Email
+    emailQueue.add('welcome-email', {
+      to: user.email,
+      subject: 'Welcome to GeoSurePath - Sovereign Onboarding',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+          <h2 style="color: #3b82f6;">Welcome to GeoSurePath</h2>
+          <p>Hello ${name},</p>
+          <p>An administrator has manually onboarded you to the GeoSurePath platform.</p>
+          <div style="background: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <strong>Login Email:</strong> ${email}<br>
+            <strong>Default Password:</strong> ${password}
+          </div>
+          <p>Please login and change your password immediately.</p>
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/login" style="display: inline-block; padding: 10px 20px; background: #3b82f6; color: white; text-decoration: none; border-radius: 5px;">Login Now</a>
+        </div>
+      `
+    }).catch(e => console.error('[AdminOnboard] Email failed:', e.message));
+
+    // 5. Audit Log
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        userId: user.id,
+        action: 'MANUAL_USER_ONBOARD',
+        details: `Manually onboarded user: ${email} with role: ${role}`
+      }
+    });
+
+    res.status(201).json({ message: 'User onboarded successfully', user: { id: user.id, email: user.email } });
+
+  } catch (error) {
+    console.error('[AdminOnboard] Error:', error);
+    res.status(500).json({ error: 'Internal server error during onboarding.' });
+  }
+};
+
+// NEW: Update User Role (Administrative Permission Management)
+exports.updateUserRole = async (req, res) => {
+  const { userId, role } = req.body;
+  if (!['ADMIN', 'MANAGER', 'CLIENT'].includes(role)) {
+    return res.status(400).json({ error: 'Invalid role provided.' });
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { role }
+    });
+
+    // Audit Log
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        userId: userId,
+        action: 'UPDATE_USER_ROLE',
+        details: `Role updated to ${role} for user: ${user.email}`
+      }
+    });
+
+    res.json({ message: `User role successfully updated to ${role}` });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update user role.' });
+  }
+};
+
+// NEW: Bulk Device Provisioning for Enterprise Clients
+exports.bulkCreateDevices = async (req, res) => {
+  const { userId, devices } = req.body; // devices: [{ name, uniqueId }]
+  if (!userId || !Array.isArray(devices)) {
+    return res.status(400).json({ error: 'UserId and devices array are required.' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.geosurepathUserId) {
+        return res.status(404).json({ error: 'User not found or lacks tracking engine ID.' });
+    }
+
+    const results = [];
+    for (const dev of devices) {
+        try {
+            // 1. Create in GeoSurePath
+            const gDevice = await geosurepathService.createDevice(dev.name, dev.uniqueId);
+            // 2. Link to User
+            await geosurepathService.linkDeviceToUser(user.geosurepathUserId, gDevice.id);
+            results.push({ name: dev.name, status: 'success', id: gDevice.id });
+        } catch (err) {
+            results.push({ name: dev.name, status: 'error', error: err.message });
+        }
+    }
+
+    // Audit Log
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.user.userId,
+        userId: userId,
+        action: 'BULK_DEVICE_PROVISION',
+        details: `Provisioned ${results.filter(r => r.status === 'success').length} devices for ${user.email}`
+      }
+    });
+
+    res.json({ message: 'Bulk provisioning complete.', results });
+  } catch (error) {
+    res.status(500).json({ error: 'Bulk provisioning failed.' });
+  }
+};
+// NEW: Administrative Session Audit
+exports.getUserSessions = async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const sessions = await prisma.refreshToken.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, createdAt: true, expiresAt: true }
+    });
+    res.json(sessions);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch user sessions.' });
+  }
+};
+
+// NEW: Administrative Session Termination
+exports.revokeUserSession = async (req, res) => {
+  const { userId, sessionId } = req.params;
+  try {
+    await prisma.refreshToken.delete({
+      where: { id: sessionId, userId }
+    });
+    res.json({ message: 'User session successfully terminated by administrator.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to terminate user session.' });
   }
 };

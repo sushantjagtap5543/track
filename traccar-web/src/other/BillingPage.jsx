@@ -52,6 +52,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 
 import { useNavigate } from 'react-router-dom';
 import { useAdministrator } from '../common/util/permissions';
@@ -174,6 +176,21 @@ const BillingPage = () => {
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   // eslint-disable-next-line no-unused-vars
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+
+  // --- NEW: ONBOARDING STATE ---
+  const [showOnboardDialog, setShowOnboardDialog] = useState(false);
+  const [onboardData, setOnboardData] = useState({ name: '', email: '', password: '', role: 'CLIENT' });
+  const [onboarding, setOnboarding] = useState(false);
+
+  // --- NEW: ROLE & DEVICE PROVISIONING STATE ---
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [targetUser, setTargetUser] = useState(null);
+  const [newRole, setNewRole] = useState('CLIENT');
+  
+  const [showProvisionDialog, setShowProvisionDialog] = useState(false);
+  const [provisionText, setProvisionText] = useState(''); // "Name,UniqueId\nName2,UniqueId2"
+  const [provisioning, setProvisioning] = useState(false);
   const [systemStats, setSystemStats] = useState(null);
   const [adminSettings, setAdminSettings] = useState({
     paymentLink: '',
@@ -187,7 +204,13 @@ const BillingPage = () => {
   const [plans, setPlans] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({ planId: '', status: '', expiresAt: '' });
+  const [selectedAuditLog, setSelectedAuditLog] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+
+  // --- NEW: SECURITY & SESSIONS STATE ---
+  const [mySessions, setMySessions] = useState([]);
+  const [loginHistory, setLoginHistory] = useState([]);
+  const [securityLoading, setSecurityLoading] = useState(false);
 
   const showFeedback = (message, severity = 'success') => {
     setSnackbar({ open: true, message, severity });
@@ -221,6 +244,43 @@ const BillingPage = () => {
       }
     } catch (err) {
       console.error('Admin Analytics Error:', err);
+    }
+  };
+
+  const fetchSecurityData = async () => {
+    try {
+      setSecurityLoading(true);
+      const token = localStorage.getItem('saas_token');
+      const [sRes, hRes] = await Promise.all([
+        fetch('/api/auth/sessions', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/auth/login-history', { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (sRes.ok) setMySessions(await sRes.json());
+      if (hRes.ok) setLoginHistory(await hRes.json());
+    } catch (error) {
+      console.error('Security Fetch Error:', error);
+    } finally {
+      setSecurityLoading(false);
+    }
+  };
+
+  const handleRevokeSession = async (sessionId) => {
+    try {
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch('/api/auth/revoke-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ sessionId }),
+      });
+      if (res.ok) {
+        showFeedback('Sovereign Session Revoked');
+        fetchSecurityData();
+      }
+    } catch (error) {
+      showFeedback('Revocation Failed', 'error');
     }
   };
 
@@ -260,6 +320,88 @@ const BillingPage = () => {
     } catch (e) {}
     setSettling(false);
     navigate('/login');
+  };
+
+  const handleOnboardClient = async (e) => {
+    e.preventDefault();
+    setOnboarding(true);
+    setSuccess(null);
+    setError(null);
+    try {
+        const token = localStorage.getItem('saas_token');
+        const res = await fetch('/api/admin/users', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}` 
+            },
+            body: JSON.stringify(onboardData)
+        });
+        const data = await res.json();
+        if (res.ok) {
+            setSuccess('Client onboarded successfully. Welcome email queued.');
+            setShowOnboardDialog(false);
+            setOnboardData({ name: '', email: '', password: '', role: 'CLIENT' });
+            fetchFullSystemStatus(); // Refresh user counts
+        } else {
+            setError(data.error || 'Onboarding failed.');
+        }
+    } catch (err) {
+        setError('Network error during onboarding.');
+    } finally {
+        setOnboarding(false);
+    }
+  };
+
+  const handleUpdateRole = async () => {
+    if (!targetUser) return;
+    try {
+        const token = localStorage.getItem('saas_token');
+        const res = await fetch('/api/admin/users/role', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ userId: targetUser.id, role: newRole })
+        });
+        if (res.ok) {
+            setSuccess(`User role updated to ${newRole}`);
+            setShowRoleDialog(false);
+            fetchFullSystemStatus();
+        } else {
+            setError('Failed to update role.');
+        }
+    } catch (err) {
+        setError('Network error during role update.');
+    }
+  };
+
+  const handleBulkProvision = async () => {
+    if (!targetUser || !provisionText) return;
+    setProvisioning(true);
+    try {
+        const devices = provisionText.split('\n').filter(l => l.includes(',')).map(l => {
+            const [name, uniqueId] = l.split(',');
+            return { name: name.trim(), uniqueId: uniqueId.trim() };
+        });
+
+        const token = localStorage.getItem('saas_token');
+        const res = await fetch('/api/admin/users/bulk-devices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ userId: targetUser.id, devices })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            setSuccess(`Successfully provisioned ${data.results.filter(r => r.status === 'success').length} devices.`);
+            setShowProvisionDialog(false);
+            setProvisionText('');
+        } else {
+            setError(data.error || 'Provisioning failed.');
+        }
+    } catch (err) {
+        setError('Network error during provisioning.');
+    } finally {
+        setProvisioning(false);
+    }
   };
 
   const fetchMyBill = async () => {
@@ -311,6 +453,26 @@ const BillingPage = () => {
     }
     // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [admin]);
+
+  // ✅ NEW: Session Heartbeat (Check token every 2 minutes)
+  useEffect(() => {
+    if (!token) return;
+
+    const interval = setInterval(() => {
+        fetch('/api/auth/sync', {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+        .then(res => {
+            if (res.status === 401 || res.status === 403) {
+                console.warn('[BillingPage] Session expired or invalid');
+                handleLogout(); // De-auth immediately
+            }
+        })
+        .catch(() => {});
+    }, 120000); // 2 minutes
+
+    return () => clearInterval(interval);
+  }, [token]);
 
   const handleUpdateGateway = async () => {
     try {
@@ -649,8 +811,8 @@ const BillingPage = () => {
                 <Typography variant="h4" fontWeight={900} color="white" gutterBottom sx={{ letterSpacing: '-1px' }}>
                   Billing Center
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 4 }}>
-                  Access invoices, settle debts, and manage fleet subscriptions.
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 4, fontStyle: 'italic' }}>
+                  Manage invoices and fleet subscriptions.
                 </Typography>
               </>
             ) : (
@@ -817,6 +979,7 @@ const BillingPage = () => {
             <Tab icon={<MonitorHeartIcon />} label="SYSTEM STATUS" />
             <Tab icon={<VpnKeyIcon />} label="SECRETS MANAGER" />
             <Tab icon={<StarsIcon />} label="PLAN MANAGEMENT" />
+            <Tab icon={<VpnKeyIcon />} label="SECURITY & SESSIONS" />
           </Tabs>
         </Paper>
       )}
@@ -868,7 +1031,17 @@ const BillingPage = () => {
           </Grid>
 
           <Paper sx={{ p: 4, borderRadius: '24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', mb: 4 }}>
-            <Typography variant="h6" fontWeight={900} sx={{ mb: 3 }}>SOVEREIGN STATUS DISTRIBUTION</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6" fontWeight={900}>SOVEREIGN STATUS DISTRIBUTION</Typography>
+                <Button 
+                    variant="contained" 
+                    startIcon={<PersonAddIcon />}
+                    onClick={() => setShowOnboardDialog(true)}
+                    sx={{ borderRadius: '12px', fontWeight: 800, bgcolor: '#3b82f6', '&:hover': { bgcolor: '#2563eb' } }}
+                >
+                    ONBOARD NEW CLIENT
+                </Button>
+            </Box>
             <Grid container spacing={2}>
               {['PAID', 'GRACE', 'EXPIRED', 'PENDING'].map((status) => (
                 <Grid item xs={6} md={3} key={status}>
@@ -1058,6 +1231,26 @@ const BillingPage = () => {
                         >
                           FORCE SETTLE
                         </Button>
+                        <Tooltip title="Update Role">
+                            <IconButton 
+                                size="small" 
+                                color="primary" 
+                                onClick={() => { setTargetUser(u); setNewRole(u.role); setShowRoleDialog(true); }}
+                                sx={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
+                            >
+                                <AdminPanelSettingsIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Bulk Provision Devices">
+                            <IconButton 
+                                size="small" 
+                                color="secondary" 
+                                onClick={() => { setTargetUser(u); setShowProvisionDialog(true); }}
+                                sx={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
+                            >
+                                <DirectionsCarIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         <Button
                           variant="outlined"
                           color="warning"
@@ -1116,7 +1309,8 @@ const BillingPage = () => {
                 {auditLogs.map((log) => (
                   <TableRow
                     key={log.id}
-                    sx={{ '&:hover': { background: 'rgba(255,255,255,0.02)' } }}
+                    onClick={() => setSelectedAuditLog(log)}
+                    sx={{ cursor: 'pointer', '&:hover': { background: 'rgba(255,255,255,0.02)' } }}
                   >
                     <TableCell sx={{ opacity: 0.7 }}>
                       {new Date(log.createdAt).toLocaleString()}
@@ -1419,7 +1613,8 @@ const BillingPage = () => {
                   auditLogs.map((log) => (
                     <TableRow
                       key={log.id}
-                      sx={{ '&:hover': { background: 'rgba(255,255,255,0.05)' } }}
+                      onClick={() => setSelectedAuditLog(log)}
+                      sx={{ cursor: 'pointer', '&:hover': { background: 'rgba(255,255,255,0.05)' } }}
                     >
                       <TableCell sx={{ opacity: 0.6, fontSize: '0.8rem' }}>
                         {new Date(log.createdAt).toLocaleString()}
@@ -1769,6 +1964,97 @@ const BillingPage = () => {
         </Paper>
       )}
 
+      {/* --- TAB 9: SECURITY & SESSIONS --- */}
+      {admin && tabIndex === 9 && (
+        <Paper
+          sx={{
+            p: 4,
+            borderRadius: '24px',
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid rgba(255,255,255,0.05)',
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+            <Typography variant="h5" fontWeight={900}>
+                SOVEREIGN SECURITY & ACCESS HUB
+            </Typography>
+            <Button 
+                variant="outlined" 
+                startIcon={<RefreshIcon />} 
+                onClick={fetchSecurityData}
+                sx={{ borderRadius: '12px', fontWeight: 900 }}
+                disabled={securityLoading}
+            >
+                REFRESH AUDIT
+            </Button>
+          </Box>
+          
+          <Grid container spacing={4}>
+            <Grid item xs={12} md={7}>
+                <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <DnsIcon color="primary" /> ACTIVE SOVEREIGN SESSIONS
+                </Typography>
+                <TableContainer sx={{ background: 'rgba(0,0,0,0.2)', borderRadius: '16px' }}>
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow sx={{ '& th': { fontWeight: 900, opacity: 0.5 } }}>
+                                <TableCell>AUTHORIZED DEVICE</TableCell>
+                                <TableCell>IP / SOURCE</TableCell>
+                                <TableCell>CREATED</TableCell>
+                                <TableCell align="right">ACTION</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {mySessions.map((session) => (
+                                <TableRow key={session.id}>
+                                    <TableCell sx={{ fontWeight: 700 }}>{session.device}</TableCell>
+                                    <TableCell sx={{ opacity: 0.7, fontFamily: 'monospace' }}>{session.ip}</TableCell>
+                                    <TableCell sx={{ opacity: 0.7 }}>{new Date(session.createdAt).toLocaleString()}</TableCell>
+                                    <TableCell align="right">
+                                        <Button 
+                                            size="small" 
+                                            color="error"
+                                            onClick={() => handleRevokeSession(session.id)}
+                                            sx={{ fontWeight: 900, borderRadius: '8px' }}
+                                        >
+                                            TERMINATE
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {mySessions.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={4} align="center" sx={{ py: 4, opacity: 0.5 }}>No other active sessions discovered.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Grid>
+            
+            <Grid item xs={12} md={5}>
+                <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <HistoryIcon color="secondary" /> ACCESS LEDGER
+                </Typography>
+                <Box sx={{ background: 'rgba(255,255,255,0.02)', p: 2, borderRadius: '16px', maxHeight: 400, overflowY: 'auto' }}>
+                    {loginHistory.map((entry, idx) => (
+                        <Box key={idx} sx={{ display: 'flex', alignItems: 'center', p: 2, mb: 1, background: 'rgba(255,255,255,0.03)', borderRadius: '12px', borderLeft: `4px solid ${entry.success ? '#4ade80' : '#f87171'}` }}>
+                            <Box sx={{ flex: 1 }}>
+                                <Typography variant="body2" fontWeight={700}>{entry.success ? 'Successful Login' : 'Failed Access Attempt'}</Typography>
+                                <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }}>{new Date(entry.createdAt).toLocaleString()} • {entry.ipAddress}</Typography>
+                            </Box>
+                            <Chip label={entry.success ? 'SECURE' : 'VULNERABILITY'} size="small" sx={{ fontWeight: 900, bgcolor: entry.success ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)', color: entry.success ? '#4ade80' : '#f87171' }} />
+                        </Box>
+                    ))}
+                    {loginHistory.length === 0 && (
+                        <Typography variant="body2" sx={{ textAlign: 'center', py: 4, opacity: 0.5 }}>Access ledger is empty.</Typography>
+                    )}
+                </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
@@ -1783,6 +2069,202 @@ const BillingPage = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+      {/* --- ONBOARDING DIALOG --- */}
+      <Dialog 
+        open={showOnboardDialog} 
+        onClose={() => !onboarding && setShowOnboardDialog(false)}
+        PaperProps={{
+            sx: {
+                borderRadius: '30px',
+                background: '#1e293b',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.1)',
+                p: 2,
+                maxWidth: 450
+            }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 900, fontSize: '1.5rem', textAlign: 'center' }}>
+            MANUAL ONBOARDING
+        </DialogTitle>
+        <DialogContent>
+            <Typography variant="body2" sx={{ opacity: 0.6, mb: 3, textAlign: 'center' }}>
+                Create a new client account. They will receive a welcome email with these credentials.
+            </Typography>
+            <Box component="form" onSubmit={handleOnboardClient} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                <TextField
+                    fullWidth
+                    label="Full Name"
+                    variant="filled"
+                    required
+                    value={onboardData.name}
+                    onChange={(e) => setOnboardData({ ...onboardData, name: e.target.value })}
+                    sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '12px', '& .MuiFilledInput-root': { borderRadius: '12px' } }}
+                    InputLabelProps={{ style: { color: 'rgba(255,255,255,0.5)' } }}
+                    inputProps={{ style: { color: 'white' } }}
+                />
+                <TextField
+                    fullWidth
+                    label="Email Address"
+                    type="email"
+                    variant="filled"
+                    required
+                    value={onboardData.email}
+                    onChange={(e) => setOnboardData({ ...onboardData, email: e.target.value })}
+                    sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '12px', '& .MuiFilledInput-root': { borderRadius: '12px' } }}
+                    InputLabelProps={{ style: { color: 'rgba(255,255,255,0.5)' } }}
+                    inputProps={{ style: { color: 'white' } }}
+                />
+                <TextField
+                    fullWidth
+                    label="Default Password"
+                    type="text"
+                    variant="filled"
+                    required
+                    value={onboardData.password}
+                    onChange={(e) => setOnboardData({ ...onboardData, password: e.target.value })}
+                    sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '12px', '& .MuiFilledInput-root': { borderRadius: '12px' } }}
+                    InputLabelProps={{ style: { color: 'rgba(255,255,255,0.5)' } }}
+                    inputProps={{ style: { color: 'white' } }}
+                />
+                
+                <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                    <Button 
+                        fullWidth 
+                        variant="outlined" 
+                        onClick={() => setShowOnboardDialog(false)}
+                        disabled={onboarding}
+                        sx={{ borderRadius: '15px', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}
+                    >
+                        CANCEL
+                    </Button>
+                    <Button 
+                        fullWidth 
+                        variant="contained" 
+                        type="submit"
+                        disabled={onboarding}
+                        startIcon={onboarding ? <CircularProgress size={20} color="inherit" /> : <PersonAddIcon />}
+                        sx={{ borderRadius: '15px', fontWeight: 900, bgcolor: '#3b82f6' }}
+                    >
+                        {onboarding ? 'ONBOARDING...' : 'CONFIRM'}
+                    </Button>
+                </Box>
+            </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- SNACKBARS --- */}
+      <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess(null)}>
+        <Alert severity="success" sx={{ borderRadius: '12px', fontWeight: 800 }}>{success}</Alert>
+      </Snackbar>
+      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ borderRadius: '12px', fontWeight: 800 }}>{error}</Alert>
+      </Snackbar>
+
+      {/* --- ROLE MANAGEMENT DIALOG --- */}
+      <Dialog 
+        open={showRoleDialog} 
+        onClose={() => setShowRoleDialog(false)}
+        PaperProps={{ sx: { borderRadius: '25px', background: '#0f172a', color: 'white', border: '1px solid rgba(255,255,255,0.1)' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900 }}>UPDATE USER ROLE</DialogTitle>
+        <DialogContent>
+            <Typography variant="body2" sx={{ mb: 3, opacity: 0.7 }}>
+                Elevate or demote <strong>{targetUser?.email}</strong>.
+            </Typography>
+            <Select
+                fullWidth
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value)}
+                sx={{ color: 'white', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}
+            >
+                <MenuItem value="CLIENT">CLIENT</MenuItem>
+                <MenuItem value="MANAGER">MANAGER</MenuItem>
+                <MenuItem value="ADMIN">ADMIN</MenuItem>
+            </Select>
+            <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+                <Button fullWidth variant="outlined" onClick={() => setShowRoleDialog(false)} sx={{ borderRadius: '12px', color: 'white' }}>CANCEL</Button>
+                <Button fullWidth variant="contained" onClick={handleUpdateRole} sx={{ borderRadius: '12px', fontWeight: 900, bgcolor: '#3b82f6' }}>UPDATE</Button>
+            </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- BULK PROVISIONING DIALOG --- */}
+      <Dialog 
+        open={showProvisionDialog} 
+        onClose={() => !provisioning && setShowProvisionDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '25px', background: '#0f172a', color: 'white', border: '1px solid rgba(255,255,255,0.1)' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900 }}>BULK DEVICE PROVISIONING</DialogTitle>
+        <DialogContent>
+            <Typography variant="body2" sx={{ mb: 2, opacity: 0.7 }}>
+                Enter devices for <strong>{targetUser?.email}</strong> (one per line).
+                Format: <code>Device Name, Unique ID</code>
+            </Typography>
+            <TextField
+                fullWidth
+                multiline
+                rows={6}
+                variant="filled"
+                placeholder="Car 1, 1234567890&#10;Truck A, 9876543210"
+                value={provisionText}
+                onChange={(e) => setProvisionText(e.target.value)}
+                sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '12px', mb: 2 }}
+                InputProps={{ style: { color: 'white', fontFamily: 'monospace' } }}
+            />
+            <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button fullWidth variant="outlined" onClick={() => setShowProvisionDialog(false)} disabled={provisioning} sx={{ borderRadius: '12px', color: 'white' }}>CANCEL</Button>
+                <Button 
+                    fullWidth 
+                    variant="contained" 
+                    onClick={handleBulkProvision}
+                    disabled={provisioning}
+                    startIcon={provisioning && <CircularProgress size={20} color="inherit" />}
+                    sx={{ borderRadius: '12px', fontWeight: 900, bgcolor: '#3b82f6' }}
+                >
+                    {provisioning ? 'PROVISIONING...' : 'START IMPORT'}
+                </Button>
+            </Box>
+        </DialogContent>
+      </Dialog>
+      {/* --- AUDIT LOG DETAIL DIALOG --- */}
+      <Dialog 
+        open={Boolean(selectedAuditLog)} 
+        onClose={() => setSelectedAuditLog(null)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '25px', background: '#0f172a', color: 'white', border: '1px solid rgba(255,255,255,0.1)' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            AUDIT EVENT DETAILS
+            <Chip label={selectedAuditLog?.action} size="small" color="primary" sx={{ fontWeight: 900 }} />
+        </DialogTitle>
+        <DialogContent>
+            <Box sx={{ p: 2, background: 'rgba(255,255,255,0.03)', borderRadius: '16px', mb: 3 }}>
+                <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }}>TIMESTAMP</Typography>
+                <Typography variant="body1" fontWeight={700}>{selectedAuditLog && new Date(selectedAuditLog.createdAt).toLocaleString()}</Typography>
+                
+                <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mt: 2 }}>PERFORMED BY (ADMIN)</Typography>
+                <Typography variant="body1" sx={{ fontFamily: 'monospace' }}>{selectedAuditLog?.adminId || 'SYSTEM'}</Typography>
+                
+                <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mt: 2 }}>AFFECTED CLIENT</Typography>
+                <Typography variant="body1" fontWeight={700}>{selectedAuditLog?.user?.email || selectedAuditLog?.userId || 'N/A'}</Typography>
+            </Box>
+            
+            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mb: 1 }}>RAW PAYLOAD / DETAILS</Typography>
+            <Paper sx={{ p: 2, background: 'black', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#4ade80', fontSize: '0.85rem' }}>
+                    {selectedAuditLog?.details}
+                </pre>
+            </Paper>
+            
+            <Box sx={{ mt: 3, textAlign: 'right' }}>
+                <Button onClick={() => setSelectedAuditLog(null)} sx={{ color: 'white', fontWeight: 900 }}>CLOSE</Button>
+            </Box>
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 };

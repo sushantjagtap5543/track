@@ -19,12 +19,17 @@ router.post('/client-status', adminController.updateClientStatus);
 router.post('/bulk-status', adminController.bulkUpdateStatus);
 router.post('/bulk-delete', adminController.bulkDeleteUsers);
 router.post('/adjust-expiry', adminController.adjustExpiry);
+router.post('/users', adminController.createUser);
+router.post('/users/role', adminController.updateUserRole);
+router.post('/users/bulk-devices', adminController.bulkCreateDevices);
 
 // Sovereign Management
 router.get('/settings', adminController.getSettings);
 router.post('/settings', adminController.updateSettings);
 router.get('/health/full', adminController.getFullStatus);
 router.post('/user-subscription', adminController.updateUserSubscription);
+router.get('/users/:userId/sessions', adminController.getUserSessions);
+router.post('/users/:userId/sessions/:sessionId/revoke', adminController.revokeUserSession);
 
 // Plan Management
 router.get('/plans', adminController.getPlans);

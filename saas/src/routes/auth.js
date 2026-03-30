@@ -13,5 +13,8 @@ router.post('/reset-password', authController.resetPassword);
 
 router.post('/change-password', authenticateToken, authController.changePassword);
 router.get('/sync', authenticateToken, authController.syncSession);
+router.get('/sessions', authenticateToken, authController.getSessions);
+router.post('/revoke-session', authenticateToken, authController.revokeSession);
+router.get('/login-history', authenticateToken, authController.getLoginHistory);
 
 module.exports = router;

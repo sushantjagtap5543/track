@@ -22,7 +22,11 @@ const sendEmail = async ({ to, subject, text, html }) => {
     console.log('[EmailService] Message sent: %s', info.messageId);
     return info;
   } catch (error) {
-    console.error('[EmailService] Error sending email:', error);
+    if (error.code === 'EAUTH') {
+        console.error('[EmailService] SMTP Authentication Failed. Check if you are using a Gmail App Password correctly.', error.message);
+    } else {
+        console.error('[EmailService] Error sending email:', error.message);
+    }
     throw error;
   }
 };

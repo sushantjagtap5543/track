@@ -11,6 +11,8 @@ import {
   Checkbox,
   CircularProgress,
   Box,
+  Alert,
+  Fade
 } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useNavigate } from 'react-router-dom';
@@ -99,6 +101,7 @@ const RegisterPage = () => {
   // eslint-disable-next-line no-unused-vars
   const [totpKey, setTotpKey] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [errorText, setErrorText] = useState('');
 
   useEffectAsync(async () => {
@@ -111,8 +114,20 @@ const RegisterPage = () => {
   const handleSubmit = useCatch(async (event) => {
     event.preventDefault();
     if (password !== confirmPassword) {
-      throw new Error('Passwords do not match');
+      setErrorText('Passwords do not match. Please verify your entries.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
     }
+    
+    // Basic phone validation (if present)
+    if (phone && !/^\+?[1-9]\d{1,14}$/.test(phone)) {
+        setErrorText('Invalid phone number format. Use something like +1234567890');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+    }
+
     setLoading(true);
     setErrorText('');
     try {
@@ -127,14 +142,28 @@ const RegisterPage = () => {
         }),
       });
 
+      const data = await response.json().catch(() => ({}));
+
       if (response.ok) {
+        setErrorText('Registration Successful! Redirecting to login...');
+        setSnackbarSeverity('success');
         setSnackbarOpen(true);
+        setTimeout(() => {
+            dispatch(sessionActions.updateServer({ ...server, newServer: false }));
+            navigate('/login');
+        }, 2000);
       } else {
-        const data = await response.json().catch(() => ({}));
-        setErrorText(data.error || 'Registration failed. Please check your details.');
+        // Detailed error mapping
+        console.log('[Register] Server Error Data:', data);
+        const userFriendlyError = data.error || 'Registration failed. Please check your details.';
+        setErrorText(userFriendlyError);
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
       }
     } catch (e) {
-      setErrorText(e.message || 'An unexpected error occurred.');
+      setErrorText(e.message || 'Network connection failed. Please try again.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
     } finally {
       setLoading(false);
     }
@@ -154,10 +183,22 @@ const RegisterPage = () => {
           </Typography>
         </div>
 
-        {errorText && (
-          <Typography color="error" variant="body2" align="center" sx={{ mb: 1, fontWeight: 700 }}>
-            {errorText}
-          </Typography>
+        {errorText && snackbarSeverity === 'error' && (
+          <Fade in={!!errorText}>
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: 2, 
+                borderRadius: '12px', 
+                bgcolor: 'rgba(211, 47, 47, 0.1)', 
+                color: '#ff8a80',
+                border: '1px solid rgba(211, 47, 47, 0.3)',
+                fontWeight: 600
+              }}
+            >
+              {errorText}
+            </Alert>
+          </Fade>
         )}
 
         <TextField
@@ -277,13 +318,18 @@ const RegisterPage = () => {
 
       <Snackbar
         open={snackbarOpen}
-        onClose={() => {
-          dispatch(sessionActions.updateServer({ ...server, newServer: false }));
-          navigate('/login');
-        }}
-        autoHideDuration={snackBarDurationShortMs}
-        message={t('loginCreated')}
-      />
+        onClose={() => setSnackbarOpen(false)}
+        autoHideDuration={4000}
+      >
+        <Alert 
+            onClose={() => setSnackbarOpen(false)} 
+            severity={snackbarSeverity} 
+            variant="filled" 
+            sx={{ width: '100%', borderRadius: '12px', fontWeight: 900 }}
+        >
+            {errorText || (snackbarSeverity === 'success' ? t('loginCreated') : 'An error occurred')}
+        </Alert>
+      </Snackbar>
     </LoginLayout>
   );
 };
