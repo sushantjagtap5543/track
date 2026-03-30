@@ -72,7 +72,7 @@ const InvoiceDialog = ({ open, onClose, invoice }) => {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: '24px', background: '#0f172a', color: 'white' } }}>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: '24px', background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' } }}>
       <DialogTitle sx={{ fontWeight: 900, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         INVOICE PREVIEW
         <Box>
@@ -965,9 +965,9 @@ const BillingPage = () => {
             sx={{
                 borderRadius: '12px',
                 fontWeight: 900,
-                color: 'rgba(255,255,255,0.4)',
-                borderColor: 'rgba(255,255,255,0.1)',
-                '&:hover': { color: '#f87171', borderColor: '#f87171', bgcolor: 'rgba(248,113,113,0.05)' }
+                color: 'rgba(239, 68, 68, 0.6)',
+                borderColor: 'rgba(239, 68, 68, 0.2)',
+                '&:hover': { color: '#ef4444', borderColor: '#ef4444', bgcolor: 'rgba(239, 68, 68, 0.05)' }
             }}
         >
             {settling ? 'DE-AUTHENTICATING...' : 'LOGOUT PORTAL'}
@@ -1149,8 +1149,9 @@ const BillingPage = () => {
           sx={{
             p: 4,
             borderRadius: '24px',
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
           }}
         >
           <Box
@@ -1327,11 +1328,12 @@ const BillingPage = () => {
           sx={{
             p: 4,
             borderRadius: '24px',
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
           }}
         >
-          <Typography variant="h5" fontWeight={900} sx={{ mb: 4 }}>
+          <Typography variant="h5" fontWeight={900} sx={{ mb: 4, color: '#1e293b' }}>
             SOVEREIGN AUDIT TRAIL
           </Typography>
           <TableContainer>
@@ -1375,249 +1377,293 @@ const BillingPage = () => {
         </Paper>
       )}
 
-      {/* --- TAB 3: FLEET SETTLEMENT (User view or Admin view) --- */}
-      {(admin && tab === 3) || (!admin && tab === 0) ? (
-        <Paper
-          elevation={3}
-          sx={{
-            p: 4,
-            borderRadius: '24px',
-            background: 'rgba(255,255,255,0.01)',
-            backdropFilter: 'blur(30px)',
-            border: '1px solid rgba(255,255,255,0.05)',
-          }}
-        >
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 900,
-              mb: 4,
-              background: 'linear-gradient(90deg, #60a5fa 0%, #3b82f6 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            My Fleet Protection Settlement
-          </Typography>
-
-          <Grid container spacing={3} sx={{ mb: 6 }}>
-            {bill?.plans?.map((plan) => (
-              <Grid item xs={12} md={4} key={plan.id}>
-                <Card
-                  onClick={() => setSelectedPlan(plan.id)}
-                  sx={{
-                    cursor: 'pointer',
+      {/* --- TAB 3: FLEET SETTLEMENT (User view) --- */}
+      {(!admin && tab === 0) && (
+        <Box>
+            {/* --- NEW: CLIENT SUBSCRIPTION OVERVIEW --- */}
+            <Paper
+                sx={{
+                    p: 4,
+                    mb: 4,
                     borderRadius: '24px',
-                    border: '2px solid',
-                    background:
-                      selectedPlan === plan.id ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
-                    borderColor: selectedPlan === plan.id ? '#3b82f6' : 'rgba(255,255,255,0.05)',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.1, 1)',
-                    '&:hover': { transform: 'translateY(-5px)' },
-                  }}
+                    background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                    border: '1px solid #e2e8f0',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', md: 'row' },
+                    alignItems: 'center',
+                    gap: 4,
+                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
+                }}
+            >
+                <Box sx={{ 
+                    width: 80, height: 80, borderRadius: '20px', 
+                    bgcolor: (bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <VerifiedUserIcon sx={{ fontSize: 40, color: (bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? '#22c55e' : '#ef4444' }} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                    <Typography variant="h6" fontWeight={900} sx={{ color: '#1e293b', mb: 0.5 }}>
+                        {(bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? 'SUBSCRIPTION ACTIVE' : 'RENEWAL REQUIRED'}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 600 }}>
+                        {(bill?.status === 'PAID' || bill?.status === 'ACTIVE')
+                            ? `Your fleet protection is secured until ${new Date(bill?.expiresAt).toLocaleDateString()}`
+                            : 'Access to your tracking ledger is currently restricted.'}
+                    </Typography>
+                </Box>
+                <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
+                <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="caption" display="block" sx={{ color: '#94a3b8', fontWeight: 900 }}>
+                        PROTECTED ASSETS
+                    </Typography>
+                    <Typography variant="h4" fontWeight={900} sx={{ color: '#0f172a' }}>
+                        {deviceCount}
+                    </Typography>
+                </Box>
+            </Paper>
+
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 4,
+                    borderRadius: '24px',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
+                }}
+            >
+                <Typography
+                    variant="h4"
+                    sx={{
+                    fontWeight: 900,
+                    mb: 4,
+                    color: '#0f172a',
+                    letterSpacing: '-1px'
+                    }}
                 >
-                  <CardContent sx={{ p: 4, textAlign: 'center' }}>
-                    <Typography variant="h6" fontWeight={800} sx={{ opacity: 0.7 }}>
-                      {plan.name}
-                    </Typography>
-                    <Typography variant="h3" fontWeight={900} sx={{ my: 1 }}>
-                      ₹{plan.price}
-                    </Typography>
-                    <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.05)' }} />
-                    <Box sx={{ textAlign: 'left', opacity: 0.5 }}>
-                      <Typography variant="caption" display="block">
-                        ● Incl. GST (18%)
-                      </Typography>
-                      <Typography variant="caption" display="block">
-                        ● Provisioning for {deviceCount} Units
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-
-          <Paper
-            sx={{
-              p: 4,
-              borderRadius: '24px',
-              background: 'rgba(255,255,255,0.03)',
-              mb: 5,
-              border: '1px solid rgba(255,255,255,0.05)',
-            }}
-          >
-            <Typography variant="h6" fontWeight={800} sx={{ mb: 3 }}>
-              FEE & TAX BREAKDOWN (INCLUSIVE)
-            </Typography>
-            <Grid container spacing={4}>
-              <Grid item xs={6} md={3}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <VerifiedUserIcon color="primary" fontSize="small" />
-                  <Box>
-                    <Typography variant="caption" display="block" sx={{ opacity: 0.5 }}>
-                      BASIC ACCESS
-                    </Typography>
-                    <Typography fontWeight={900}>
-                      ₹{((currentPlan?.breakdown?.basic || 0) * deviceCount).toFixed(2)}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <StorageIcon color="secondary" fontSize="small" />
-                  <Box>
-                    <Typography variant="caption" display="block" sx={{ opacity: 0.5 }}>
-                      SERVER CHARGE
-                    </Typography>
-                    <Typography fontWeight={900}>
-                      ₹{((currentPlan?.breakdown?.server || 0) * deviceCount).toFixed(2)}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <CloudQueueIcon sx={{ color: '#06b6d4' }} fontSize="small" />
-                  <Box>
-                    <Typography variant="caption" display="block" sx={{ opacity: 0.5 }}>
-                      CLOUD INFRA
-                    </Typography>
-                    <Typography fontWeight={900}>
-                      ₹{((currentPlan?.breakdown?.cloud || 0) * deviceCount).toFixed(2)}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <ReceiptIcon color="success" fontSize="small" />
-                  <Box>
-                    <Typography variant="caption" display="block" sx={{ opacity: 0.5 }}>
-                      GST (18%)
-                    </Typography>
-                    <Typography fontWeight={900}>
-                      ₹
-                      {(
-                        (currentPlan?.breakdown?.gst || 0) * deviceCount +
-                        (bill?.totalDue || 0) * 0.18
-                      ).toFixed(2)}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Grid>
-            </Grid>
-
-            <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.05)' }} />
-
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box>
-                <Typography variant="h4" fontWeight={900} color="primary.main">
-                  TOTAL: ₹{totalFleetAmount.toFixed(2)}
+                    Fleet Protection Settlement
                 </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.5 }}>
-                  Includes accrued debt of ₹{bill?.totalDue || 0}
-                </Typography>
-              </Box>
-              <Button
-                variant="contained"
-                size="large"
-                onClick={
-                  !analytics?.config?.paymentLink || analytics?.config?.paymentLink === '#'
-                    ? handleDemoPay
-                    : () => window.open(analytics.config.paymentLink, '_blank')
-                }
-                sx={{ borderRadius: '16px', px: 6, py: 2, fontWeight: 900, fontSize: '1.1rem' }}
-              >
-                {!analytics?.config?.paymentLink || analytics?.config?.paymentLink === '#'
-                  ? 'ACTIVATE VIA DEMO PAY'
-                  : 'PROCEED TO SECURE PAYMENT'}
-              </Button>
-            </Box>
-          </Paper>
 
-          <Typography
-            variant="h5"
-            sx={{ mb: 3, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 2 }}
-          >
-            <VerifiedIcon color="primary" /> Professional Invoice Registry
-          </Typography>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow
-                  sx={{
-                    '& th': {
-                      borderBottom: '2px solid rgba(255,255,255,0.05)',
-                      color: 'rgba(255,255,255,0.5)',
-                      fontWeight: 800,
-                    },
-                  }}
-                >
-                  <TableCell>INVOICE NO.</TableCell>
-                  <TableCell>DATE</TableCell>
-                  <TableCell>PLAN</TableCell>
-                  <TableCell>UNITS</TableCell>
-                  <TableCell align="right">AMOUNT (INR)</TableCell>
-                  <TableCell align="center">STATUS</TableCell>
-                  <TableCell align="center">ACTION</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {bill?.history?.length > 0 ? (
-                  bill.history.map((entry, idx) => (
-                    <TableRow
-                      key={idx}
-                      sx={{ '&:hover': { background: 'rgba(255,255,255,0.02)' } }}
-                    >
-                      <TableCell sx={{ fontWeight: 800, color: 'primary.light' }}>
-                        {entry.invoiceId}
-                      </TableCell>
-                      <TableCell sx={{ opacity: 0.5 }}>
-                        {new Date(entry.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 700, opacity: 0.8 }}>
-                        {(entry.planId || 'MONTHLY').toUpperCase()}
-                      </TableCell>
-                      <TableCell sx={{ opacity: 0.7 }}>{entry.deviceCount || 1} Units</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 900 }}>
-                        ₹{entry.price}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip
-                          label="PAID"
-                          size="small"
-                          sx={{
-                            fontWeight: 800,
-                            bgcolor: 'rgba(74,222,128,0.1)',
-                            color: '#4ade80',
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <IconButton
-                          onClick={() => setSelectedInvoice(entry)}
-                          sx={{ color: '#3b82f6', '&:hover': { background: 'rgba(59,130,246,0.1)' } }}
-                          size="small"
+                <Grid container spacing={3} sx={{ mb: 6 }}>
+                    {bill?.plans?.map((plan) => (
+                    <Grid item xs={12} md={4} key={plan.id}>
+                        <Card
+                        onClick={() => setSelectedPlan(plan.id)}
+                        sx={{
+                            cursor: 'pointer',
+                            borderRadius: '24px',
+                            border: '2px solid',
+                            background: selectedPlan === plan.id ? '#eff6ff' : '#ffffff',
+                            borderColor: selectedPlan === plan.id ? '#3b82f6' : '#e2e8f0',
+                            boxShadow: selectedPlan === plan.id ? '0 10px 15px -3px rgba(59,130,246,0.1)' : 'none',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.1, 1)',
+                            '&:hover': { transform: 'translateY(-5px)', borderColor: '#3b82f6' },
+                        }}
                         >
-                          <ReceiptIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} sx={{ textAlign: 'center', opacity: 0.5, py: 5 }}>
-                      No previous settlements discovered.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
-      ) : null}
+                        <CardContent sx={{ p: 4, textAlign: 'center' }}>
+                            <Typography variant="h6" fontWeight={900} sx={{ color: '#64748b', mb: 1 }}>
+                            {plan.name}
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 0.5 }}>
+                                <Typography variant="h3" fontWeight={900} sx={{ color: '#0f172a' }}>
+                                ₹{plan.price}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 800 }}>/UNIT</Typography>
+                            </Box>
+                            <Divider sx={{ my: 3, borderColor: '#f1f5f9' }} />
+                            <Box sx={{ textAlign: 'left' }}>
+                            <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700, mb: 1 }}>
+                                ● Real-time Sentry Protection
+                            </Typography>
+                            <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700, mb: 1 }}>
+                                ● {deviceCount} Managed Assets
+                            </Typography>
+                            <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700 }}>
+                                ● Comprehensive Audit History
+                            </Typography>
+                            </Box>
+                        </CardContent>
+                        </Card>
+                    </Grid>
+                    ))}
+                </Grid>
+
+                <Paper
+                    sx={{
+                    p: 4,
+                    borderRadius: '24px',
+                    background: '#f8fafc',
+                    mb: 5,
+                    border: '1px solid #e2e8f0',
+                    }}
+                >
+                    <Typography variant="h6" fontWeight={900} sx={{ mb: 3, color: '#1e293b' }}>
+                    FEE & TAX BREAKDOWN (INCLUSIVE)
+                    </Typography>
+                    <Grid container spacing={4}>
+                    <Grid item xs={6} md={3}>
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <VerifiedUserIcon sx={{ color: '#3b82f6' }} fontSize="small" />
+                        <Box>
+                            <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700 }}>
+                            BASIC ACCESS
+                            </Typography>
+                            <Typography fontWeight={900} sx={{ color: '#0f172a' }}>
+                            ₹{((currentPlan?.breakdown?.basic || 0) * deviceCount).toFixed(2)}
+                            </Typography>
+                        </Box>
+                        </Box>
+                    </Grid>
+                    <Grid item xs={6} md={3}>
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <StorageIcon sx={{ color: '#8b5cf6' }} fontSize="small" />
+                        <Box>
+                            <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700 }}>
+                            SERVER CHARGE
+                            </Typography>
+                            <Typography fontWeight={900} sx={{ color: '#0f172a' }}>
+                            ₹{((currentPlan?.breakdown?.server || 0) * deviceCount).toFixed(2)}
+                            </Typography>
+                        </Box>
+                        </Box>
+                    </Grid>
+                    <Grid item xs={6} md={3}>
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <CloudQueueIcon sx={{ color: '#06b6d4' }} fontSize="small" />
+                        <Box>
+                            <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700 }}>
+                            CLOUD INFRA
+                            </Typography>
+                            <Typography fontWeight={900} sx={{ color: '#0f172a' }}>
+                            ₹{((currentPlan?.breakdown?.cloud || 0) * deviceCount).toFixed(2)}
+                            </Typography>
+                        </Box>
+                        </Box>
+                    </Grid>
+                    <Grid item xs={6} md={3}>
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <ReceiptIcon sx={{ color: '#10b981' }} fontSize="small" />
+                        <Box>
+                            <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700 }}>
+                            GST (18%)
+                            </Typography>
+                            <Typography fontWeight={900} sx={{ color: '#0f172a' }}>
+                            ₹{(
+                                (currentPlan?.breakdown?.gst || 0) * deviceCount +
+                                (bill?.totalDue || 0) * 0.18
+                            ).toFixed(2)}
+                            </Typography>
+                        </Box>
+                        </Box>
+                    </Grid>
+                    </Grid>
+
+                    <Divider sx={{ my: 3, borderColor: '#e2e8f0' }} />
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                        <Typography variant="h4" fontWeight={900} color="primary.main">
+                        TOTAL: ₹{totalFleetAmount.toFixed(2)}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>
+                        Includes accrued debt of ₹{bill?.totalDue || 0}
+                        </Typography>
+                    </Box>
+                    <Button
+                        variant="contained"
+                        size="large"
+                        onClick={
+                        !analytics?.config?.paymentLink || analytics?.config?.paymentLink === '#'
+                            ? handleDemoPay
+                            : () => window.open(analytics.config.paymentLink, '_blank')
+                        }
+                        sx={{ 
+                            borderRadius: '16px', px: 6, py: 2, fontWeight: 900, fontSize: '1.1rem',
+                            boxShadow: '0 10px 15px -3px rgba(59,130,246,0.3)',
+                            '&:hover': { transform: 'translateY(-2px)' }
+                        }}
+                    >
+                        {(bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? 'RENEW SUBSCRIPTION' : 'ACTIVATE FLEET SENTRY'}
+                    </Button>
+                    </Box>
+                </Paper>
+
+                <Typography
+                    variant="h5"
+                    sx={{ mb: 3, fontWeight: 900, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 2 }}
+                >
+                    <VerifiedIcon color="primary" /> Professional Invoice Registry
+                </Typography>
+                <TableContainer component={Paper} sx={{ borderRadius: '24px', border: '1px solid #e2e8f0', background: '#ffffff', boxShadow: 'none' }}>
+                    <Table>
+                    <TableHead sx={{ background: '#f8fafc' }}>
+                        <TableRow>
+                        <TableCell sx={{ fontWeight: 900, color: '#1e293b' }}>INVOICE NO.</TableCell>
+                        <TableCell sx={{ fontWeight: 900, color: '#1e293b' }}>DATE</TableCell>
+                        <TableCell sx={{ fontWeight: 900, color: '#1e293b' }}>PLAN</TableCell>
+                        <TableCell sx={{ fontWeight: 900, color: '#1e293b' }}>UNITS</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 900, color: '#1e293b' }}>AMOUNT (INR)</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 900, color: '#1e293b' }}>STATUS</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 900, color: '#1e293b' }}>ACTION</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {bill?.history?.length > 0 ? (
+                        bill.history.map((entry, idx) => (
+                            <TableRow
+                            key={idx}
+                            sx={{ '&:hover': { background: '#f8fafc' } }}
+                            >
+                            <TableCell sx={{ fontWeight: 900, color: '#3b82f6' }}>
+                                {entry.invoiceId}
+                            </TableCell>
+                            <TableCell sx={{ color: '#64748b', fontWeight: 600 }}>
+                                {new Date(entry.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: '#1e293b' }}>
+                                {(entry.planId || 'MONTHLY').toUpperCase()}
+                            </TableCell>
+                            <TableCell sx={{ color: '#64748b', fontWeight: 600 }}>{entry.deviceCount || 1} Units</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 900, color: '#0f172a' }}>
+                                ₹{entry.price}
+                            </TableCell>
+                            <TableCell align="center">
+                                <Chip
+                                label="PAID"
+                                size="small"
+                                sx={{
+                                    fontWeight: 900,
+                                    bgcolor: '#f0fdf4',
+                                    color: '#22c55e',
+                                    border: '1px solid #dcfce7'
+                                }}
+                                />
+                            </TableCell>
+                            <TableCell align="center">
+                                <IconButton
+                                onClick={() => setSelectedInvoice(entry)}
+                                sx={{ color: '#3b82f6', '&:hover': { background: '#eff6ff' } }}
+                                size="small"
+                                >
+                                <ReceiptIcon fontSize="small" />
+                                </IconButton>
+                            </TableCell>
+                            </TableRow>
+                        ))
+                        ) : (
+                        <TableRow>
+                            <TableCell colSpan={7} sx={{ textAlign: 'center', color: '#94a3b8', py: 5, fontWeight: 600 }}>
+                            No previous settlements discovered in your ledger.
+                            </TableCell>
+                        </TableRow>
+                        )}
+                    </TableBody>
+                    </Table>
+                </TableContainer>
+            </Paper>
+        </Box>
+      )}
 
       {/* --- TAB 4: DATABASE & LOGS --- */}
       {admin && tab === 4 && (
@@ -1625,26 +1671,23 @@ const BillingPage = () => {
           sx={{
             p: 4,
             borderRadius: '24px',
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.05)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
           }}
         >
-          <Typography variant="h5" fontWeight={900} sx={{ mb: 4 }}>
+          <Typography variant="h5" fontWeight={900} sx={{ mb: 4, color: '#1e293b' }}>
             SOVEREIGN AUDIT LEDGER (SECURE DB LOGS)
           </Typography>
           <TableContainer sx={{ maxHeight: 600 }}>
             <Table stickyHeader>
               <TableHead>
-                <TableRow
-                  sx={{
-                    '& th': { bgcolor: '#0f172a', fontWeight: 900, color: 'rgba(255,255,255,0.5)' },
-                  }}
-                >
-                  <TableCell>TIMESTAMP</TableCell>
-                  <TableCell>ADMIN ID</TableCell>
-                  <TableCell>ACTION</TableCell>
-                  <TableCell>AFFECTED CLIENT</TableCell>
-                  <TableCell>DETAILS</TableCell>
+                <TableRow>
+                  <TableCell sx={{ background: '#f8fafc', fontWeight: 900, color: '#1e293b' }}>TIMESTAMP</TableCell>
+                  <TableCell sx={{ background: '#f8fafc', fontWeight: 900, color: '#1e293b' }}>ADMIN ID</TableCell>
+                  <TableCell sx={{ background: '#f8fafc', fontWeight: 900, color: '#1e293b' }}>ACTION</TableCell>
+                  <TableCell sx={{ background: '#f8fafc', fontWeight: 900, color: '#1e293b' }}>AFFECTED CLIENT</TableCell>
+                  <TableCell sx={{ background: '#f8fafc', fontWeight: 900, color: '#1e293b' }}>DETAILS</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -1653,12 +1696,12 @@ const BillingPage = () => {
                     <TableRow
                       key={log.id}
                       onClick={() => setSelectedAuditLog(log)}
-                      sx={{ cursor: 'pointer', '&:hover': { background: 'rgba(255,255,255,0.05)' } }}
+                      sx={{ cursor: 'pointer', '&:hover': { background: '#f1f5f9' } }}
                     >
-                      <TableCell sx={{ opacity: 0.6, fontSize: '0.8rem' }}>
+                      <TableCell sx={{ color: '#64748b', fontSize: '0.8rem' }}>
                         {new Date(log.createdAt).toLocaleString()}
                       </TableCell>
-                      <TableCell sx={{ fontFamily: 'monospace', opacity: 0.5, fontSize: '0.7rem' }}>
+                      <TableCell sx={{ fontFamily: 'monospace', color: '#94a3b8', fontSize: '0.7rem' }}>
                         {log.adminId}
                       </TableCell>
                       <TableCell>
@@ -1667,22 +1710,22 @@ const BillingPage = () => {
                           size="small"
                           sx={{
                             fontWeight: 800,
-                            bgcolor: 'rgba(59,130,246,0.2)',
+                            bgcolor: '#eff6ff',
                             color: '#3b82f6',
                           }}
                         />
                       </TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>
+                      <TableCell sx={{ fontWeight: 700, color: '#1e293b' }}>
                         {log.user?.email || log.userId}
                       </TableCell>
-                      <TableCell sx={{ opacity: 0.8, fontSize: '0.85rem' }}>
+                      <TableCell sx={{ color: '#475569', fontSize: '0.85rem' }}>
                         {log.details}
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ opacity: 0.5, py: 5 }}>
+                    <TableCell colSpan={5} align="center" sx={{ color: '#94a3b8', py: 5 }}>
                       No audit logs discovered in database.
                     </TableCell>
                   </TableRow>
@@ -1692,17 +1735,19 @@ const BillingPage = () => {
           </TableContainer>
         </Paper>
       )}
+
       {/* --- TAB 5: COMMAND SETTINGS --- */}
       {admin && tab === 5 && (
         <Paper
           sx={{
             p: 4,
             borderRadius: '24px',
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.05)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
           }}
         >
-          <Typography variant="h5" fontWeight={900} sx={{ mb: 4 }}>
+          <Typography variant="h5" fontWeight={900} sx={{ mb: 4, color: '#1e293b' }}>
             GLOBAL COMMAND SETTINGS
           </Typography>
           <Grid container spacing={4}>
@@ -1711,14 +1756,14 @@ const BillingPage = () => {
                 sx={{
                   p: 4,
                   borderRadius: '24px',
-                  background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.05)',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                 }}
               >
-                <Typography variant="h6" fontWeight={800} gutterBottom>
+                <Typography variant="h6" fontWeight={800} sx={{ color: '#1e293b' }} gutterBottom>
                   Sovereign Payment Gateway Link
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.5, mb: 3 }}>
+                <Typography variant="body2" sx={{ color: '#64748b', mb: 3 }}>
                   The active link triggered by "Proceed to Pay". Updates are reflected across all
                   B2B enterprise hubs immediately.
                 </Typography>
@@ -1731,7 +1776,7 @@ const BillingPage = () => {
                     mb: 3,
                     '& .MuiOutlinedInput-root': {
                       borderRadius: '12px',
-                      background: 'rgba(255,255,255,0.03)',
+                      background: '#ffffff',
                     },
                   }}
                   InputProps={{
@@ -1761,33 +1806,34 @@ const BillingPage = () => {
           sx={{
             p: 4,
             borderRadius: '24px',
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.05)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
           }}
         >
-          <Typography variant="h5" fontWeight={900} sx={{ mb: 4 }}>
+          <Typography variant="h5" fontWeight={900} sx={{ mb: 4, color: '#1e293b' }}>
             REAL-TIME PLATFORM HEALTH
           </Typography>
           <Grid container spacing={4}>
             {[
-              { label: 'SaaS API Engine', value: systemStats?.status || 'Active', color: '#4ade80' },
-              { label: 'Database (Postgres)', value: systemStats?.db || 'Connected', color: '#4ade80' },
-              { label: 'Traccar Core', value: systemStats?.traccar || 'Running', color: '#4ade80' },
-              { label: 'CPU Load', value: `${systemStats?.cpu?.[0]?.toFixed(2) || '0.00'}`, color: '#60a5fa' },
-              { label: 'Memory Usage', value: `${systemStats?.memory?.free} / ${systemStats?.memory?.total}`, color: '#60a5fa' },
-              { label: 'System Uptime', value: `${(systemStats?.uptime / 3600).toFixed(1)} Hours`, color: '#facc15' },
+              { label: 'SaaS API Engine', value: systemStats?.status || 'Active', color: '#10b981' },
+              { label: 'Database (Postgres)', value: systemStats?.db || 'Connected', color: '#10b981' },
+              { label: 'Traccar Core', value: systemStats?.traccar || 'Running', color: '#10b981' },
+              { label: 'CPU Load', value: `${systemStats?.cpu?.[0]?.toFixed(2) || '0.00'}`, color: '#3b82f6' },
+              { label: 'Memory Usage', value: `${systemStats?.memory?.free} / ${systemStats?.memory?.total}`, color: '#3b82f6' },
+              { label: 'System Uptime', value: `${(systemStats?.uptime / 3600).toFixed(1)} Hours`, color: '#f59e0b' },
             ].map((stat, i) => (
               <Grid item xs={12} md={4} key={i}>
                 <Box
                   sx={{
                     p: 3,
                     borderRadius: '16px',
-                    bgcolor: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.05)',
+                    bgcolor: '#f8fafc',
+                    border: '1px solid #e2e8f0',
                     textAlign: 'center',
                   }}
                 >
-                  <Typography variant="caption" sx={{ opacity: 0.5, fontWeight: 900 }}>
+                  <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 900 }}>
                     {stat.label.toUpperCase()}
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 900, color: stat.color, mt: 1 }}>
@@ -1806,22 +1852,23 @@ const BillingPage = () => {
           sx={{
             p: 4,
             borderRadius: '24px',
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.05)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
           }}
         >
-          <Typography variant="h5" fontWeight={900} sx={{ mb: 4 }}>
+          <Typography variant="h5" fontWeight={900} sx={{ mb: 4, color: '#1e293b' }}>
             SOVEREIGN SECRETS & API COMMAND
           </Typography>
           <Grid container spacing={4}>
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Payment Gateway (Razorpay)</Typography>
+              <Typography variant="h6" fontWeight={800} sx={{ mb: 2, color: '#0f172a' }}>Payment Gateway (Razorpay)</Typography>
               <TextField
                 fullWidth
                 label="Razorpay Key ID"
                 value={adminSettings.razorpayId}
                 onChange={(e) => setAdminSettings({ ...adminSettings, razorpayId: e.target.value })}
-                sx={{ mb: 2 }}
+                sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
               />
               <TextField
                 fullWidth
@@ -1829,7 +1876,7 @@ const BillingPage = () => {
                 type="password"
                 value={adminSettings.razorpaySecret}
                 onChange={(e) => setAdminSettings({ ...adminSettings, razorpaySecret: e.target.value })}
-                sx={{ mb: 2 }}
+                sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
               />
                <TextField
                 fullWidth
@@ -1837,31 +1884,31 @@ const BillingPage = () => {
                 type="password"
                 value={adminSettings.razorpayWebhookSecret}
                 onChange={(e) => setAdminSettings({ ...adminSettings, razorpayWebhookSecret: e.target.value })}
-                sx={{ mb: 2 }}
+                sx={{ mb: 3, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
               />
             </Grid>
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Platform Infrastructure</Typography>
+              <Typography variant="h6" fontWeight={800} sx={{ mb: 2, color: '#0f172a' }}>Platform Infrastructure</Typography>
               <TextField
                 fullWidth
                 label="Firebase Server Key"
                 value={adminSettings.firebaseConfig}
                 onChange={(e) => setAdminSettings({ ...adminSettings, firebaseConfig: e.target.value })}
-                sx={{ mb: 2 }}
+                sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
               />
               <TextField
                 fullWidth
                 label="AI Engine (OpenRouter) Key"
                 value={adminSettings.openrouterKey}
                 onChange={(e) => setAdminSettings({ ...adminSettings, openrouterKey: e.target.value })}
-                sx={{ mb: 2 }}
+                sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
               />
               <TextField
                 fullWidth
                 label="Support Contact Email"
                 value={adminSettings.supportEmail}
                 onChange={(e) => setAdminSettings({ ...adminSettings, supportEmail: e.target.value })}
-                sx={{ mb: 2 }}
+                sx={{ mb: 3, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
               />
             </Grid>
           </Grid>
@@ -1871,13 +1918,14 @@ const BillingPage = () => {
               size="large"
               startIcon={<SaveIcon />}
               onClick={handleUpdateSovereignSettings}
-              sx={{ borderRadius: '12px', fontWeight: 900, px: 6 }}
+              sx={{ borderRadius: '16px', fontWeight: 900, px: 6, py: 1.5 }}
             >
               SAVE SOVEREIGN CONFIGURATION
             </Button>
           </Box>
         </Paper>
       )}
+
 
       {/* --- MANUAL MANAGEMENT DIALOG --- */}
       <Dialog
@@ -2073,25 +2121,27 @@ const BillingPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* --- TAB 9: SECURITY & SESSIONS --- */}
+      {/* --- TAB 9: SECURITY & GOVERNANCE --- */}
       {admin && tab === 9 && (
         <Paper
           sx={{
             p: 4,
             borderRadius: '24px',
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.05)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-            <Typography variant="h5" fontWeight={900}>
+            <Typography variant="h5" fontWeight={900} sx={{ color: '#0f172a', display: 'flex', alignItems: 'center', gap: 2 }}>
+                <SecurityIcon sx={{ fontSize: 32, color: '#3b82f6' }} />
                 SOVEREIGN SECURITY & ACCESS HUB
             </Typography>
             <Button 
                 variant="outlined" 
                 startIcon={<RefreshIcon />} 
                 onClick={fetchSecurityData}
-                sx={{ borderRadius: '12px', fontWeight: 900 }}
+                sx={{ borderRadius: '12px', fontWeight: 900, borderColor: '#e2e8f0', color: '#64748b' }}
                 disabled={securityLoading}
             >
                 REFRESH AUDIT
@@ -2100,13 +2150,13 @@ const BillingPage = () => {
           
           <Grid container spacing={4}>
             <Grid item xs={12} md={7}>
-                <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <DnsIcon color="primary" /> ACTIVE SOVEREIGN SESSIONS
+                <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: '#1e293b' }}>
+                    <DnsIcon color="primary" sx={{ fontSize: 20 }} /> ACTIVE SOVEREIGN SESSIONS
                 </Typography>
-                <TableContainer sx={{ background: 'rgba(0,0,0,0.2)', borderRadius: '16px' }}>
+                <TableContainer component={Paper} sx={{ bgcolor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: 'none' }}>
                     <Table size="small">
                         <TableHead>
-                            <TableRow sx={{ '& th': { fontWeight: 900, opacity: 0.5 } }}>
+                            <TableRow sx={{ '& th': { fontWeight: 900, color: '#64748b', py: 2 } }}>
                                 <TableCell>AUTHORIZED DEVICE</TableCell>
                                 <TableCell>IP / SOURCE</TableCell>
                                 <TableCell>CREATED</TableCell>
@@ -2116,9 +2166,9 @@ const BillingPage = () => {
                         <TableBody>
                             {mySessions.map((session) => (
                                 <TableRow key={session.id}>
-                                    <TableCell sx={{ fontWeight: 700 }}>{session.device}</TableCell>
-                                    <TableCell sx={{ opacity: 0.7, fontFamily: 'monospace' }}>{session.ip}</TableCell>
-                                    <TableCell sx={{ opacity: 0.7 }}>{new Date(session.createdAt).toLocaleString()}</TableCell>
+                                    <TableCell sx={{ fontWeight: 800, color: '#1e293b' }}>{session.device}</TableCell>
+                                    <TableCell sx={{ color: '#64748b', fontFamily: 'monospace', fontSize: '0.8rem' }}>{session.ip}</TableCell>
+                                    <TableCell sx={{ color: '#94a3b8', fontSize: '0.8rem' }}>{new Date(session.createdAt).toLocaleString()}</TableCell>
                                     <TableCell align="right">
                                         <Button 
                                             size="small" 
@@ -2133,30 +2183,39 @@ const BillingPage = () => {
                             ))}
                             {mySessions.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center" sx={{ py: 4, opacity: 0.5 }}>No other active sessions discovered.</TableCell>
+                                    <TableCell colSpan={4} align="center" sx={{ py: 4, color: '#94a3b8' }}>No other active sessions discovered.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </TableContainer>
+
+                <Paper sx={{ p: 3, mt: 3, borderRadius: '20px', background: '#f0f9ff', border: '1px solid #e0f2fe' }}>
+                    <Typography variant="subtitle2" sx={{ color: '#0369a1', fontWeight: 900, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <VpnLockIcon sx={{ fontSize: 18 }} /> SOVEREIGN GOVERNANCE POLICY
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#075985', opacity: 0.8 }}>
+                        Inactivity timeout is currently enforced at <strong>15 Minutes</strong>. All administrative ghosting events are cryptographically signed and logged for compliance auditing.
+                    </Typography>
+                </Paper>
             </Grid>
             
             <Grid item xs={12} md={5}>
-                <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <HistoryIcon color="secondary" /> ACCESS LEDGER
+                <Typography variant="h6" fontWeight={800} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: '#1e293b' }}>
+                    <HistoryIcon color="secondary" sx={{ fontSize: 20 }} /> ACCESS RECONNAISSANCE
                 </Typography>
-                <Box sx={{ background: 'rgba(255,255,255,0.02)', p: 2, borderRadius: '16px', maxHeight: 400, overflowY: 'auto' }}>
+                <Box sx={{ background: '#f8fafc', p: 2, borderRadius: '16px', border: '1px solid #e2e8f0', maxHeight: 450, overflowY: 'auto' }}>
                     {loginHistory.map((entry, idx) => (
-                        <Box key={idx} sx={{ display: 'flex', alignItems: 'center', p: 2, mb: 1, background: 'rgba(255,255,255,0.03)', borderRadius: '12px', borderLeft: `4px solid ${entry.success ? '#4ade80' : '#f87171'}` }}>
+                        <Box key={idx} sx={{ display: 'flex', alignItems: 'center', p: 2, mb: 1.5, background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', borderLeft: `6px solid ${entry.success ? '#10b981' : '#ef4444'}` }}>
                             <Box sx={{ flex: 1 }}>
-                                <Typography variant="body2" fontWeight={700}>{entry.success ? 'Successful Login' : 'Failed Access Attempt'}</Typography>
-                                <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }}>{new Date(entry.createdAt).toLocaleString()} • {entry.ipAddress}</Typography>
+                                <Typography variant="body2" fontWeight={900} sx={{ color: '#0f172a' }}>{entry.success ? 'Successful Login' : 'Failed Access Attempt'}</Typography>
+                                <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mt: 0.5 }}>{new Date(entry.createdAt).toLocaleString()} • {entry.ipAddress}</Typography>
                             </Box>
-                            <Chip label={entry.success ? 'SECURE' : 'VULNERABILITY'} size="small" sx={{ fontWeight: 900, bgcolor: entry.success ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)', color: entry.success ? '#4ade80' : '#f87171' }} />
+                            <Chip label={entry.success ? 'SECURE' : 'VULN'} size="small" sx={{ fontWeight: 900, bgcolor: entry.success ? '#ecfdf5' : '#fef2f2', color: entry.success ? '#10b981' : '#ef4444', height: 24 }} />
                         </Box>
                     ))}
                     {loginHistory.length === 0 && (
-                        <Typography variant="body2" sx={{ textAlign: 'center', py: 4, opacity: 0.5 }}>Access ledger is empty.</Typography>
+                        <Typography variant="body2" sx={{ textAlign: 'center', py: 4, color: '#94a3b8' }}>Access ledger is empty.</Typography>
                     )}
                 </Box>
             </Grid>
@@ -2164,22 +2223,17 @@ const BillingPage = () => {
         </Paper>
       )}
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: '100%', borderRadius: '12px', fontWeight: 700 }}
-        >
-          {snackbar.message}
-        </Alert>
+
+      {/* --- SNACKBARS --- */}
+      <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess(null)}>
+        <Alert severity="success" sx={{ borderRadius: '12px', fontWeight: 800 }}>{success}</Alert>
       </Snackbar>
+      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ borderRadius: '12px', fontWeight: 800 }}>{error}</Alert>
+      </Snackbar>
+
       {/* --- ONBOARDING DIALOG --- */}
-        <Dialog 
+      <Dialog 
         open={showOnboardDialog} 
         onClose={() => setShowOnboardDialog(false)}
         maxWidth="xs"
@@ -2216,68 +2270,13 @@ const BillingPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* --- TAB 9: SECURITY & GOVERNANCE --- */}
-      {admin && tab === 9 && (
-        <Box>
-            <Typography variant="h4" fontWeight={900} sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
-                <SecurityIcon sx={{ fontSize: 40, color: '#3b82f6' }} />
-                SECURITY & GOVERNANCE
-            </Typography>
-            
-            <Grid container spacing={3}>
-                <Grid item xs={12} md={4}>
-                    <Paper sx={{ p: 4, borderRadius: '25px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                        <Typography variant="h6" fontWeight={900} sx={{ mb: 1 }}>SESSION POLICIES</Typography>
-                        <Divider sx={{ mb: 3, opacity: 0.1 }} />
-                        
-                        <Box sx={{ mb: 3 }}>
-                            <Typography variant="subtitle2" sx={{ opacity: 0.6 }}>INACTIVITY TIMEOUT</Typography>
-                            <Typography variant="h5" fontWeight={900}>15 MINUTES</Typography>
-                            <Typography variant="caption" sx={{ color: 'success.main' }}>● ACTIVE (ENFORCED)</Typography>
-                        </Box>
-                        
-                        <Box sx={{ mb: 3 }}>
-                            <Typography variant="subtitle2" sx={{ opacity: 0.6 }}>MULTI-FACTOR AUTH (MFA)</Typography>
-                            <Chip label="UNDER DEVELOPMENT" size="small" color="warning" sx={{ fontWeight: 900, mt: 1 }} />
-                        </Box>
-                        
-                        <Button variant="outlined" fullWidth sx={{ borderRadius: '12px', borderColor: 'rgba(255,255,255,0.2)', color: 'white' }}>
-                            REDEFINE POLICIES
-                        </Button>
-                    </Paper>
-                </Grid>
-                
-                <Grid item xs={12} md={8}>
-                    <Paper sx={{ p: 4, borderRadius: '25px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                        <Typography variant="h6" fontWeight={900} sx={{ mb: 2 }}>SOVEREIGN AUDIT DEPTH</Typography>
-                        <Typography variant="body2" sx={{ opacity: 0.6, mb: 3 }}>
-                            All administrative sessions are now recorded with high-fidelity structured logs. Ghosting events require mandatory support reasoning.
-                        </Typography>
-                        
-                        <Alert severity="info" sx={{ borderRadius: '15px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: 'white' }}>
-                            <strong>Pro-Tip:</strong> Click on any audit entry in the "Audit Logs" tab to view the detailed JSON payload of the event.
-                        </Alert>
-                    </Paper>
-                </Grid>
-            </Grid>
-        </Box>
-      )}
-
-      {/* --- SNACKBARS --- */}
-      <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess(null)}>
-        <Alert severity="success" sx={{ borderRadius: '12px', fontWeight: 800 }}>{success}</Alert>
-      </Snackbar>
-      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}>
-        <Alert severity="error" sx={{ borderRadius: '12px', fontWeight: 800 }}>{error}</Alert>
-      </Snackbar>
-
       {/* --- ROLE MANAGEMENT DIALOG --- */}
       <Dialog 
         open={showRoleDialog} 
         onClose={() => setShowRoleDialog(false)}
-        PaperProps={{ sx: { borderRadius: '25px', background: '#0f172a', color: 'white', border: '1px solid rgba(255,255,255,0.1)' } }}
+        PaperProps={{ sx: { borderRadius: '25px', background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' } }}
       >
-        <DialogTitle sx={{ fontWeight: 900 }}>UPDATE USER ROLE</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 900, color: '#0f172a' }}>UPDATE USER ROLE</DialogTitle>
         <DialogContent>
             <Typography variant="body2" sx={{ mb: 3, opacity: 0.7 }}>
                 Elevate or demote <strong>{targetUser?.email}</strong>.
@@ -2305,9 +2304,9 @@ const BillingPage = () => {
         onClose={() => !provisioning && setShowProvisionDialog(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: '25px', background: '#0f172a', color: 'white', border: '1px solid rgba(255,255,255,0.1)' } }}
+        PaperProps={{ sx: { borderRadius: '25px', background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' } }}
       >
-        <DialogTitle sx={{ fontWeight: 900 }}>BULK DEVICE PROVISIONING</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 900, color: '#0f172a' }}>BULK DEVICE PROVISIONING</DialogTitle>
         <DialogContent>
             <Typography variant="body2" sx={{ mb: 2, opacity: 0.7 }}>
                 Enter devices for <strong>{targetUser?.email}</strong> (one per line).
