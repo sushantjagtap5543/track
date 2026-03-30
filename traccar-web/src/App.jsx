@@ -15,8 +15,12 @@ import fetchOrThrow from './common/util/fetchOrThrow';
 
 const useStyles = makeStyles()(() => ({
   page: {
-    flexGrow: 1,
-    overflow: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    width: '100%',
+    overflow: 'hidden',
+    position: 'relative'
   },
   menu: {
     zIndex: 4,

@@ -380,6 +380,19 @@ async function startGuardian() {
     await generateDailySummary();
   });
 
+  // --- 🤖 DAILY AI RE-ACTIVATION PULSE (User Requirement) ---
+  // Runs every 24 hours at Midnight to ensure AI connectivity is re-verified
+  // and reactivated if it was previously inactive.
+  cron.schedule('0 0 * * *', async () => {
+    console.log('🤖 AI-Guardian: Initializing 24-hour AI Auto-Activation Pulse...');
+    const aiCheck = await callAI('Daily pulse check. Respond with "AI Persistent".');
+    if (aiCheck) {
+      console.log(`✅ AI-Guardian: AI Re-activation successful. [${aiCheck}]`);
+    } else {
+      console.error('🚨 AI-Guardian: AI Re-activation failed. Check credentials/limit.');
+    }
+  });
+
   // Every 30 minutes — Memory pressure check
   cron.schedule('*/30 * * * *', () => {
     const usedPercent = Math.round(

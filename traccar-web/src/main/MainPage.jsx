@@ -103,7 +103,7 @@ const MainPage = () => {
   );
 
   return (
-    <div className={classes.root}>
+    <div className={classes.root} style={{ overflow: 'hidden', height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {desktop && (
         <MainMap
           filteredPositions={filteredPositions}

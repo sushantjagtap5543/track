@@ -919,7 +919,7 @@ const BillingPage = () => {
     );
   }
   return (
-    <Box sx={{ minHeight: '100vh', background: '#f8fafc', color: '#1e293b', py: 4 }}>
+    <Box sx={{ height: '100%', overflowY: 'auto', background: '#f8fafc', color: '#1e293b', py: 4, position: 'relative' }}>
     <Container maxWidth="xl" sx={{ position: 'relative' }}>
       <Box sx={{ position: 'absolute', top: -10, right: 0, zIndex: 1000, display: 'flex', gap: 2 }}>
         <Button
@@ -1190,7 +1190,7 @@ const BillingPage = () => {
           <Box
             sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}
           >
-            <Typography variant="h5" fontWeight={900} sx={{ color: '#000000' }}>
+            <Typography variant="h5" fontWeight={900} sx={{ color: '#000000', textTransform: 'uppercase' }}>
               GLOBAL USER AUDIT LEDGER
             </Typography>
             <TextField
@@ -1240,7 +1240,7 @@ const BillingPage = () => {
               <TableBody>
                 {filteredLedger.map((u) => (
                   <TableRow key={u.id} sx={{ '&:hover': { background: '#f8fafc' } }}>
-                    <TableCell sx={{ fontWeight: 800, borderBottom: '1px solid #f1f5f9' }}>
+                    <TableCell sx={{ fontWeight: 800, borderBottom: '1px solid #f1f5f9', color: '#000000' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         {u.email}
                         {u.isVIP && (
@@ -1250,7 +1250,7 @@ const BillingPage = () => {
                         )}
                       </Box>
                     </TableCell>
-                    <TableCell sx={{ opacity: 0.8 }}>{u.fleetSize} Units</TableCell>
+                    <TableCell sx={{ color: '#000000', fontWeight: 600 }}>{u.fleetSize} Units</TableCell>
                     <TableCell>
                       <Chip
                         label={u.status}
@@ -1274,18 +1274,18 @@ const BillingPage = () => {
                         }}
                       />
                     </TableCell>
-                    <TableCell align="center" sx={{ opacity: 0.8 }}>
+                    <TableCell align="center" sx={{ color: '#000000' }}>
                       {u.unpaidDays > 0 ? (
-                        <Typography color="error" variant="body2" sx={{ fontWeight: 700 }}>
+                        <Typography color="error" variant="body2" sx={{ fontWeight: 900 }}>
                           {u.unpaidDays} DAYS
                         </Typography>
                       ) : (
-                        <Typography color="success.main" variant="body2">
+                        <Typography sx={{ color: '#10b981', fontWeight: 900 }} variant="body2">
                           CLEAN
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 900 }}>
+                    <TableCell align="right" sx={{ fontWeight: 900, color: '#000000' }}>
                       ₹{u.totalDue?.toFixed(2)}
                     </TableCell>
                     <TableCell align="center">
@@ -1400,9 +1400,9 @@ const BillingPage = () => {
                   <TableRow
                     key={log.id}
                     onClick={() => setSelectedAuditLog(log)}
-                    sx={{ cursor: 'pointer', '&:hover': { background: 'rgba(255,255,255,0.02)' } }}
+                    sx={{ cursor: 'pointer', '&:hover': { background: '#f8fafc' } }}
                   >
-                    <TableCell sx={{ color: '#64748b', fontWeight: 600 }}>
+                    <TableCell sx={{ color: '#000000', fontWeight: 700 }}>
                       {new Date(log.createdAt).toLocaleString()}
                     </TableCell>
                     <TableCell>
@@ -1417,8 +1417,8 @@ const BillingPage = () => {
                         }}
                       />
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 800, color: '#0f172a' }}>{log.user?.email || 'System'}</TableCell>
-                    <TableCell sx={{ color: '#475569', fontWeight: 600 }}>{log.details}</TableCell>
+                    <TableCell sx={{ fontWeight: 900, color: '#000000' }}>{log.user?.email || 'System'}</TableCell>
+                    <TableCell sx={{ color: '#000000', fontWeight: 600 }}>{log.details}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1469,10 +1469,10 @@ const BillingPage = () => {
               <TableBody>
                 {payments.map((p, idx) => (
                   <TableRow key={idx} sx={{ '&:hover': { background: '#f8fafc' } }}>
-                    <TableCell sx={{ color: '#64748b', fontWeight: 600 }}>
+                    <TableCell sx={{ color: '#000000', fontWeight: 700 }}>
                       {new Date(p.createdAt).toLocaleString()}
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 800, color: '#0f172a' }}>{p.user?.email || 'N/A'}</TableCell>
+                    <TableCell sx={{ fontWeight: 900, color: '#000000' }}>{p.user?.email || 'N/A'}</TableCell>
                     <TableCell>
                       <Chip 
                         label={p.paymentMethod || 'RAZORPAY'} 
@@ -1480,10 +1480,10 @@ const BillingPage = () => {
                         sx={{ fontWeight: 900, bgcolor: '#f0f9ff', color: '#0369a1', border: '1px solid #e0f2fe' }} 
                       />
                     </TableCell>
-                    <TableCell sx={{ fontFamily: 'monospace', color: '#64748b', fontWeight: 700, fontSize: '0.8rem' }}>
+                    <TableCell sx={{ fontFamily: 'monospace', color: '#000000', fontWeight: 800, fontSize: '0.8rem' }}>
                         {p.transactionId || p.razorpayPaymentId || 'N/A'}
                     </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 900, color: '#000000' }}>
+                    <TableCell align="right" sx={{ fontWeight: 900, color: '#10b981' }}>
                       ₹{p.amount}
                     </TableCell>
                     <TableCell align="center">
@@ -1516,7 +1516,7 @@ const BillingPage = () => {
       {/* --- TAB 0: FLEET SETTLEMENT (User view) --- */}
       {(!admin && tab === 0) && (
         <Box>
-                   <Paper
+            <Paper
                 sx={{
                     p: 4,
                     mb: 4,
@@ -1538,17 +1538,17 @@ const BillingPage = () => {
                     <VerifiedUserIcon sx={{ fontSize: 40, color: (bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? '#22c55e' : '#ef4444' }} />
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                    <Typography variant="h6" fontWeight={900} sx={{ color: '#1e293b', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="h6" fontWeight={900} sx={{ color: '#000000', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                         {(bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? 'Shield Active' : 'Shield Inactive'}
                         {(bill?.status === 'PAID' || bill?.status === 'ACTIVE') && (
                             <Chip 
-                                label={Math.max(0, Math.ceil((new Date(bill.expiresAt) - new Date()) / (1000 * 60 * 60 * 24))) + " DAYS LEFT"} 
+                                label={(Math.max(0, Math.ceil((new Date(bill.expiresAt) - new Date()) / (1000 * 60 * 60 * 24)))) + " DAYS LEFT"} 
                                 size="small" 
                                 sx={{ bgcolor: '#dcfce7', color: '#166534', fontWeight: 900, fontSize: '0.65rem' }} 
                             />
                         )}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 600 }}>
+                    <Typography variant="body2" sx={{ color: '#2b3648', fontWeight: 700 }}>
                         {(bill?.status === 'PAID' || bill?.status === 'ACTIVE')
                             ? `Continuous protection guaranteed until ${new Date(bill?.expiresAt).toLocaleDateString()}`
                             : 'Your assets are currently unprotected. Activate a plan to restore Sentry monitoring.'}
