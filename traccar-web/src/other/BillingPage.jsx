@@ -163,6 +163,7 @@ const BillingPage = () => {
   });
   const admin = traccarAdmin || saasRole === 'ADMIN';
   const navigate = useNavigate();
+  const token = localStorage.getItem('saas_token'); // ✅ FIXED: Hoisted to top of component
 
   // --- STATE LIFTED TO TOP ---
   const [tab, setTab] = useState(parseInt(localStorage.getItem('billing_tab_index') || '0', 10));
@@ -196,6 +197,7 @@ const BillingPage = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({ planId: '', status: '', expiresAt: '' });
   const [selectedAuditLog, setSelectedAuditLog] = useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState(null); // ✅ NEW STATE
   const [lastActivity, setLastActivity] = useState(Date.now());
   const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 Minutes
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
@@ -207,7 +209,15 @@ const BillingPage = () => {
   const [authError, setAuthError] = useState('');
   const [loginMode, setLoginMode] = useState(0); 
 
-  // --- HELPERS LIFTED AFTER STATE ---
+  // --- SOVEREIGN DATA SYNC HELPER ---
+  const fetchData = () => {
+    fetchMyBill();
+    if (admin) {
+        fetchAnalyticsAndLedger();
+        fetchFullSystemStatus();
+        fetchAdminSettings();
+    }
+  };
   function showFeedback(message, severity = 'success') {
     setSnackbar({ open: true, message, severity });
   }
@@ -429,13 +439,7 @@ const BillingPage = () => {
   };
 
   useEffect(() => {
-    fetchMyBill();
-
-    if (admin) {
-      fetchAnalyticsAndLedger();
-      fetchFullSystemStatus();
-      fetchAdminSettings();
-    }
+    fetchData();
     
     if (tab === 9) {
         fetchSecurityData();
@@ -483,7 +487,7 @@ const BillingPage = () => {
     setSettling(true);
     try {
       const token = localStorage.getItem('saas_token');
-      const res = await fetch('/api/billing/settle-demo', {
+      const res = await fetch('/api/billing/demo-settle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ planId: 'monthly' }),
@@ -502,7 +506,7 @@ const BillingPage = () => {
     }
   }
 
-  async function handleUpdateGateway() {
+  async function handleUpdateSovereignSettings() {
     try {
       const token = localStorage.getItem('saas_token');
       const res = await fetch('/api/admin/settings', {
@@ -546,7 +550,7 @@ const BillingPage = () => {
     setSettling(true);
     try {
       const token = localStorage.getItem('saas_token');
-      const res = await fetch('/api/billing/settle-admin', {
+      const res = await fetch('/api/billing/admin/settle-cash', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ userId: targetId, planId, total }),
@@ -615,7 +619,7 @@ const BillingPage = () => {
       if (!supported) throw new Error('Payment Engine unavailable');
 
       const token = localStorage.getItem('saas_token');
-      const orderRes = await fetch('/api/billing/order', {
+      const orderRes = await fetch('/api/billing/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ amount: bill.amount }),
@@ -745,7 +749,6 @@ const BillingPage = () => {
     };
   }, [admin, lastActivity]);
 
-  const token = localStorage.getItem('saas_token');
   if (!token) {
     return (
       <Box
@@ -956,7 +959,7 @@ const BillingPage = () => {
         >
           <Tabs
             value={tab}
-            onChange={(e, v) => settab(v)}
+            onChange={(e, v) => setTab(v)}
             variant="fullWidth"
             sx={{
               '& .MuiTabs-indicator': { height: 4, borderRadius: '4px' },
