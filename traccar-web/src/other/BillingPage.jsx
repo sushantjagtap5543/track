@@ -54,6 +54,8 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import SecurityIcon from '@mui/icons-material/Security';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 
 import { useNavigate } from 'react-router-dom';
 import { useAdministrator } from '../common/util/permissions';
