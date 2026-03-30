@@ -979,8 +979,9 @@ const BillingPage = () => {
           sx={{
             mb: 4,
             borderRadius: '24px',
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
           }}
         >
           <Tabs
@@ -988,12 +989,12 @@ const BillingPage = () => {
             onChange={(e, v) => setTab(v)}
             variant="fullWidth"
             sx={{
-              '& .MuiTabs-indicator': { height: 4, borderRadius: '4px' },
+              '& .MuiTabs-indicator': { height: 4, borderRadius: '4px', bgcolor: '#3b82f6' },
               '& .MuiTab-root': {
                 fontWeight: 900,
                 fontSize: '1rem',
                 py: 3,
-                color: 'rgba(255,255,255,0.5)',
+                color: '#64748b',
               },
               '& .Mui-selected': { color: '#3b82f6 !important' },
             }}
