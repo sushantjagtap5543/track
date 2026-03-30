@@ -208,6 +208,10 @@ const BillingPage = () => {
   const [loginPassword, setLoginPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [loginMode, setLoginMode] = useState(0); 
+  
+  // ✅ NEW: Plan Management State
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [planForm, setPlanForm] = useState({ name: '', description: '', pricePerDevice: 0, billingCycle: 'MONTHLY' });
 
   // --- SOVEREIGN DATA SYNC HELPER ---
   const fetchData = () => {
@@ -611,6 +615,38 @@ const BillingPage = () => {
     }
   };
 
+  const handleOpenEditPlan = (plan) => {
+    setEditingPlan(plan);
+    setPlanForm({
+      name: plan.name,
+      description: plan.description,
+      pricePerDevice: plan.pricePerDevice,
+      billingCycle: plan.billingCycle
+    });
+  };
+
+  const handleUpdatePlan = async () => {
+    if (!editingPlan) return;
+    try {
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch('/api/admin/plans', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: editingPlan.id, ...planForm }),
+      });
+      if (res.ok) {
+        showFeedback('Billing Plan Architecture Updated');
+        setEditingPlan(null);
+        fetchData(); // Refresh plans
+      } else {
+        const errorData = await res.json();
+        showFeedback(errorData.error || 'Plan harmonization failed', 'error');
+      }
+    } catch (err) {
+      showFeedback('Network Disruption during plan sync', 'error');
+    }
+  };
+
   async function handleAdjustExpiry(targetId, email) {
     const days = prompt(`Strategic Expiry Override for ${email}: Enter number of days to extend:`, '30');
     if (!days) return;
@@ -756,25 +792,31 @@ const BillingPage = () => {
         sx={{
           minHeight: '100vh',
           background: '#0f172a',
+          color: 'white', // Enforce white text on dark bg
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          p: 3,
+          overflow: 'hidden',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999
         }}
       >
-        <Paper
-          elevation={24}
+        <Box
           sx={{
-            p: 5,
+            zIndex: 1,
             width: '100%',
-            maxWidth: 480,
+            maxWidth: 450,
+            p: 4,
             borderRadius: '40px',
             background: 'rgba(30, 41, 59, 0.7)',
             backdropFilter: 'blur(30px)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
             textAlign: 'center',
-            position: 'relative',
-            overflow: 'hidden',
           }}
         >
           {/* Decorative Gradient Glow */}
@@ -910,13 +952,13 @@ const BillingPage = () => {
               </Button>
             </Box>
           </Box>
-        </Paper>
+        </Box>
       </Box>
     );
   }
-
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 10, position: 'relative' }}>
+    <Box sx={{ minHeight: '100vh', background: '#0f172a', color: 'white', py: 4 }}>
+    <Container maxWidth="xl" sx={{ position: 'relative' }}>
       <Box sx={{ position: 'absolute', top: -10, right: 0, zIndex: 1000, display: 'flex', gap: 2 }}>
         <Button
             variant="outlined"
@@ -1964,7 +2006,14 @@ const BillingPage = () => {
                        <Typography variant="caption" sx={{ opacity: 0.5, ml: 1 }}>/ UNIT</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button fullWidth variant="outlined" sx={{ borderRadius: '10px', fontWeight: 900 }}>EDIT</Button>
+                      <Button 
+                        fullWidth 
+                        variant="outlined" 
+                        onClick={() => handleOpenEditPlan(plan)}
+                        sx={{ borderRadius: '10px', fontWeight: 900, color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}
+                      >
+                        EDIT
+                      </Button>
                       <IconButton color="error" sx={{ border: '1px solid rgba(248,113,113,0.2)', borderRadius: '10px' }}>
                         <DeleteIcon />
                       </IconButton>
@@ -1976,6 +2025,55 @@ const BillingPage = () => {
           </Grid>
         </Paper>
       )}
+
+      {/* --- EDIT PLAN DIALOG --- */}
+      <Dialog 
+        open={Boolean(editingPlan)} 
+        onClose={() => setEditingPlan(null)}
+        PaperProps={{ sx: { borderRadius: '25px', background: '#0f172a', color: 'white', border: '1px solid rgba(255,255,255,0.1)' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900 }}>EDIT BILLING PLAN</DialogTitle>
+        <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
+                <TextField 
+                    fullWidth label="Plan Name" 
+                    value={planForm.name} 
+                    onChange={e => setPlanForm({...planForm, name: e.target.value})}
+                    sx={{ input: { color: 'white' }, label: { color: 'rgba(255,255,255,0.5)' } }}
+                />
+                <TextField 
+                    fullWidth label="Description" 
+                    multiline rows={2}
+                    value={planForm.description} 
+                    onChange={e => setPlanForm({...planForm, description: e.target.value})}
+                    sx={{ textarea: { color: 'white' }, label: { color: 'rgba(255,255,255,0.5)' } }}
+                />
+                <TextField 
+                    fullWidth label="Price Per Device (₹)" 
+                    type="number"
+                    value={planForm.pricePerDevice} 
+                    onChange={e => setPlanForm({...planForm, pricePerDevice: parseFloat(e.target.value)})}
+                    sx={{ input: { color: 'white' }, label: { color: 'rgba(255,255,255,0.5)' } }}
+                />
+                <FormControl fullWidth>
+                    <InputLabel sx={{ color: 'rgba(255,255,255,0.5)' }}>Billing Cycle</InputLabel>
+                    <Select
+                        value={planForm.billingCycle}
+                        onChange={e => setPlanForm({...planForm, billingCycle: e.target.value})}
+                        sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' } }}
+                    >
+                        <MenuItem value="MONTHLY">MONTHLY</MenuItem>
+                        <MenuItem value="YEARLY">YEARLY</MenuItem>
+                        <MenuItem value="QUARTERLY">QUARTERLY (Custom)</MenuItem>
+                    </Select>
+                </FormControl>
+            </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setEditingPlan(null)} sx={{ color: 'white' }}>CANCEL</Button>
+            <Button variant="contained" onClick={handleUpdatePlan} sx={{ fontWeight: 900, borderRadius: '12px' }}>SAVE CHANGES</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* --- TAB 9: SECURITY & SESSIONS --- */}
       {admin && tab === 9 && (
@@ -2333,6 +2431,7 @@ const BillingPage = () => {
         </DialogContent>
       </Dialog>
     </Container>
+    </Box>
   );
 };
 

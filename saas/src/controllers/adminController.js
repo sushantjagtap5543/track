@@ -699,8 +699,17 @@ exports.bulkCreateDevices = async (req, res) => {
 
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !user.geosurepathUserId) {
-        return res.status(404).json({ error: 'User not found or lacks tracking engine ID.' });
+    if (!user) return res.status(404).json({ error: 'User not found in SaaS Ledger.' });
+
+    // ✅ RECOVERY: If engine ID is missing, try a lookup by email
+    if (!user.geosurepathUserId) {
+        const engineUser = await geosurepathService.getUserByEmail(user.email);
+        if (engineUser) {
+            await prisma.user.update({ where: { id: userId }, data: { geosurepathUserId: engineUser.id } });
+            user.geosurepathUserId = engineUser.id;
+        } else {
+            return res.status(404).json({ error: `User ${user.email} lacks a tracking engine ID and was not found in Traccar. Please sync or onboard first.` });
+        }
     }
 
     const results = [];

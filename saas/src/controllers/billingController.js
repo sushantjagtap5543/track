@@ -265,7 +265,16 @@ const settleCash = async (req, res) => {
       where: { id: targetUserId },
       include: { vehicles: true }
     });
-    if (!user) throw new Error('Target user not found');
+    if (!user) throw new Error('Target user not found in SaaS Ledger.');
+
+    // ✅ RECOVERY: If engine ID is missing, try a lookup by email
+    if (!user.geosurepathUserId) {
+        const engineUser = await geosurepathService.getUserByEmail(user.email);
+        if (engineUser) {
+            await prisma.user.update({ where: { id: targetUserId }, data: { geosurepathUserId: engineUser.id } });
+            user.geosurepathUserId = engineUser.id;
+        }
+    }
 
     const amountToSettle = parseFloat(amount);
     if (isNaN(amountToSettle)) throw new Error('Invalid amount provided');
@@ -339,7 +348,16 @@ const demoSettle = async (req, res) => {
       where: { id: userId },
       include: { vehicles: true }
     });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: 'User not found in SaaS Ledger.' });
+
+    // ✅ RECOVERY: If engine ID is missing, try a lookup by email
+    if (!user.geosurepathUserId) {
+        const engineUser = await geosurepathService.getUserByEmail(user.email);
+        if (engineUser) {
+            await prisma.user.update({ where: { id: userId }, data: { geosurepathUserId: engineUser.id } });
+            user.geosurepathUserId = engineUser.id;
+        }
+    }
 
     const plans = await getPlans();
     const plan = plans.find((p) => p.id === planId) || plans[0];
@@ -389,7 +407,8 @@ const demoSettle = async (req, res) => {
 
     res.json({ message: 'Demo Payment Successful! Subscription Activated.', subscription });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to process demo payment' });
+    console.error('[DemoSettle] Fatal:', err.message);
+    res.status(500).json({ error: `Failed to process demo payment: ${err.message}` });
   }
 };
 

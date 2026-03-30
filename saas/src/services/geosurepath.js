@@ -336,9 +336,20 @@ const getUser = async (userId) => {
   return response.json();
 };
 
+const getUserByEmail = async (email) => {
+    await ensureSession();
+    const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/users?email=${encodeURIComponent(email)}`, {
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) return null;
+    const users = await response.json();
+    return users.length > 0 ? users[0] : null;
+};
+
 module.exports = {
   createUser,
   getUser,
+  getUserByEmail,
   updateUser,
   createDevice,
   linkDeviceToUser,
