@@ -57,7 +57,7 @@ const useStyles = makeStyles()((theme) => ({
     lineHeight: 1.1,
   },
   subText: {
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#ffffff',
     fontSize: '1.1rem',
     fontWeight: 500,
     marginTop: theme.spacing(1),
@@ -222,8 +222,8 @@ const LoginPage = () => {
   const [announcementShown, setAnnouncementShown] = useState(false);
   const announcement = useSelector((state) => state.session.server.announcement);
 
-  const handlePasswordLogin = async (event) => {
-    event.preventDefault();
+  const handleLogin = async (event, target = null) => {
+    if (event) event.preventDefault();
     setFailed(false);
     setErrorText('');
     setLoading(true);
@@ -250,10 +250,10 @@ const LoginPage = () => {
         }
 
         generateLoginToken();
-        const defaultTarget = saasData.user?.role === 'ADMIN' ? '/billing' : '/';
-        const target = window.sessionStorage.getItem('postLogin') || defaultTarget;
+        const defaultTarget = target || (saasData.user?.role === 'ADMIN' ? '/billing' : '/');
+        const finalTarget = window.sessionStorage.getItem('postLogin') || defaultTarget;
         window.sessionStorage.removeItem('postLogin');
-        navigate(target, { replace: true });
+        navigate(finalTarget, { replace: true });
       } else {
         const data = await response.json().catch(() => ({}));
         setErrorText(data.error || 'Invalid username or password');
@@ -344,7 +344,7 @@ const LoginPage = () => {
         </Typography>
       </div>
 
-      <form className={classes.container} onSubmit={handlePasswordLogin}>
+      <form className={classes.container} onSubmit={(e) => handleLogin(e)}>
             <TextField
               required
               fullWidth
@@ -414,7 +414,18 @@ const LoginPage = () => {
               fullWidth
               startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
             >
-              {loading ? 'Authenticating...' : t('loginLogin')}
+              {loading ? 'Authenticating...' : 'Sign In to Dashboard'}
+            </Button>
+
+            <Button
+              onClick={(e) => handleLogin(e, '/billing')}
+              variant="outlined"
+              fullWidth
+              disabled={loading}
+              className={classes.secondaryButton}
+              startIcon={<ReceiptLongIcon />}
+            >
+              Pay Subscription / Billing
             </Button>
         {openIdEnabled && (
           <Button
