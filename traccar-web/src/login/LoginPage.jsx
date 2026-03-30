@@ -197,8 +197,6 @@ const LoginPage = () => {
 
   const [email, setEmail] = usePersistedState('loginEmail', '');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('CLIENT');
-  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -232,7 +230,7 @@ const LoginPage = () => {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (response.ok) {
@@ -270,53 +268,6 @@ const LoginPage = () => {
     }
   };
 
-  const handleBillingLogin = async (event) => {
-    event.preventDefault();
-    if (!email || !password) {
-      setErrorText('Please enter both email and password');
-      setFailed(true);
-      return;
-    }
-    setFailed(false);
-    setErrorText('');
-    setLoading(true);
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (response.ok) {
-        const saasData = await response.json();
-        if (saasData.accessToken) {
-          localStorage.setItem('saas_token', saasData.accessToken);
-        }
-        if (saasData.user?.role) {
-          localStorage.setItem('saas_role', saasData.user.role);
-        }
-
-        // Reconciliation
-        const traccarRes = await fetch('/api/session');
-        if (traccarRes.ok) {
-          const user = await traccarRes.json();
-          dispatch(sessionActions.updateUser(user));
-        }
-
-        generateLoginToken();
-        navigate('/billing', { replace: true });
-      } else {
-        const data = await response.json().catch(() => ({}));
-        setErrorText(data.error || 'Authentication failed for billing access');
-        setFailed(true);
-      }
-    } catch (e) {
-      setErrorText(e.message || 'Billing login failed');
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleTokenLogin = useCatch(async (token) => {
     const response = await fetchOrThrow(`/api/session?token=${encodeURIComponent(token)}`);
@@ -393,23 +344,6 @@ const LoginPage = () => {
       </div>
 
       <form className={classes.container} onSubmit={handlePasswordLogin}>
-        {!openIdForced && (
-          <>
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <Select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                sx={{
-                    borderRadius: '12px',
-                    bgcolor: 'rgba(255,255,255,0.05)',
-                    color: '#fff',
-                    '& .MuiSelect-icon': { color: 'rgba(255,255,255,0.5)' }
-                }}
-              >
-                <MenuItem value="CLIENT">Client Login</MenuItem>
-                <MenuItem value="ADMIN">Admin Login</MenuItem>
-              </Select>
-            </FormControl>
             <TextField
               required
               fullWidth
@@ -421,6 +355,10 @@ const LoginPage = () => {
               autoFocus={!email}
               onChange={(e) => setEmail(e.target.value)}
               helperText={failed && errorText}
+              sx={{
+                  '& label': { color: '#ffffff !important' },
+                  '& input': { color: '#ffffff !important' },
+              }}
             />
             <TextField
               required
@@ -433,6 +371,10 @@ const LoginPage = () => {
               autoComplete="current-password"
               autoFocus={!!email}
               onChange={(e) => setPassword(e.target.value)}
+              sx={{
+                  '& label': { color: '#ffffff !important' },
+                  '& input': { color: '#ffffff !important' },
+              }}
               slotProps={{
                 input: {
                   endAdornment: (
@@ -441,7 +383,7 @@ const LoginPage = () => {
                         onClick={() => setShowPassword(!showPassword)}
                         edge="end"
                         size="small"
-                        sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                        sx={{ color: '#ffffff' }}
                       >
                         {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
                       </IconButton>
@@ -490,17 +432,6 @@ const LoginPage = () => {
 
         {!openIdForced && (
           <div className={classes.extraContainer}>
-            <Button
-              onClick={handleBillingLogin}
-              variant="outlined"
-              fullWidth
-              disabled={loading}
-              className={classes.secondaryButton}
-              sx={{ mb: 1.5 }}
-              startIcon={<ReceiptLongIcon />}
-            >
-              Pay Subscription Bill
-            </Button>
             {registrationEnabled && (
               <Typography
                 variant="body1"
