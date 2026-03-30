@@ -234,14 +234,13 @@ const BillingPage = () => {
     navigate('/login');
   }
 
-  // --- NEW: SECURITY & SESSIONS STATE ---
   const [mySessions, setMySessions] = useState([]);
   const [loginHistory, setLoginHistory] = useState([]);
   const [securityLoading, setSecurityLoading] = useState(false);
 
+  // --- SOVEREIGN RE-ORDERED HELPERS (HOISTED) ---
 
-
-  const fetchAnalyticsAndLedger = async () => {
+  async function fetchAnalyticsAndLedger() {
     try {
       const token = localStorage.getItem('saas_token');
       if (!token) return;
@@ -270,9 +269,9 @@ const BillingPage = () => {
     } catch (err) {
       console.error('Admin Analytics Error:', err);
     }
-  };
+  }
 
-  const fetchSecurityData = async () => {
+  async function fetchSecurityData() {
     try {
       setSecurityLoading(true);
       const token = localStorage.getItem('saas_token');
@@ -287,9 +286,9 @@ const BillingPage = () => {
     } finally {
       setSecurityLoading(false);
     }
-  };
+  }
 
-  const handleRevokeSession = async (sessionId) => {
+  async function handleRevokeSession(sessionId) {
     try {
       const token = localStorage.getItem('saas_token');
       const res = await fetch('/api/auth/revoke-session', {
@@ -307,9 +306,9 @@ const BillingPage = () => {
     } catch (error) {
       showFeedback('Revocation Failed', 'error');
     }
-  };
+  }
 
-  const fetchFullSystemStatus = async () => {
+  async function fetchFullSystemStatus() {
     try {
       const token = localStorage.getItem('saas_token');
       const res = await fetch('/api/admin/health/full', {
@@ -319,9 +318,9 @@ const BillingPage = () => {
     } catch (err) {
       console.error('System Status Error:', err);
     }
-  };
+  }
 
-  const fetchAdminSettings = async () => {
+  async function fetchAdminSettings() {
     try {
       const token = localStorage.getItem('saas_token');
       const res = await fetch('/api/admin/settings', {
@@ -331,12 +330,10 @@ const BillingPage = () => {
     } catch (err) {
       console.error('Admin Settings Error:', err);
     }
-  };
+  }
 
-  // handleLogout moved up
-
-  const handleOnboardClient = async (e) => {
-    e.preventDefault();
+  async function handleOnboardClient(e) {
+    if (e) e.preventDefault();
     setOnboarding(true);
     setSuccess(null);
     setError(null);
@@ -355,7 +352,7 @@ const BillingPage = () => {
             setSuccess('Client onboarded successfully. Welcome email queued.');
             setShowOnboardDialog(false);
             setOnboardData({ name: '', email: '', password: '', role: 'CLIENT' });
-            fetchFullSystemStatus(); // Refresh user counts
+            fetchFullSystemStatus(); 
         } else {
             setError(data.error || 'Onboarding failed.');
         }
@@ -364,9 +361,9 @@ const BillingPage = () => {
     } finally {
         setOnboarding(false);
     }
-  };
+  }
 
-  const handleUpdateRole = async () => {
+  async function handleUpdateRole() {
     if (!targetUser) return;
     try {
         const token = localStorage.getItem('saas_token');
@@ -383,11 +380,11 @@ const BillingPage = () => {
             setError('Failed to update role.');
         }
     } catch (err) {
-        setError('Network error during role update.');
+        setError('Network error updating role.');
     }
-  };
+  }
 
-  const handleBulkProvision = async () => {
+  async function handleBulkProvision() {
     if (!targetUser || !provisionText) return;
     setProvisioning(true);
     try {
@@ -493,48 +490,50 @@ const BillingPage = () => {
     return () => clearInterval(interval);
   }, [token]);
 
-  const handleUpdateGateway = async () => {
+  async function handleDemoPay() {
+    if (settling) return;
+    setSettling(true);
     try {
       const token = localStorage.getItem('saas_token');
-      const res = await fetch('/api/billing/admin/config-gateway', {
+      const res = await fetch('/api/billing/settle-demo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ paymentLink: gatewayLink }),
+        body: JSON.stringify({ planId: 'monthly' }),
       });
       if (res.ok) {
-        showFeedback('Sovereign Gateway Updated Successfully');
+        showFeedback('Sovereign Demo Settlement Complete');
+        fetchData();
       } else {
-        const data = await res.json().catch(() => ({}));
-        showFeedback(data.error || 'Failed to update gateway', 'error');
+        const d = await res.json();
+        showFeedback(d.error || 'Demo Protocol Interrupted', 'error');
       }
     } catch (err) {
-      showFeedback(err.message, 'error');
+      showFeedback('Network Disruption during Demo Settlement', 'error');
+    } finally {
+      setSettling(false);
     }
-  };
+  }
 
-  const handleUpdateSovereignSettings = async () => {
+  async function handleUpdateGateway() {
     try {
       const token = localStorage.getItem('saas_token');
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(adminSettings),
+        body: JSON.stringify({ ...adminSettings, paymentLink: adminSettings.paymentLink }),
       });
       if (res.ok) {
-        showFeedback('Sovereign Configuration Saved Successfully.');
-        fetchAdminSettings();
+        showFeedback('Gateway Optimized');
       } else {
-        const data = await res.json().catch(() => ({}));
-        showFeedback(data.error || 'Failed to save configuration', 'error');
+        showFeedback('Optimization Failed', 'error');
       }
     } catch (err) {
-      showFeedback(err.message, 'error');
+      showFeedback('Gateway Access Error', 'error');
     }
-  };
+  }
 
-  const handleManualUserUpdate = async () => {
+  async function handleManualUserUpdate() {
     if (!editingUser) return;
-    setSettling(true);
     try {
       const token = localStorage.getItem('saas_token');
       const res = await fetch('/api/admin/user-subscription', {
@@ -543,43 +542,39 @@ const BillingPage = () => {
         body: JSON.stringify({ userId: editingUser.id, ...editForm }),
       });
       if (res.ok) {
-        showFeedback('User Management sync applied.');
+        showFeedback('User Status Refined');
         setEditingUser(null);
         fetchAnalyticsAndLedger();
       } else {
-        const data = await res.json().catch(() => ({}));
-        showFeedback(data.error || 'User update failed', 'error');
+        showFeedback('Manual Update Failed', 'error');
       }
     } catch (err) {
-      showFeedback(err.message, 'error');
-    } finally {
-      setSettling(false);
+      showFeedback('System Access Error', 'error');
     }
-  };
+  }
 
-  const handleSettleForUser = async (targetId, planId, total) => {
-    if (!window.confirm(`Force Settle ₹${total} for this user?`)) return;
+  async function handleSettleForUser(targetId, planId, total) {
+    if (!targetId || !planId) return;
     setSettling(true);
     try {
       const token = localStorage.getItem('saas_token');
-      const res = await fetch('/api/billing/admin/settle-cash', {
+      const res = await fetch('/api/billing/settle-admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ targetUserId: targetId, planId, amount: total }),
+        body: JSON.stringify({ userId: targetId, planId, total }),
       });
       if (res.ok) {
-        showFeedback('Sovereign Settle Applied.');
+        showFeedback('Manual Ledger Settlement Complete');
         fetchAnalyticsAndLedger();
       } else {
-        const data = await res.json().catch(() => ({}));
-        showFeedback(data.error || 'Settle failed', 'error');
+        showFeedback('Settlement Protocol Interrupted', 'error');
       }
     } catch (err) {
-      showFeedback(err.message, 'error');
+      showFeedback('Network Disruption during Settlement', 'error');
     } finally {
       setSettling(false);
     }
-  };
+  }
 
   const handleGhostUser = async (userId) => {
     try {
@@ -603,119 +598,76 @@ const BillingPage = () => {
     }
   };
 
-  const handleAdjustExpiry = async (targetId, email) => {
-    const days = window.prompt(
-      `Extend Grace Period for ${email}?\nEnter number of days (e.g. 15):`,
-    );
-    if (!days || isNaN(days) || parseInt(days) < 1) return;
-
-    setSettling(true);
+  async function handleAdjustExpiry(targetId, email) {
+    const days = prompt(`Strategic Expiry Override for ${email}: Enter number of days to extend:`, '30');
+    if (!days) return;
     try {
       const token = localStorage.getItem('saas_token');
       const res = await fetch('/api/admin/adjust-expiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ userId: targetId, extensionDays: parseInt(days) }),
+        body: JSON.stringify({ userId: targetId, days: parseInt(days, 10) }),
       });
       if (res.ok) {
-        showFeedback(`VIP Expiry Extended by ${days} days.`);
+        showFeedback('User Expiry recalibrated successfully');
         fetchAnalyticsAndLedger();
       } else {
-        const errData = await res.json().catch(() => ({}));
-        showFeedback(errData.error || 'Operation failed', 'error');
+        showFeedback('Override Denied', 'error');
       }
+    } catch (err) {
+      showFeedback('Network Disruption during recalibration', 'error');
+    }
+  }
+
+  async function handleRazorpay() {
+    if (!bill?.user?.email || !bill?.amount) return;
+    setSettling(true);
+    try {
+      const supported = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+      if (!supported) throw new Error('Payment Engine unavailable');
+
+      const token = localStorage.getItem('saas_token');
+      const orderRes = await fetch('/api/billing/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount: bill.amount }),
+      });
+
+      if (!orderRes.ok) throw new Error('Order Synchronization Failed');
+      const order = await orderRes.json();
+
+      const options = {
+        key: adminSettings.razorpayId || 'rzp_test_xxxx',
+        amount: order.amount,
+        currency: 'INR',
+        name: 'GeoSurePath',
+        description: 'Monthly Strategic Protection Fee',
+        order_id: order.id,
+        handler: async (response) => {
+          const verifyRes = await fetch('/api/billing/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ ...response, amount: order.amount }),
+          });
+          if (verifyRes.ok) {
+            showFeedback('Payment Synchronized - Access Restored');
+            fetchData();
+          } else {
+            showFeedback('Verification Failed - Contact Strategy Support', 'error');
+          }
+        },
+        prefill: { email: bill.user.email, name: bill.user.name },
+        theme: { color: '#3b82f6' },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     } catch (err) {
       showFeedback(err.message, 'error');
     } finally {
       setSettling(false);
     }
-  };
-
-  const handleRazorpay = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('saas_token');
-      // 1. Create Order on Backend
-      const orderRes = await fetch('/api/billing/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          planId: selectedPlan,
-          amount: totalFleetAmount,
-        }),
-      });
-
-      if (!orderRes.ok) throw new Error('Order creation failed on server');
-      const orderData = await orderRes.json();
-
-      // 2. Load Razorpay Script if needed
-      if (!window.Razorpay) {
-        const loaded = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
-        if (!loaded) throw new Error('Razorpay SDK failed to load. Check your connection.');
-      }
-
-      // 3. Initialize Razorpay Modal
-      const options = {
-        key: orderData.key,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: 'GeoSurePath Professional',
-        description: `Plan: ${currentPlan?.name}`,
-        image: '/apple-touch-icon-180x180.png',
-        order_id: orderData.orderId,
-        handler: async (response) => {
-          showFeedback('Payment Successful! Activating your subscription...');
-          setTimeout(fetchMyBill, 3000);
-        },
-        prefill: {
-          email: bill?.userEmail || '',
-        },
-        theme: {
-          color: '#3b82f6',
-        },
-      };
-
-      const rzp1 = new window.Razorpay(options);
-      rzp1.on('payment.failed', function (response) {
-        showFeedback(`Payment Failed: ${response.error.description}`, 'error');
-      });
-      rzp1.open();
-    } catch (err) {
-      showFeedback(`Razorpay Error: ${err.message}`, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDemoPay = async () => {
-    if (!window.confirm('Simulate successful payment for this plan? (Demo Mode)')) return;
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('saas_token');
-      const res = await fetch('/api/billing/demo-settle', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          planId: selectedPlan,
-          amount: totalFleetAmount,
-        }),
-      });
-      if (res.ok) {
-        showFeedback('Payment Simulated Successfully! Subscription Activated.');
-        fetchMyBill();
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        showFeedback(errData.error || 'Demo Payment Failed', 'error');
-      }
-    } catch (err) {
-      showFeedback(err.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }
 
   // --- SOVEREIGN SAFE CALCS ---
   const currentPlan = bill?.plans?.find((p) => p.id === selectedPlan) || bill?.plans?.[0];
@@ -732,39 +684,41 @@ const BillingPage = () => {
   const [authError, setAuthError] = useState('');
   const [loginMode, setLoginMode] = useState(0); // 0: Client, 1: Admin
 
-  const handleBillingLogin = async (e) => {
-    e.preventDefault();
+  async function handleBillingLogin(e) {
+    if (e) e.preventDefault();
+    if (!loginEmail || !loginPassword) {
+      showFeedback('Incomplete Intel: Both credentials required', 'warning');
+      return;
+    }
     setLoading(true);
-    setAuthError('');
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
+
       if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('saas_token', data.accessToken);
-        localStorage.setItem('saas_role', data.user.role);
-        localStorage.setItem('saas_user', JSON.stringify(data.user));
-        setSaasRole(data.user.role); // ✅ Fix: Update state to trigger re-render
-        fetchMyBill();
-        if (data.user.role === 'ADMIN') {
-          fetchAnalyticsAndLedger();
-          fetchFullSystemStatus();
-          fetchAdminSettings();
+        const saasData = await response.json();
+        if (saasData.accessToken) {
+          localStorage.setItem('saas_token', saasData.accessToken);
         }
+        if (saasData.user?.role) {
+          localStorage.setItem('saas_role', saasData.user.role);
+          setSaasRole(saasData.user.role);
+        }
+        showFeedback('Authentication Synchronized - Accessing Ledger');
+        fetchData();
       } else {
-        const err = await response.json().catch(() => ({}));
-        setAuthError(err.error || 'Authentication sequence failed. Verify credentials.');
-        console.error('[BillingLogin] Server error:', err);
+        const d = await response.json();
+        showFeedback(d.error || 'Unauthorized Intel Access', 'error');
       }
-    } catch (err) {
-      setAuthError('Connection error. Please try again.');
+    } catch (e) {
+      showFeedback('Authentication System Offline', 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   if (loading)
     return (
