@@ -10,6 +10,7 @@ router.post('/refresh-token', authController.refreshToken);
 router.post('/logout', authController.logout);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
+router.post('/welcome-email', authController.welcomeEmail);
 
 router.post('/change-password', authenticateToken, authController.changePassword);
 router.get('/sync', authenticateToken, authController.syncSession);
