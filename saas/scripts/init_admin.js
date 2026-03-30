@@ -43,8 +43,8 @@ async function initAdmin() {
       const hashed = await bcrypt.hash(password, 10);
       await prisma.user.upsert({
           where: { email: email },
-          update: { password: hashed, role: 'ADMIN', status: 'ACTIVE' },
-          create: { email: email, name: "Sovereign Master Admin", password: hashed, role: 'ADMIN', status: 'ACTIVE' }
+          update: { password: hashed, role: 'ADMIN', isActive: true },
+          create: { email: email, name: "Sovereign Master Admin", password: hashed, role: 'ADMIN', isActive: true }
       });
 
       // 2. TRACCAR BOOTSTRAP (If reachable)
