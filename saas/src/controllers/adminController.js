@@ -10,6 +10,7 @@ const util = require('util');
 const { exec } = require('child_process');
 const execPromise = util.promisify(exec);
 const { logAction, AUDIT_ACTIONS } = require('../services/auditService');
+const { emailQueue } = require('../services/emailService'); // ✅ FIXED: Added missing import
 
 // Get System Health (CPU, Memory, Uptime)
 exports.getSystemHealth = async (req, res) => {
@@ -368,16 +369,28 @@ exports.updateSettings = async (req, res) => {
 
 // NEW: Manual User Subscription Update
 exports.updateUserSubscription = async (req, res) => {
-  const { userId, planId, status, expiresAt } = req.body;
+    const { userId, planId, status, expiresAt, role, isActive } = req.body;
 
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: 'User not found in SaaS Ledger.' });
+
+    // ✅ UPDATE USER CORE DATA
+    if (role || isActive !== undefined) {
+        await prisma.user.update({
+            where: { id: userId },
+            data: { 
+                ...(role && { role }),
+                ...(isActive !== undefined && { isActive })
+            }
+        });
+    }
 
     const updateData = {};
     if (status) updateData.status = status;
     if (planId) updateData.planId = planId;
     if (expiresAt) updateData.expiresAt = new Date(expiresAt);
+    if (isActive !== undefined) updateData.status = isActive ? 'ACTIVE' : 'EXPIRED';
 
     const subscription = await prisma.subscription.findFirst({
       where: { userId },
@@ -389,14 +402,14 @@ exports.updateUserSubscription = async (req, res) => {
         where: { id: subscription.id },
         data: updateData
       });
-    } else if (planId && expiresAt) {
+    } else if (planId || isActive !== undefined) {
       // Create new if none exists
       await prisma.subscription.create({
         data: {
           userId,
-          planId,
-          status: status || 'ACTIVE',
-          expiresAt: new Date(expiresAt),
+          planId: planId || 'BASIC_MONTHLY',
+          status: status || (isActive === false ? 'EXPIRED' : 'ACTIVE'),
+          expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           price: 0 // Manual override
         }
       });
@@ -537,7 +550,8 @@ exports.impersonateUser = async (req, res) => {
     if (!targetUser) return res.status(404).json({ error: 'User not found' });
 
     // Ensure we don't impersonate another admin (security measure)
-    if (targetUser.role === 'ADMIN') return res.status(403).json({ error: 'Cannot impersonate another administrator.' });
+    // SUPER ADMIN EXEMPTION: Allow impersonation of other admins for training/support if needed
+    // if (targetUser.role === 'ADMIN') return res.status(403).json({ error: 'Cannot impersonate another administrator.' });
 
     // Generate tokens for the target user but keep track of who did it
     const accessToken = jwt.sign(

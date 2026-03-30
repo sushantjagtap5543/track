@@ -788,11 +788,12 @@ const BillingPage = () => {
 
   if (!token) {
     return (
+    return (
       <Box
         sx={{
           minHeight: '100vh',
-          background: '#f8fafc', // Light Slate 50
-          color: '#1e293b', // Dark Slate 800
+          background: '#0f172a', // REVERTED TO DARK FOR LOGIN
+          color: 'white',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -811,31 +812,32 @@ const BillingPage = () => {
             width: '100%',
             maxWidth: 450,
             p: 5,
-            borderRadius: '35px',
-            background: '#ffffff',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.08)',
-            border: '1px solid #e2e8f0',
+            borderRadius: '40px',
+            background: 'rgba(30, 41, 59, 0.7)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
             textAlign: 'center',
           }}
         >
-          {/* Subtle Decorative Element */}
+          {/* Decorative Gradient Glow */}
           <Box
             sx={{
               position: 'absolute',
-              top: -100,
-              right: -100,
-              width: 250,
-              height: 250,
-              background: 'radial-gradient(circle, rgba(59,130,246,0.05) 0%, transparent 70%)',
-              zIndex: -1
+              top: '-20%',
+              left: '-20%',
+              width: '140%',
+              height: '140%',
+              background: 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 70%)',
+              zIndex: -1,
             }}
           />
 
           <Box sx={{ position: 'relative', zIndex: 1 }}>
-          <Typography variant="h4" fontWeight={900} sx={{ color: '#0f172a', mb: 1, letterSpacing: '-1px' }}>
+          <Typography variant="h4" fontWeight={900} sx={{ color: '#fff', mb: 1, letterSpacing: '-1px' }}>
             GeoSurePath
           </Typography>
-          <Typography variant="body2" sx={{ color: '#64748b', mb: 5, fontWeight: 600 }}>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 5, fontWeight: 600 }}>
             SOVEREIGN BILLING & SUBSCRIPTION
           </Typography>
 
@@ -846,7 +848,7 @@ const BillingPage = () => {
             sx={{
               mb: 4,
               '& .MuiTabs-indicator': { height: 4, borderRadius: '2px', bgcolor: '#3b82f6' },
-              '& .MuiTab-root': { fontWeight: 800, fontSize: '0.85rem', color: '#94a3b8' },
+              '& .MuiTab-root': { fontWeight: 800, fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' },
               '& .Mui-selected': { color: '#3b82f6 !important' },
             }}
           >
@@ -864,13 +866,12 @@ const BillingPage = () => {
                 sx={{
                   mb: 3,
                   '& .MuiOutlinedInput-root': {
-                    color: '#1e293b',
-                    borderRadius: '16px',
-                    background: '#f8fafc',
-                    '& fieldset': { borderColor: '#e2e8f0' },
-                    '&:hover fieldset': { borderColor: '#cbd5e1' },
+                    color: 'white',
+                    borderRadius: '20px',
+                    background: 'rgba(255,255,255,0.03)',
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
                   },
-                  '& .MuiInputLabel-root': { color: '#64748b', fontWeight: 600 },
+                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)', fontWeight: 600 },
                 }}
               />
               <TextField
@@ -883,13 +884,12 @@ const BillingPage = () => {
                 sx={{
                   mb: 3,
                   '& .MuiOutlinedInput-root': {
-                    color: '#1e293b',
-                    borderRadius: '16px',
-                    background: '#f8fafc',
-                    '& fieldset': { borderColor: '#e2e8f0' },
-                    '&:hover fieldset': { borderColor: '#cbd5e1' },
+                    color: 'white',
+                    borderRadius: '20px',
+                    background: 'rgba(255,255,255,0.03)',
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
                   },
-                  '& .MuiInputLabel-root': { color: '#64748b', fontWeight: 600 },
+                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)', fontWeight: 600 },
                 }}
               />
               {authError && (
@@ -903,14 +903,23 @@ const BillingPage = () => {
                 variant="contained"
                 size="large"
                 sx={{
-                  py: 2.2,
-                  borderRadius: '16px',
+                  py: 2.5,
+                  borderRadius: '20px',
                   fontWeight: 900,
-                  fontSize: '0.95rem',
-                  boxShadow: 'none',
-                  background: loginMode === 1 ? '#0f172a' : '#3b82f6',
-                  '&:hover': { background: loginMode === 1 ? '#000' : '#2563eb' },
-                  transition: 'all 0.2s ease',
+                  fontSize: '1rem',
+                  background: loginMode === 1 
+                    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' 
+                    : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  boxShadow: loginMode === 1 
+                    ? '0 10px 30px rgba(59,130,246,0.4)' 
+                    : '0 10px 30px rgba(16,185,129,0.3)',
+                  '&:hover': { 
+                    transform: 'translateY(-2px)',
+                    boxShadow: loginMode === 1 
+                      ? '0 15px 35px rgba(59,130,246,0.5)' 
+                      : '0 15px 35px rgba(16,185,129,0.4)' 
+                  },
+                  transition: 'all 0.3s ease',
                 }}
               >
                 {loginMode === 0 ? 'ENTER BILLING PORTAL' : 'INITIALIZE SOVEREIGN ACCESS'}
@@ -921,7 +930,7 @@ const BillingPage = () => {
               <Button
                 onClick={() => navigate('/login')}
                 variant="text"
-                sx={{ color: '#94a3b8', fontWeight: 700, textTransform: 'none', '&:hover': { color: '#3b82f6' } }}
+                sx={{ color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'none', '&:hover': { color: '#fff' } }}
               >
                 Return to Global Fleet Intelligence
               </Button>
@@ -1879,24 +1888,25 @@ const BillingPage = () => {
         PaperProps={{
           sx: {
             borderRadius: '24px',
-            background: '#0f172a',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: 'white',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            color: '#1e293b',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)'
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 900, fontSize: '1.5rem' }}>
+        <DialogTitle sx={{ fontWeight: 900, fontSize: '1.5rem', color: '#0f172a' }}>
           MANAGE CLIENT: {editingUser?.email}
         </DialogTitle>
         <DialogContent sx={{ p: 4 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
             <FormControl fullWidth>
-              <InputLabel sx={{ color: 'rgba(255,255,255,0.5)' }}>Subscription Plan</InputLabel>
+              <InputLabel sx={{ color: '#64748b' }}>Subscription Plan</InputLabel>
               <Select
                 value={editForm.planId}
                 label="Subscription Plan"
                 onChange={(e) => setEditForm({ ...editForm, planId: e.target.value })}
-                sx={{ borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)', color: 'white' }}
+                sx={{ borderRadius: '12px', bgcolor: '#f8fafc', color: '#1e293b' }}
               >
                 {bill?.plans?.map(p => (
                   <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
@@ -1905,16 +1915,29 @@ const BillingPage = () => {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel sx={{ color: 'rgba(255,255,255,0.5)' }}>Activation Status</InputLabel>
+              <InputLabel sx={{ color: '#64748b' }}>Activation Status</InputLabel>
               <Select
-                value={editForm.status}
+                value={editForm.isActive ? 'ACTIVE' : 'EXPIRED'}
                 label="Activation Status"
-                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                sx={{ borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)', color: 'white' }}
+                onChange={(e) => setEditForm({ ...editForm, isActive: e.target.value === 'ACTIVE' })}
+                sx={{ borderRadius: '12px', bgcolor: '#f8fafc', color: '#1e293b' }}
               >
                 <MenuItem value="ACTIVE">ACTIVE (Full Service)</MenuItem>
                 <MenuItem value="EXPIRED">EXPIRED (Suspended)</MenuItem>
-                <MenuItem value="CANCELLED">CANCELLED</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel sx={{ color: '#64748b' }}>System Role</InputLabel>
+              <Select
+                value={editForm.role}
+                label="System Role"
+                onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                sx={{ borderRadius: '12px', bgcolor: '#f8fafc', color: '#1e293b' }}
+              >
+                <MenuItem value="CLIENT">CLIENT</MenuItem>
+                <MenuItem value="MANAGER">MANAGER</MenuItem>
+                <MenuItem value="ADMIN">ADMIN (Full Access)</MenuItem>
               </Select>
             </FormControl>
 
@@ -1926,8 +1949,8 @@ const BillingPage = () => {
               onChange={(e) => setEditForm({ ...editForm, expiresAt: e.target.value })}
               InputLabelProps={{ shrink: true }}
               sx={{
-                '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)' },
-                '& input': { color: 'white' }
+                '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: '#f8fafc' },
+                '& input': { color: '#1e293b' }
               }}
             />
             <Typography variant="caption" sx={{ opacity: 0.5 }}>
@@ -1936,18 +1959,14 @@ const BillingPage = () => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 4 }}>
-          <Button onClick={() => setEditingUser(null)} color="inherit" sx={{ fontWeight: 900 }}>
-            CANCEL
-          </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleManualUserUpdate}
-            disabled={settling}
-            sx={{ borderRadius: '12px', fontWeight: 900, px: 4 }}
-          >
-            {settling ? <CircularProgress size={24} /> : 'APPLY MANAGEMENT SYNC'}
-          </Button>
+            <Button onClick={() => setEditingUser(null)} sx={{ color: '#64748b', fontWeight: 900 }}>CANCEL</Button>
+            <Button 
+                variant="contained" 
+                onClick={handleManualUserUpdate}
+                sx={{ borderRadius: '12px', px: 4, fontWeight: 900, bgcolor: '#0f172a', '&:hover': { bgcolor: '#000' } }}
+            >
+                SAVE CHANGES
+            </Button>
         </DialogActions>
       </Dialog>
 
@@ -2160,87 +2179,41 @@ const BillingPage = () => {
         </Alert>
       </Snackbar>
       {/* --- ONBOARDING DIALOG --- */}
-      <Dialog 
+        <Dialog 
         open={showOnboardDialog} 
-        onClose={() => !onboarding && setShowOnboardDialog(false)}
-        PaperProps={{
-            sx: {
-                borderRadius: '30px',
-                background: '#1e293b',
-                color: 'white',
-                border: '1px solid rgba(255,255,255,0.1)',
-                p: 2,
-                maxWidth: 450
-            }
-        }}
+        onClose={() => setShowOnboardDialog(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '25px', background: '#ffffff', color: '#1e293b', border: '1px solid #e2e8f0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.1)' } }}
       >
-        <DialogTitle sx={{ fontWeight: 900, fontSize: '1.5rem', textAlign: 'center' }}>
-            MANUAL ONBOARDING
-        </DialogTitle>
+        <DialogTitle sx={{ fontWeight: 900, color: '#0f172a' }}>ONBOARD NEW CLIENT</DialogTitle>
         <DialogContent>
-            <Typography variant="body2" sx={{ opacity: 0.6, mb: 3, textAlign: 'center' }}>
-                Create a new client account. They will receive a welcome email with these credentials.
-            </Typography>
-            <Box component="form" onSubmit={handleOnboardClient} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                <TextField
-                    fullWidth
-                    label="Full Name"
-                    variant="filled"
-                    required
-                    value={onboardData.name}
-                    onChange={(e) => setOnboardData({ ...onboardData, name: e.target.value })}
-                    sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '12px', '& .MuiFilledInput-root': { borderRadius: '12px' } }}
-                    InputLabelProps={{ style: { color: 'rgba(255,255,255,0.5)' } }}
-                    inputProps={{ style: { color: 'white' } }}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
+                <TextField 
+                    fullWidth label="Full Name" 
+                    value={onboardForm.name} 
+                    onChange={e => setOnboardForm({...onboardForm, name: e.target.value})}
+                    sx={{ input: { color: '#0f172a' }, label: { color: '#64748b' } }}
                 />
-                <TextField
-                    fullWidth
-                    label="Email Address"
-                    type="email"
-                    variant="filled"
-                    required
-                    value={onboardData.email}
-                    onChange={(e) => setOnboardData({ ...onboardData, email: e.target.value })}
-                    sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '12px', '& .MuiFilledInput-root': { borderRadius: '12px' } }}
-                    InputLabelProps={{ style: { color: 'rgba(255,255,255,0.5)' } }}
-                    inputProps={{ style: { color: 'white' } }}
+                <TextField 
+                    fullWidth label="Email Address" 
+                    value={onboardForm.email} 
+                    onChange={e => setOnboardForm({...onboardForm, email: e.target.value})}
+                    sx={{ input: { color: '#0f172a' }, label: { color: '#64748b' } }}
                 />
-                <TextField
-                    fullWidth
-                    label="Default Password"
-                    type="text"
-                    variant="filled"
-                    required
-                    value={onboardData.password}
-                    onChange={(e) => setOnboardData({ ...onboardData, password: e.target.value })}
-                    sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '12px', '& .MuiFilledInput-root': { borderRadius: '12px' } }}
-                    InputLabelProps={{ style: { color: 'rgba(255,255,255,0.5)' } }}
-                    inputProps={{ style: { color: 'white' } }}
+                <TextField 
+                    fullWidth label="Temporary Password" 
+                    type="password"
+                    value={onboardForm.password} 
+                    onChange={e => setOnboardForm({...onboardForm, password: e.target.value})}
+                    sx={{ input: { color: '#0f172a' }, label: { color: '#64748b' } }}
                 />
-                
-                <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-                    <Button 
-                        fullWidth 
-                        variant="outlined" 
-                        onClick={() => setShowOnboardDialog(false)}
-                        disabled={onboarding}
-                        sx={{ borderRadius: '15px', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}
-                    >
-                        CANCEL
-                    </Button>
-                    <Button 
-                        fullWidth 
-                        variant="contained" 
-                        type="submit"
-                        disabled={onboarding}
-                        startIcon={onboarding ? <CircularProgress size={20} color="inherit" /> : <PersonAddIcon />}
-                        sx={{ borderRadius: '15px', fontWeight: 900, bgcolor: '#3b82f6' }}
-                    >
-                        {onboarding ? 'ONBOARDING...' : 'CONFIRM'}
-                    </Button>
-                </Box>
             </Box>
         </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setShowOnboardDialog(false)} sx={{ color: '#64748b', fontWeight: 700 }}>CANCEL</Button>
+            <Button variant="contained" onClick={handleOnboard} sx={{ fontWeight: 900, borderRadius: '12px', bgcolor: '#0f172a', '&:hover': { bgcolor: '#000' } }}>START ONBOARDING</Button>
+        </DialogActions>
       </Dialog>
 
       {/* --- TAB 9: SECURITY & GOVERNANCE --- */}
