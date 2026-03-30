@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt');
 const geosurepathService = require('../services/geosurepath');
 const analyticsService = require('../services/analyticsService');
 const util = require('util');
+const { exec } = require('child_process');
 const execPromise = util.promisify(exec);
 const { logAction, AUDIT_ACTIONS } = require('../services/auditService');
 
