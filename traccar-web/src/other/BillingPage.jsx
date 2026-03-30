@@ -788,7 +788,6 @@ const BillingPage = () => {
 
   if (!token) {
     return (
-    return (
       <Box
         sx={{
           minHeight: '100vh',
