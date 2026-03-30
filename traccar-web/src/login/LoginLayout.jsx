@@ -71,7 +71,7 @@ const useStyles = makeStyles()((theme) => ({
     },
   },
   subTagline: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#ffffff',
     fontSize: '1.4rem',
     fontWeight: 500,
     maxWidth: '550px',
