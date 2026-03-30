@@ -171,6 +171,38 @@ exports.register = async (req, res) => {
   }
 };
 
+exports.welcomeEmail = async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // The welcome email is already sent during registration,
+    // but we'll provide this endpoint as a fallback or for manual triggering.
+    await emailQueue.add('welcome-email', {
+      to: user.email,
+      subject: 'Welcome to GeoSurePath - Get Started Now',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
+          <h2 style="color: #3b82f6;">Welcome to GeoSurePath</h2>
+          <p>Hi ${user.name}, thanks for joining us!</p>
+          <p>Your account is ready. You can log in to start tracking your vehicles.</p>
+          <div style="text-align: center; margin-top: 32px;">
+            <a href="${process.env.FRONTEND_URL || 'http://3.108.114.12'}/login" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Login to Dashboard</a>
+          </div>
+        </div>
+      `
+    });
+
+    res.json({ message: 'Welcome email queued successfully' });
+  } catch (error) {
+    console.error('[WelcomeEmail] Error:', error.message);
+    res.status(500).json({ error: 'Failed to send welcome email' });
+  }
+};
+
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
