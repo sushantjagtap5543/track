@@ -479,8 +479,29 @@ const BillingPage = () => {
         .catch(() => {});
     }, 120000); // 2 minutes
 
-    return () => clearInterval(interval);
-  }, [token]);
+     return () => clearInterval(interval);
+   }, [token]);
+
+  // --- SOVEREIGN INACTIVITY GUARD ---
+  useEffect(() => {
+    if (!admin) return;
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    const updateActivity = () => setLastActivity(Date.now());
+    
+    activityEvents.forEach(e => window.addEventListener(e, updateActivity));
+    
+    const interval = setInterval(() => {
+        if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) {
+            handleLogout();
+            showFeedback('Session terminated due to inactivity. Security protocol enforced.', 'warning');
+        }
+    }, 60000); // Check every minute
+
+    return () => {
+        activityEvents.forEach(e => window.removeEventListener(e, updateActivity));
+        clearInterval(interval);
+    };
+  }, [admin, lastActivity]);
 
   async function handleDemoPay() {
     if (settling) return;
@@ -728,26 +749,6 @@ const BillingPage = () => {
       </Box>
     );
 
-  // --- SOVEREIGN INACTIVITY GUARD ---
-  useEffect(() => {
-    if (!admin) return;
-    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
-    const updateActivity = () => setLastActivity(Date.now());
-    
-    activityEvents.forEach(e => window.addEventListener(e, updateActivity));
-    
-    const interval = setInterval(() => {
-        if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) {
-            handleLogout();
-            showFeedback('Session terminated due to inactivity. Security protocol enforced.', 'warning');
-        }
-    }, 60000); // Check every minute
-
-    return () => {
-        activityEvents.forEach(e => window.removeEventListener(e, updateActivity));
-        clearInterval(interval);
-    };
-  }, [admin, lastActivity]);
 
   if (!token) {
     return (
