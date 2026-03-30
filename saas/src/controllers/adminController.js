@@ -50,6 +50,8 @@ exports.getStats = async (req, res) => {
     res.json({ 
       totalClients: stats.totalClients, 
       totalVehicles: stats.totalVehicles, 
+      activeVehicles: stats.activeVehicles,
+      inactiveVehicles: stats.inactiveVehicles,
       totalRevenue: stats.totalRevenue,
       projectedRevenue: stats.mrr,
       distribution: stats.distribution,
@@ -769,6 +771,112 @@ exports.getUserSessions = async (req, res) => {
 };
 
 // NEW: Administrative Session Termination
+exports.revokeUserSession = async (req, res) => {
+  const { userId, sessionId } = req.params;
+  try {
+    await prisma.refreshToken.delete({
+      where: { id: sessionId, userId }
+    });
+    res.json({ message: 'User session successfully terminated by administrator.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to terminate user session.' });
+  }
+};
+
+// --- SERVICE MANAGEMENT (NEW) ---
+
+exports.getServices = async (req, res) => {
+  try {
+    const services = await prisma.service.findMany({ orderBy: { createdAt: 'desc' } });
+    res.json(services);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch services.' });
+  }
+};
+
+exports.createService = async (req, res) => {
+  const { name, description, price, category } = req.body;
+  try {
+    const service = await prisma.service.create({
+      data: { name, description, price: parseFloat(price), category }
+    });
+    res.json(service);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create service.' });
+  }
+};
+
+exports.updateService = async (req, res) => {
+  const { id, name, description, price, category } = req.body;
+  try {
+    const service = await prisma.service.update({
+      where: { id },
+      data: { name, description, price: parseFloat(price), category }
+    });
+    res.json(service);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update service.' });
+  }
+};
+
+exports.deleteService = async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.service.delete({ where: { id } });
+    res.json({ message: 'Service deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete service.' });
+  }
+};
+
+// --- USER SERVICE PROVISIONING (NEW) ---
+
+exports.provisionService = async (req, res) => {
+  const { userId, serviceId, amountOverride } = req.body;
+  try {
+    const service = await prisma.service.findUnique({ where: { id: serviceId } });
+    if (!service) return res.status(404).json({ error: 'Service not found' });
+
+    const userService = await prisma.userService.create({
+      data: {
+        userId,
+        serviceId,
+        amount: amountOverride !== undefined ? parseFloat(amountOverride) : service.price,
+        status: 'ACTIVE'
+      }
+    });
+
+    res.json({ message: 'Service provisioned successfully', userService });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to provision service.' });
+  }
+};
+
+exports.deprovisionService = async (req, res) => {
+  const { userServiceId } = req.body;
+  try {
+    await prisma.userService.update({
+      where: { id: userServiceId },
+      data: { status: 'CANCELLED' }
+    });
+    res.json({ message: 'Service de-provisioned successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to de-provision service.' });
+  }
+};
+
+exports.getUserServicesForAdmin = async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const services = await prisma.userService.findMany({
+      where: { userId, status: 'ACTIVE' },
+      include: { service: true }
+    });
+    res.json(services);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch user services.' });
+  }
+};
 exports.revokeUserSession = async (req, res) => {
   const { userId, sessionId } = req.params;
   try {

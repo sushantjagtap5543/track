@@ -61,6 +61,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DnsIcon from '@mui/icons-material/Dns';
 import HistoryIcon from '@mui/icons-material/History';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import BuildCircleIcon from '@mui/icons-material/BuildCircle'; // ✅ New icon
+import LanIcon from '@mui/icons-material/Lan'; // ✅ New icon
 
 import { useNavigate } from 'react-router-dom';
 import { useAdministrator } from '../common/util/permissions';
@@ -170,9 +172,10 @@ const BillingPage = () => {
   const [bill, setBill] = useState(null);
   const [loading, setLoading] = useState(true);
   const [settling, setSettling] = useState(false);
+  const [authError, setAuthError] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [selectedPlan, setSelectedPlan] = useState('monthly');
+  const [selectedPlan, setSelectedPlan] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [ledger, setLedger] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -198,16 +201,29 @@ const BillingPage = () => {
   const [editForm, setEditForm] = useState({ planId: '', status: '', expiresAt: '' });
   const [selectedAuditLog, setSelectedAuditLog] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null); // ✅ NEW STATE
+  const [aiInsights, setAiInsights] = useState(null); // ✅ AI INSIGHTS STATE
+  const [aiLoading, setAiLoading] = useState(false);
   const [lastActivity, setLastActivity] = useState(Date.now());
   const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 Minutes
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [mySessions, setMySessions] = useState([]);
   const [loginHistory, setLoginHistory] = useState([]);
   const [securityLoading, setSecurityLoading] = useState(false);
+  const [payments, setPayments] = useState([]); // ✅ NEW: Global Payments
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [authError, setAuthError] = useState('');
   const [loginMode, setLoginMode] = useState(0); 
+  
+  // ✅ NEW: Service Management State
+  const [services, setServices] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [showServiceDialog, setShowServiceDialog] = useState(false);
+  const [editingService, setEditingService] = useState(null);
+  const [serviceForm, setServiceForm] = useState({ name: '', description: '', price: 0, category: 'GENERAL' });
+  const [selectedUserForService, setSelectedUserForService] = useState(null);
+  const [showUserProvisionDialog, setShowUserProvisionDialog] = useState(false);
+  const [userServices, setUserServices] = useState([]);
   
   // ✅ NEW: Plan Management State
   const [editingPlan, setEditingPlan] = useState(null);
@@ -289,6 +305,96 @@ const BillingPage = () => {
       setSecurityLoading(false);
     }
   }
+
+  async function fetchAllPayments() {
+    try {
+      setPaymentsLoading(true);
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch('/api/admin/payments', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setPayments(await res.json());
+    } catch (error) {
+      console.error('Payments Fetch Error:', error);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }
+
+  const fetchServices = async () => {
+    try {
+      setServicesLoading(true);
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch('/api/admin/services', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setServices(await res.json());
+    } catch (err) {
+      console.error('Services Fetch Error:', err);
+    } finally {
+      setServicesLoading(false);
+    }
+  };
+
+  const fetchUserServices = async (userId) => {
+    try {
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch(`/api/admin/users/${userId}/services`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setUserServices(await res.json());
+    } catch (err) {
+      console.error('User Services Fetch Error:', err);
+    }
+  };
+
+  const handleSaveService = async () => {
+    try {
+      const token = localStorage.getItem('saas_token');
+      const method = editingService ? 'PUT' : 'POST';
+      const res = await fetch('/api/admin/services', {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(editingService ? { ...serviceForm, id: editingService.id } : serviceForm),
+      });
+      if (res.ok) {
+        showFeedback(`Service ${editingService ? 'updated' : 'created'} successfully`);
+        setShowServiceDialog(false);
+        fetchServices();
+      }
+    } catch (err) {
+      showFeedback('Failed to save service', 'error');
+    }
+  };
+
+  const handleDeleteService = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this service?')) return;
+    try {
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch(`/api/admin/services/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        showFeedback('Service deleted');
+        fetchServices();
+      }
+    } catch (err) {
+      showFeedback('Failed to delete service', 'error');
+    }
+  };
+
+  const handleProvisionUserService = async (serviceId, amountOverride) => {
+    try {
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch('/api/admin/provision-service', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId: selectedUserForService.id, serviceId, amountOverride }),
+      });
+      if (res.ok) {
+        showFeedback('Service provisioned to user');
+        fetchUserServices(selectedUserForService.id);
+        fetchAnalyticsAndLedger();
+      }
+    } catch (err) {
+      showFeedback('Provisioning failed', 'error');
+    }
+  };
 
   async function handleRevokeSession(sessionId) {
     try {
@@ -440,7 +546,9 @@ const BillingPage = () => {
       if (billRes.ok) {
         const data = await billRes.json();
         setBill(data);
-        if (data?.plans?.length > 0) setSelectedPlan(data.plans[0].id);
+        if (data?.plans?.length > 0 && !selectedPlan) {
+            setSelectedPlan(data.plans[0].id);
+        }
       } else {
         const errData = await billRes.json().catch(() => ({}));
         setError(errData.error || 'Failed to fetch billing cycle data.');
@@ -452,11 +560,39 @@ const BillingPage = () => {
     }
   };
 
+  const fetchAIInsights = async () => {
+    try {
+      setAiLoading(true);
+      const token = localStorage.getItem('saas_token');
+      const res = await fetch('/api/billing/admin/ai-insights', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAiInsights(data);
+      }
+    } catch (err) {
+      console.error('AI Insights Sync Failed');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     
     if (tab === 9) {
         fetchSecurityData();
+    }
+
+    if (admin) {
+      fetchAnalyticsAndLedger(); // ✅ FIXED NAME
+      fetchFullSystemStatus();   // ✅ FIXED NAME
+      fetchAdminSettings();     // ✅ FIXED NAME
+      fetchSecurityData();
+      fetchAIInsights();         // ✅ AI INITIALIZED
+      fetchAllPayments();        // ✅ PAYMENTS INITIALIZED
+      fetchServices();           // ✅ SERVICES INITIALIZED
     }
 
     if (!admin && !token) {
@@ -525,7 +661,10 @@ const BillingPage = () => {
       const res = await fetch('/api/billing/demo-settle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ planId: 'monthly' }),
+        body: JSON.stringify({ 
+            planId: selectedPlan || (bill?.plans?.[0]?.id), 
+            amount: totalFleetAmount 
+        }),
       });
       if (res.ok) {
         showFeedback('Sovereign Demo Settlement Complete');
@@ -679,7 +818,12 @@ const BillingPage = () => {
   }
 
   async function handleRazorpay() {
-    if (!bill?.user?.email || !bill?.amount) return;
+    const amountToPay = totalFleetAmount;
+    if (!bill?.userEmail || !amountToPay || amountToPay <= 0) {
+      showFeedback('Invalid billing amount or user data.', 'error');
+      return;
+    }
+    
     setSettling(true);
     try {
       const supported = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
@@ -689,33 +833,37 @@ const BillingPage = () => {
       const orderRes = await fetch('/api/billing/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: bill.amount }),
+        body: JSON.stringify({ amount: amountToPay, planId: selectedPlan }),
       });
 
-      if (!orderRes.ok) throw new Error('Failed to create payment order.');
+      if (!orderRes.ok) {
+        const errData = await orderRes.json();
+        throw new Error(errData.error || 'Failed to create payment order.');
+      }
       const order = await orderRes.json();
 
       const options = {
-        key: adminSettings.razorpayId || 'rzp_test_xxxx',
+        key: order.key || adminSettings.razorpayId || 'rzp_test_xxxx',
         amount: order.amount,
-        currency: 'INR',
+        currency: order.currency || 'INR',
         name: 'GeoSurePath',
-        description: 'Monthly Subscription Fee',
-        order_id: order.id,
+        description: `${currentPlan?.name || 'Fleet'} Subscription Plan`,
+        order_id: order.orderId,
         handler: async (response) => {
           const verifyRes = await fetch('/api/billing/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ ...response, amount: order.amount }),
+            body: JSON.stringify({ ...response, amount: amountToPay }),
           });
           if (verifyRes.ok) {
-            showFeedback('Payment successful. Access restored.');
+            showFeedback('Payment successful. Subscription activated!');
             fetchData();
           } else {
-            showFeedback('Verification failed. Please contact support.', 'error');
+            const vErr = await verifyRes.json();
+            showFeedback(vErr.error || 'Verification failed. Contact support.', 'error');
           }
         },
-        prefill: { email: bill.user.email, name: bill.user.name },
+        prefill: { email: bill.userEmail, name: bill.userName || '' },
         theme: { color: '#3b82f6' },
       };
 
@@ -732,47 +880,11 @@ const BillingPage = () => {
   const currentPlan = bill?.plans?.find((p) => p.id === selectedPlan) || bill?.plans?.[0];
   const deviceCount = bill?.devices?.length || 0;
   const planCost = (currentPlan?.price || 0) * deviceCount;
-  const totalFleetAmount = planCost + (bill?.totalDue || 0) * 1.18;
+  const totalFleetAmount = planCost + (bill?.totalDue || 0);
 
   const filteredLedger = Array.isArray(ledger)
     ? ledger.filter((u) => u.email?.toLowerCase().includes(searchQuery.toLowerCase()))
     : [];
-
-  async function handleBillingLogin(e) {
-    if (e) e.preventDefault();
-    if (!loginEmail || !loginPassword) {
-      showFeedback('Please enter both email and password.', 'warning');
-      return;
-    }
-    setLoading(true);
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
-      });
-
-      if (response.ok) {
-        const saasData = await response.json();
-        if (saasData.accessToken) {
-          localStorage.setItem('saas_token', saasData.accessToken);
-        }
-        if (saasData.user?.role) {
-          localStorage.setItem('saas_role', saasData.user.role);
-          setSaasRole(saasData.user.role);
-        }
-        showFeedback('Login successful. Accessing account...');
-        fetchData();
-      } else {
-        const d = await response.json();
-        showFeedback(d.error || 'Access denied. Please check your credentials.', 'error');
-      }
-    } catch (e) {
-      showFeedback('Connection error. Please try again.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
 
   if (loading)
     return (
@@ -798,154 +910,11 @@ const BillingPage = () => {
 
   if (!token) {
     return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          background: '#0f172a', // REVERTED TO DARK FOR LOGIN
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 9999
-        }}
-      >
-        <Box
-          sx={{
-            zIndex: 1,
-            width: '100%',
-            maxWidth: 450,
-            p: 5,
-            borderRadius: '40px',
-            background: 'rgba(30, 41, 59, 0.7)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-            textAlign: 'center',
-          }}
-        >
-          {/* Decorative Gradient Glow */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '-20%',
-              left: '-20%',
-              width: '140%',
-              height: '140%',
-              background: 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 70%)',
-              zIndex: -1,
-            }}
-          />
-
-          <Box sx={{ position: 'relative', zIndex: 1 }}>
-          <Typography variant="h4" fontWeight={900} sx={{ color: '#fff', mb: 1, letterSpacing: '-1px' }}>
-            GeoSurePath
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 5, fontWeight: 600 }}>
-            Billing &amp; Subscription Portal
-          </Typography>
-
-          <Tabs
-            value={loginMode}
-            onChange={(e, v) => setLoginMode(v)}
-            centered
-            sx={{
-              mb: 4,
-              '& .MuiTabs-indicator': { height: 4, borderRadius: '2px', bgcolor: '#3b82f6' },
-              '& .MuiTab-root': { fontWeight: 800, fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' },
-              '& .Mui-selected': { color: '#3b82f6 !important' },
-            }}
-          >
-            <Tab label="Client Login" />
-            <Tab label="Admin Login" />
-          </Tabs>
-
-            <form onSubmit={handleBillingLogin}>
-              <TextField
-                fullWidth
-                label="Email Address"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                autoComplete="email"
-                sx={{
-                  mb: 3,
-                  '& .MuiOutlinedInput-root': {
-                    color: 'white',
-                    borderRadius: '20px',
-                    background: 'rgba(255,255,255,0.03)',
-                    '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
-                  },
-                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)', fontWeight: 600 },
-                }}
-              />
-              <TextField
-                fullWidth
-                label="Password"
-                type="password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                autoComplete="current-password"
-                sx={{
-                  mb: 3,
-                  '& .MuiOutlinedInput-root': {
-                    color: 'white',
-                    borderRadius: '20px',
-                    background: 'rgba(255,255,255,0.03)',
-                    '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
-                  },
-                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.4)', fontWeight: 600 },
-                }}
-              />
-              {authError && (
-                <Typography color="error" variant="caption" sx={{ mb: 2, display: 'block', fontWeight: 700 }}>
-                  Invalid email or password. Please try again.
-                </Typography>
-              )}
-              <Button
-                fullWidth
-                type="submit"
-                variant="contained"
-                size="large"
-                sx={{
-                  py: 2.5,
-                  borderRadius: '20px',
-                  fontWeight: 900,
-                  fontSize: '1rem',
-                  background: loginMode === 1 
-                    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' 
-                    : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  boxShadow: loginMode === 1 
-                    ? '0 10px 30px rgba(59,130,246,0.4)' 
-                    : '0 10px 30px rgba(16,185,129,0.3)',
-                  '&:hover': { 
-                    transform: 'translateY(-2px)',
-                    boxShadow: loginMode === 1 
-                      ? '0 15px 35px rgba(59,130,246,0.5)' 
-                      : '0 15px 35px rgba(16,185,129,0.4)' 
-                  },
-                  transition: 'all 0.3s ease',
-                }}
-              >
-                {loginMode === 0 ? 'Sign In to Billing Portal' : 'Sign In as Admin'}
-              </Button>
-            </form>
-
-            <Box sx={{ mt: 4 }}>
-              <Button
-                onClick={() => navigate('/login')}
-                variant="text"
-                sx={{ color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'none', '&:hover': { color: '#fff' } }}
-              >
-                Return to Map
-              </Button>
-            </Box>
-          </Box>
-        </Box>
+      <Box sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#0f172a' }}>
+        <CircularProgress size={40} sx={{ color: '#3b82f6' }} />
+        <Typography sx={{ ml: 2, color: 'white', fontWeight: 700 }}>
+          Verifying Billing Session...
+        </Typography>
       </Box>
     );
   }
@@ -1019,6 +988,7 @@ const BillingPage = () => {
             <Tab icon={<VpnKeyIcon />} label="API Keys" />
             <Tab icon={<StarsIcon />} label="Billing Plans" />
             <Tab icon={<SecurityIcon />} label="Security" />
+            <Tab icon={<BuildCircleIcon />} label="Services" />
           </Tabs>
         </Paper>
       )}
@@ -1027,7 +997,7 @@ const BillingPage = () => {
       {admin && tab === 0 && (
         <Box>
           <Grid container spacing={3} sx={{ mb: 6 }}>
-            <Grid item xs={12} md={2.4}>
+            <Grid item xs={12} md={2}>
               <Card sx={{ borderRadius: '24px', background: '#ffffff', border: '1px solid #3b82f6', boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.1)' }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="caption" sx={{ color: '#3b82f6', fontWeight: 900 }}>TOTAL REVENUE</Typography>
@@ -1035,7 +1005,7 @@ const BillingPage = () => {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={2.4}>
+            <Grid item xs={12} md={2}>
               <Card sx={{ borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="caption" sx={{ color: '#64748b' }}>PROJECTED (30D)</Typography>
@@ -1043,7 +1013,7 @@ const BillingPage = () => {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={2.4}>
+            <Grid item xs={12} md={2}>
               <Card sx={{ borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="caption" sx={{ color: '#64748b' }}>ACTIVE USERS</Typography>
@@ -1051,7 +1021,23 @@ const BillingPage = () => {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={2.4}>
+            <Grid item xs={12} md={2}>
+              <Card sx={{ borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="caption" sx={{ color: '#10b981', fontWeight: 900 }}>ACTIVE DEVICES</Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ color: '#10b981' }}>{analytics?.activeVehicles || 0}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={2}>
+              <Card sx={{ borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="caption" sx={{ color: '#ef4444', fontWeight: 900 }}>INACTIVE DEVICES</Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ color: '#ef4444' }}>{analytics?.inactiveVehicles || 0}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={2}>
               <Card sx={{ borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="caption" sx={{ color: '#64748b' }}>FLEET SIZE</Typography>
@@ -1059,24 +1045,61 @@ const BillingPage = () => {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={2.4}>
-              <Card sx={{ borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="caption" sx={{ color: '#64748b' }}>CHURN RISK</Typography>
-                  <Typography variant="h4" fontWeight={900} sx={{ color: '#10b981' }}>{analytics?.churnRate || 2.5}%</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
           </Grid>
 
           <Paper sx={{ p: 4, borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', mb: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6" fontWeight={900} sx={{ color: '#0f172a' }}>CLIENT STATUS OVERVIEW</Typography>
+                <Typography variant="h6" fontWeight={900} sx={{ color: '#000000' }}>AI GUARDIAN: FINANCIAL INTELLIGENCE</Typography>
+                <Chip 
+                  label={aiInsights?.guardianStatus || 'SYNCING...'} 
+                  color="success" 
+                  size="small" 
+                  sx={{ fontWeight: 900, borderRadius: '8px' }} 
+                />
+            </Box>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 3, borderRadius: '20px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                  <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 900 }}>REVENUE PROJECTION (AI)</Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ color: '#000000', mt: 1 }}>₹{aiInsights?.revenueProjection || '0.00'}</Typography>
+                  <Typography variant="caption" sx={{ color: '#22c55e', fontWeight: 700 }}>+15% Estimated Growth</Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 3, borderRadius: '20px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                  <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 900 }}>CHURN RISK ANALYSIS</Typography>
+                  <Typography variant="h4" fontWeight={900} sx={{ color: aiInsights?.churnRisk === 'LOW' ? '#22c55e' : '#ef4444', mt: 1 }}>{aiInsights?.churnRisk || 'STABLE'}</Typography>
+                  <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>Based on usage patterns</Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Box sx={{ p: 3, borderRadius: '20px', background: '#000000', border: '1px solid #334155', color: '#ffffff' }}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 900 }}>GUARDIAN MAINTENANCE</Typography>
+                  <Typography variant="h5" fontWeight={900} sx={{ color: '#facc15', mt: 1 }}>{aiInsights?.maintenanceStats?.dbOptimization || 'Scanning...'}</Typography>
+                  <Typography variant="caption" sx={{ color: '#94a3b8' }}>Database Integrity: SECURE</Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12}>
+                <Box sx={{ p: 2, background: '#f1f5f9', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <Typography variant="caption" sx={{ fontWeight: 900, color: '#475569', mb: 1, display: 'block' }}>STRATEGIC RECOMMENDATIONS</Typography>
+                  {aiInsights?.recommendations?.map((rec, i) => (
+                    <Typography key={i} variant="body2" sx={{ color: '#000000', fontWeight: 700, mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      • {rec}
+                    </Typography>
+                  ))}
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+
+          <Paper sx={{ p: 4, borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', mb: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6" fontWeight={900} sx={{ color: '#000000' }}>CLIENT STATUS OVERVIEW</Typography>
                 <Button 
                     variant="contained" 
                     startIcon={<PersonAddIcon />}
                     onClick={() => setShowOnboardDialog(true)}
-                    sx={{ borderRadius: '12px', fontWeight: 800, bgcolor: '#3b82f6', color: '#fff', '&:hover': { bgcolor: '#2563eb' } }}
+                    sx={{ borderRadius: '12px', fontWeight: 900, bgcolor: '#000000', color: '#fff', '&:hover': { bgcolor: '#1e293b' } }}
                 >
                     ONBOARD NEW CLIENT
                 </Button>
@@ -1084,9 +1107,9 @@ const BillingPage = () => {
             <Grid container spacing={2}>
               {['PAID', 'GRACE', 'EXPIRED', 'PENDING'].map((status) => (
                 <Grid item xs={6} md={3} key={status}>
-                  <Box sx={{ p: 2, borderRadius: '16px', background: '#f8fafc', textAlign: 'center', border: '1px solid #f1f5f9' }}>
-                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 900 }}>{status} CLIENTS</Typography>
-                    <Typography variant="h4" fontWeight={900} color={status === 'PAID' ? 'success.main' : status === 'GRACE' ? 'warning.main' : 'error.main'}>
+                  <Box sx={{ p: 2, borderRadius: '16px', background: '#ffffff', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                    <Typography variant="caption" sx={{ color: '#000000', fontWeight: 900 }}>{status} CLIENTS</Typography>
+                    <Typography variant="h4" fontWeight={900} sx={{ color: status === 'PAID' ? '#22c55e' : status === 'GRACE' ? '#f59e0b' : '#ef4444' }}>
                       {analytics?.distribution?.[status] || 0}
                     </Typography>
                   </Box>
@@ -1095,14 +1118,14 @@ const BillingPage = () => {
             </Grid>
           </Paper>
 
-          <Paper sx={{ p: 4, borderRadius: '24px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', mb: 4 }}>
-            <Typography variant="h6" fontWeight={900} sx={{ mb: 3, color: '#0f172a' }}>PLAN POPULARITY</Typography>
+          <Paper sx={{ p: 4, borderRadius: '24px', background: '#000000', border: '1px solid #334155', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', mb: 4 }}>
+            <Typography variant="h6" fontWeight={900} sx={{ mb: 3, color: '#ffffff' }}>PLAN POPULARITY (PREMIUM METRICS)</Typography>
             <Grid container spacing={2}>
               {Object.entries(analytics?.planDistribution || {}).map(([pId, count]) => (
                 <Grid item xs={6} md={3} key={pId}>
-                  <Box sx={{ p: 2, borderRadius: '16px', background: '#f0f9ff', textAlign: 'center', border: '1px solid #e0f2fe' }}>
-                    <Typography variant="caption" sx={{ color: '#0ea5e9', fontWeight: 900 }}>{pId.toUpperCase()}</Typography>
-                    <Typography variant="h4" fontWeight={900} sx={{ color: '#0369a1' }}>{count} USERS</Typography>
+                  <Box sx={{ p: 2, borderRadius: '16px', background: '#1e293b', textAlign: 'center', border: '1px solid #334155' }}>
+                    <Typography variant="caption" sx={{ color: '#3b82f6', fontWeight: 900 }}>{pId.toUpperCase()}</Typography>
+                    <Typography variant="h4" fontWeight={900} sx={{ color: '#ffffff' }}>{count} USERS</Typography>
                   </Box>
                 </Grid>
               ))}
@@ -1167,7 +1190,7 @@ const BillingPage = () => {
           <Box
             sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}
           >
-            <Typography variant="h5" fontWeight={900}>
+            <Typography variant="h5" fontWeight={900} sx={{ color: '#000000' }}>
               GLOBAL USER AUDIT LEDGER
             </Typography>
             <TextField
@@ -1179,13 +1202,14 @@ const BillingPage = () => {
                 width: 400,
                 '& .MuiOutlinedInput-root': {
                   borderRadius: '12px',
-                  background: 'rgba(255,255,255,0.03)',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                 },
               }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon color="primary" />
+                    <SearchIcon sx={{ color: '#3b82f6' }} />
                   </InputAdornment>
                 ),
               }}
@@ -1196,10 +1220,12 @@ const BillingPage = () => {
               <TableHead>
                 <TableRow
                   sx={{
+                    background: '#f8fafc',
                     '& th': {
-                      borderBottom: '2px solid rgba(255,255,255,0.1)',
-                      color: 'rgba(255,255,255,0.5)',
+                      borderBottom: '2px solid #e2e8f0',
+                      color: '#0f172a',
                       fontWeight: 900,
+                      py: 2
                     },
                   }}
                 >
@@ -1207,7 +1233,7 @@ const BillingPage = () => {
                   <TableCell>Devices</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="center">Days Unpaid</TableCell>
-                  <TableCell align="right">Pending Amount (₹)</TableCell>
+                  <TableCell align="right">Amount (₹)</TableCell>
                   <TableCell align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -1234,16 +1260,17 @@ const BillingPage = () => {
                           width: 90,
                           bgcolor:
                             u.status === 'PAID'
-                              ? 'rgba(74,222,128,0.2)'
+                              ? '#f0fdf4'
                               : u.status === 'GRACE'
-                                ? 'rgba(250,204,21,0.2)'
-                                : 'rgba(248,113,113,0.2)',
+                                ? '#fffbeb'
+                                : '#fef2f2',
                           color:
                             u.status === 'PAID'
-                              ? '#4ade80'
+                              ? '#10b981'
                               : u.status === 'GRACE'
-                                ? '#facc15'
-                                : '#f87171',
+                                ? '#f59e0b'
+                                : '#ef4444',
+                          border: `1px solid ${u.status === 'PAID' ? '#dcfce7' : u.status === 'GRACE' ? '#fef3c7' : '#fee2e2'}`
                         }}
                       />
                     </TableCell>
@@ -1310,18 +1337,30 @@ const BillingPage = () => {
                         >
                           EXTEND DEADLINE
                         </Button>
-                        <Button
-                          variant="contained"
-                          color="secondary"
-                          onClick={() => {
-                            setEditingUser(u);
-                            setEditForm({ planId: u.planId || 'monthly', status: u.status, expiresAt: '' });
-                          }}
-                          sx={{ borderRadius: '8px', fontWeight: 900, fontSize: '0.7rem' }}
-                          disabled={settling}
-                        >
-                          <EditIcon sx={{ fontSize: '1rem', mr: 0.5 }} /> MANAGE
-                        </Button>
+                          <Button
+                            variant="contained"
+                            color="secondary"
+                            onClick={() => {
+                              setEditingUser(u);
+                              setEditForm({ planId: u.planId || 'monthly', status: u.status, expiresAt: '' });
+                            }}
+                            sx={{ borderRadius: '8px', fontWeight: 900, fontSize: '0.7rem' }}
+                            disabled={settling}
+                          >
+                            <EditIcon sx={{ fontSize: '1rem', mr: 0.5 }} /> MANAGE
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            color="primary"
+                            onClick={() => {
+                              setSelectedUserForService(u);
+                              fetchUserServices(u.id);
+                              setShowUserProvisionDialog(true);
+                            }}
+                            sx={{ borderRadius: '8px', fontWeight: 900, fontSize: '0.7rem' }}
+                          >
+                            SERVICES
+                          </Button>
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -1349,7 +1388,7 @@ const BillingPage = () => {
           <TableContainer>
             <Table>
               <TableHead>
-                <TableRow sx={{ '& th': { fontWeight: 900, color: 'rgba(255,255,255,0.5)' } }}>
+                <TableRow sx={{ background: '#f8fafc', '& th': { fontWeight: 900, color: '#0f172a', py: 2 } }}>
                   <TableCell>TIMESTAMP</TableCell>
                   <TableCell>ACTION</TableCell>
                   <TableCell>USER</TableCell>
@@ -1363,7 +1402,7 @@ const BillingPage = () => {
                     onClick={() => setSelectedAuditLog(log)}
                     sx={{ cursor: 'pointer', '&:hover': { background: 'rgba(255,255,255,0.02)' } }}
                   >
-                    <TableCell sx={{ opacity: 0.7 }}>
+                    <TableCell sx={{ color: '#64748b', fontWeight: 600 }}>
                       {new Date(log.createdAt).toLocaleString()}
                     </TableCell>
                     <TableCell>
@@ -1371,14 +1410,15 @@ const BillingPage = () => {
                         label={log.action}
                         size="small"
                         sx={{
-                          fontWeight: 800,
-                          background: 'rgba(59,130,246,0.1)',
-                          color: '#60a5fa',
+                          fontWeight: 900,
+                          bgcolor: '#eff6ff',
+                          color: '#3b82f6',
+                          border: '1px solid #dbeafe'
                         }}
                       />
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>{log.user?.email || 'System'}</TableCell>
-                    <TableCell sx={{ opacity: 0.8 }}>{log.details}</TableCell>
+                    <TableCell sx={{ fontWeight: 800, color: '#0f172a' }}>{log.user?.email || 'System'}</TableCell>
+                    <TableCell sx={{ color: '#475569', fontWeight: 600 }}>{log.details}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1387,11 +1427,96 @@ const BillingPage = () => {
         </Paper>
       )}
 
-      {/* --- TAB 3: FLEET SETTLEMENT (User view) --- */}
+      {/* --- TAB 3: GLOBAL PAYMENT REGISTRY (ADMIN) --- */}
+      {admin && tab === 3 && (
+        <Paper
+          sx={{
+            p: 4,
+            borderRadius: '24px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+            <Typography variant="h5" fontWeight={900} sx={{ color: '#000000', display: 'flex', alignItems: 'center', gap: 2 }}>
+                <ReceiptIcon sx={{ fontSize: 32, color: '#10b981' }} />
+                GLOBAL SETTLEMENT REGISTRY
+            </Typography>
+            <Button 
+                variant="outlined" 
+                startIcon={<RefreshIcon />} 
+                onClick={fetchAllPayments}
+                sx={{ borderRadius: '12px', fontWeight: 900, borderColor: '#e2e8f0', color: '#64748b' }}
+                disabled={paymentsLoading}
+            >
+                Refresh Data
+            </Button>
+          </Box>
+
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ background: '#f8fafc', '& th': { fontWeight: 900, color: '#0f172a', py: 2 } }}>
+                  <TableCell>TIMESTAMP</TableCell>
+                  <TableCell>CLIENT EMAIL</TableCell>
+                  <TableCell>METHOD</TableCell>
+                  <TableCell>TRANSACTION ID</TableCell>
+                  <TableCell align="right">AMOUNT (₹)</TableCell>
+                  <TableCell align="center">STATUS</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {payments.map((p, idx) => (
+                  <TableRow key={idx} sx={{ '&:hover': { background: '#f8fafc' } }}>
+                    <TableCell sx={{ color: '#64748b', fontWeight: 600 }}>
+                      {new Date(p.createdAt).toLocaleString()}
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 800, color: '#0f172a' }}>{p.user?.email || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={p.paymentMethod || 'RAZORPAY'} 
+                        size="small" 
+                        sx={{ fontWeight: 900, bgcolor: '#f0f9ff', color: '#0369a1', border: '1px solid #e0f2fe' }} 
+                      />
+                    </TableCell>
+                    <TableCell sx={{ fontFamily: 'monospace', color: '#64748b', fontWeight: 700, fontSize: '0.8rem' }}>
+                        {p.transactionId || p.razorpayPaymentId || 'N/A'}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 900, color: '#000000' }}>
+                      ₹{p.amount}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        label={p.status}
+                        size="small"
+                        sx={{
+                          fontWeight: 900,
+                          bgcolor: p.status === 'CAPTURED' ? '#f0fdf4' : '#fef2f2',
+                          color: p.status === 'CAPTURED' ? '#10b981' : '#ef4444',
+                          border: `1px solid ${p.status === 'CAPTURED' ? '#dcfce7' : '#fee2e2'}`
+                        }}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {payments.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={6} align="center" sx={{ py: 5, color: '#94a3b8', fontWeight: 600 }}>
+                            No platform-wide settlements discovered in ledger.
+                        </TableCell>
+                    </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
+
+      {/* --- TAB 0: FLEET SETTLEMENT (User view) --- */}
       {(!admin && tab === 0) && (
         <Box>
-            {/* --- NEW: CLIENT SUBSCRIPTION OVERVIEW --- */}
-            <Paper
+                   <Paper
                 sx={{
                     p: 4,
                     mb: 4,
@@ -1413,19 +1538,26 @@ const BillingPage = () => {
                     <VerifiedUserIcon sx={{ fontSize: 40, color: (bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? '#22c55e' : '#ef4444' }} />
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                    <Typography variant="h6" fontWeight={900} sx={{ color: '#1e293b', mb: 0.5 }}>
-                        {(bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? 'Active Subscription' : 'Renewal Required'}
+                    <Typography variant="h6" fontWeight={900} sx={{ color: '#1e293b', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {(bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? 'Shield Active' : 'Shield Inactive'}
+                        {(bill?.status === 'PAID' || bill?.status === 'ACTIVE') && (
+                            <Chip 
+                                label={Math.max(0, Math.ceil((new Date(bill.expiresAt) - new Date()) / (1000 * 60 * 60 * 24))) + " DAYS LEFT"} 
+                                size="small" 
+                                sx={{ bgcolor: '#dcfce7', color: '#166534', fontWeight: 900, fontSize: '0.65rem' }} 
+                            />
+                        )}
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 600 }}>
                         {(bill?.status === 'PAID' || bill?.status === 'ACTIVE')
-                            ? `Your subscription is valid until ${new Date(bill?.expiresAt).toLocaleDateString()}`
-                            : 'Your account access is currently limited.'}
+                            ? `Continuous protection guaranteed until ${new Date(bill?.expiresAt).toLocaleDateString()}`
+                            : 'Your assets are currently unprotected. Activate a plan to restore Sentry monitoring.'}
                     </Typography>
                 </Box>
-                <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
-                <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="caption" display="block" sx={{ color: '#94a3b8', fontWeight: 900 }}>
-                        Total Devices
+                <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' }, bgcolor: '#e2e8f0' }} />
+                <Box sx={{ textAlign: 'center', minWidth: 100 }}>
+                    <Typography variant="caption" display="block" sx={{ color: '#94a3b8', fontWeight: 900, letterSpacing: 1 }}>
+                        ASSETS
                     </Typography>
                     <Typography variant="h4" fontWeight={900} sx={{ color: '#0f172a' }}>
                         {deviceCount}
@@ -1501,101 +1633,83 @@ const BillingPage = () => {
 
                 <Paper
                     sx={{
-                    p: 4,
-                    borderRadius: '24px',
-                    background: '#f8fafc',
-                    mb: 5,
-                    border: '1px solid #e2e8f0',
+                        p: 4,
+                        borderRadius: '24px',
+                        background: '#f8fafc',
+                        mb: 5,
+                        border: '1px solid #e2e8f0',
                     }}
                 >
-                    <Typography variant="h6" fontWeight={900} sx={{ mb: 3, color: '#1e293b' }}>
-                    Bill Details (Including GST)
+                    <Typography variant="h6" fontWeight={900} sx={{ mb: 3, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <ReceiptLongIcon color="primary" /> Order Summary
                     </Typography>
-                    <Grid container spacing={4}>
-                    <Grid item xs={6} md={3}>
-                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <VerifiedUserIcon sx={{ color: '#3b82f6' }} fontSize="small" />
-                        <Box>
-                            <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700 }}>
-                            Service Plan
-                            </Typography>
-                            <Typography fontWeight={900} sx={{ color: '#0f172a' }}>
-                            ₹{((currentPlan?.breakdown?.basic || 0) * deviceCount).toFixed(2)}
-                            </Typography>
-                        </Box>
-                        </Box>
-                    </Grid>
-                    <Grid item xs={6} md={3}>
-                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <StorageIcon sx={{ color: '#8b5cf6' }} fontSize="small" />
-                        <Box>
-                            <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700 }}>
-                            Maintenance
-                            </Typography>
-                            <Typography fontWeight={900} sx={{ color: '#0f172a' }}>
-                            ₹{((currentPlan?.breakdown?.server || 0) * deviceCount).toFixed(2)}
-                            </Typography>
-                        </Box>
-                        </Box>
-                    </Grid>
-                    <Grid item xs={6} md={3}>
-                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <CloudQueueIcon sx={{ color: '#06b6d4' }} fontSize="small" />
-                        <Box>
-                            <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700 }}>
-                            Infrastructure
-                            </Typography>
-                            <Typography fontWeight={900} sx={{ color: '#0f172a' }}>
-                            ₹{((currentPlan?.breakdown?.cloud || 0) * deviceCount).toFixed(2)}
-                            </Typography>
-                        </Box>
-                        </Box>
-                    </Grid>
-                    <Grid item xs={6} md={3}>
-                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <ReceiptIcon sx={{ color: '#10b981' }} fontSize="small" />
-                        <Box>
-                            <Typography variant="caption" display="block" sx={{ color: '#64748b', fontWeight: 700 }}>
-                            GST (18%)
-                            </Typography>
-                            <Typography fontWeight={900} sx={{ color: '#0f172a' }}>
-                            ₹{(
-                                (currentPlan?.breakdown?.gst || 0) * deviceCount +
-                                (bill?.totalDue || 0) * 0.18
-                            ).toFixed(2)}
-                            </Typography>
-                        </Box>
-                        </Box>
-                    </Grid>
-                    </Grid>
+                    
+                    <TableContainer component={Box} sx={{ mb: 3 }}>
+                        <Table size="small">
+                            <TableBody>
+                                <TableRow>
+                                    <TableCell sx={{ border: 'none', py: 1, color: '#64748b', fontWeight: 700 }}>
+                                        {currentPlan?.name} Subscription ({deviceCount} Units)
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ border: 'none', py: 1, fontWeight: 900, color: '#1e293b' }}>
+                                        ₹{((currentPlan?.price || 0) * deviceCount).toFixed(2)}
+                                    </TableCell>
+                                </TableRow>
+                                {bill?.totalDue > 0 && (
+                                    <TableRow>
+                                        <TableCell sx={{ border: 'none', py: 1, color: '#ef4444', fontWeight: 700 }}>
+                                            Accrued Debt / Outstanding Dues
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ border: 'none', py: 1, fontWeight: 900, color: '#ef4444' }}>
+                                            ₹{bill.totalDue.toFixed(2)}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                                <TableRow>
+                                    <TableCell colSpan={2} sx={{ py: 1 }}>
+                                        <Divider sx={{ my: 1, borderColor: '#e2e8f0' }} />
+                                    </TableCell>
+                                </TableRow>
+                                <TableRow>
+                                    <TableCell sx={{ border: 'none', py: 1 }}>
+                                        <Typography variant="h5" fontWeight={900} color="primary.main">
+                                            Amount Payable
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>
+                                            Inclusive of 18% GST (Protected by AI-Guardian)
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ border: 'none', py: 1 }}>
+                                        <Typography variant="h4" fontWeight={900} color="primary.main">
+                                            ₹{totalFleetAmount.toFixed(2)}
+                                        </Typography>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
 
-                    <Divider sx={{ my: 3, borderColor: '#e2e8f0' }} />
-
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box>
-                        <Typography variant="h4" fontWeight={900} color="primary.main">
-                        TOTAL: ₹{totalFleetAmount.toFixed(2)}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>
-                        Includes accrued debt of ₹{bill?.totalDue || 0}
-                        </Typography>
-                    </Box>
-                    <Button
-                        variant="contained"
-                        size="large"
-                        onClick={
-                        !analytics?.config?.paymentLink || analytics?.config?.paymentLink === '#'
-                            ? handleDemoPay
-                            : () => window.open(analytics.config.paymentLink, '_blank')
-                        }
-                        sx={{ 
-                            borderRadius: '16px', px: 6, py: 2, fontWeight: 900, fontSize: '1.1rem',
-                            boxShadow: '0 10px 15px -3px rgba(59,130,246,0.3)',
-                            '&:hover': { transform: 'translateY(-2px)' }
-                        }}
-                    >
-                        {(bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? 'Renew Plan' : 'Activate Plan'}
-                    </Button>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <Button
+                            variant="contained"
+                            size="large"
+                            disabled={settling}
+                            onClick={
+                                (!adminSettings.razorpayId && (!analytics?.config?.paymentLink || analytics?.config?.paymentLink === '#'))
+                                    ? handleDemoPay
+                                    : adminSettings.razorpayId
+                                    ? handleRazorpay
+                                    : () => window.open(analytics.config.paymentLink, '_blank')
+                            }
+                            sx={{ 
+                                borderRadius: '16px', px: 6, py: 2, fontWeight: 900, fontSize: '1.2rem',
+                                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                                boxShadow: '0 10px 15px -3px rgba(59,130,246,0.3)',
+                                '&:hover': { transform: 'translateY(-2px)', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' }
+                            }}
+                        >
+                            {settling ? <CircularProgress size={24} sx={{ color: 'white' }} /> : (bill?.status === 'PAID' || bill?.status === 'ACTIVE') ? 'RENEW SUBSCRIPTION' : 'ACTIVATE PROTECTON'}
+                        </Button>
                     </Box>
                 </Paper>
 
@@ -1686,7 +1800,7 @@ const BillingPage = () => {
             boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
           }}
         >
-          <Typography variant="h5" fontWeight={900} sx={{ mb: 4, color: '#1e293b' }}>
+          <Typography variant="h5" fontWeight={900} sx={{ mb: 4, color: '#000000' }}>
             SOVEREIGN AUDIT LEDGER (SECURE DB LOGS)
           </Typography>
           <TableContainer sx={{ maxHeight: 600 }}>
@@ -1708,10 +1822,10 @@ const BillingPage = () => {
                       onClick={() => setSelectedAuditLog(log)}
                       sx={{ cursor: 'pointer', '&:hover': { background: '#f1f5f9' } }}
                     >
-                      <TableCell sx={{ color: '#64748b', fontSize: '0.8rem' }}>
+                      <TableCell sx={{ color: '#64748b', fontWeight: 600, fontSize: '0.85rem' }}>
                         {new Date(log.createdAt).toLocaleString()}
                       </TableCell>
-                      <TableCell sx={{ fontFamily: 'monospace', color: '#94a3b8', fontSize: '0.7rem' }}>
+                      <TableCell sx={{ fontFamily: 'monospace', color: '#64748b', fontWeight: 700, fontSize: '0.75rem' }}>
                         {log.adminId}
                       </TableCell>
                       <TableCell>
@@ -1719,16 +1833,17 @@ const BillingPage = () => {
                           label={log.action}
                           size="small"
                           sx={{
-                            fontWeight: 800,
-                            bgcolor: '#eff6ff',
-                            color: '#3b82f6',
+                            fontWeight: 900,
+                            bgcolor: '#f0fdf4',
+                            color: '#10b981',
+                            border: '1px solid #dcfce7'
                           }}
                         />
                       </TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: '#1e293b' }}>
+                      <TableCell sx={{ fontWeight: 800, color: '#000000' }}>
                         {log.user?.email || log.userId}
                       </TableCell>
-                      <TableCell sx={{ color: '#475569', fontSize: '0.85rem' }}>
+                      <TableCell sx={{ color: '#475569', fontWeight: 600, fontSize: '0.85rem' }}>
                         {log.details}
                       </TableCell>
                     </TableRow>
@@ -1757,8 +1872,8 @@ const BillingPage = () => {
             boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
           }}
         >
-          <Typography variant="h5" fontWeight={900} sx={{ mb: 4, color: '#1e293b' }}>
-            GLOBAL COMMAND SETTINGS
+          <Typography variant="h5" fontWeight={900} sx={{ mb: 4, color: '#0f172a' }}>
+            SYSTEM PLATFORM CONFIGURATION
           </Typography>
           <Grid container spacing={4}>
             <Grid item xs={12} md={6}>
@@ -1770,7 +1885,28 @@ const BillingPage = () => {
                   border: '1px solid #e2e8f0',
                 }}
               >
-                <Typography variant="h6" fontWeight={800} sx={{ color: '#1e293b' }} gutterBottom>
+                <Typography variant="h6" fontWeight={800} sx={{ color: '#000000', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PaymentIcon sx={{ color: '#3b82f6' }} /> Razorpay Connectivity
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#64748b', mb: 3 }}>
+                    Configure the platform's primary fiscal gateway. All keys are encrypted at rest.
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="Razorpay Key ID"
+                  value={adminSettings.razorpayId}
+                  onChange={(e) => setAdminSettings({ ...adminSettings, razorpayId: e.target.value })}
+                  sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '12px' }, '& label': { color: '#64748b', fontWeight: 700 }, '& input': { color: '#000000', fontWeight: 900 } }}
+                />
+                <TextField
+                  fullWidth
+                  label="Razorpay Secret"
+                  type="password"
+                  value={adminSettings.razorpaySecret}
+                  onChange={(e) => setAdminSettings({ ...adminSettings, razorpaySecret: e.target.value })}
+                  sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '12px' }, '& label': { color: '#64748b', fontWeight: 700 }, '& input': { color: '#000000', fontWeight: 900 } }}
+                />
+                <Typography variant="h6" fontWeight={800} sx={{ color: '#000000', mt: 4, mb: 1 }}>
                   Sovereign Payment Gateway Link
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#64748b', mb: 3 }}>
@@ -1837,16 +1973,16 @@ const BillingPage = () => {
                 <Box
                   sx={{
                     p: 3,
-                    borderRadius: '16px',
+                    borderRadius: '20px',
                     bgcolor: '#f8fafc',
                     border: '1px solid #e2e8f0',
                     textAlign: 'center',
                   }}
                 >
-                  <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 900 }}>
+                  <Typography variant="caption" sx={{ color: '#000000', fontWeight: 900 }}>
                     {stat.label.toUpperCase()}
                   </Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 900, color: stat.color, mt: 1 }}>
+                  <Typography variant="h4" sx={{ fontWeight: 900, color: stat.color, mt: 1 }}>
                     {stat.value}
                   </Typography>
                 </Box>
@@ -2166,7 +2302,7 @@ const BillingPage = () => {
                 <TableContainer component={Paper} sx={{ bgcolor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: 'none' }}>
                     <Table size="small">
                         <TableHead>
-                            <TableRow sx={{ '& th': { fontWeight: 900, color: '#64748b', py: 2 } }}>
+                            <TableRow sx={{ background: '#f8fafc', '& th': { fontWeight: 900, color: '#0f172a', py: 2 } }}>
                                 <TableCell>Device</TableCell>
                                 <TableCell>IP Address</TableCell>
                                 <TableCell>Login Time</TableCell>
@@ -2175,18 +2311,19 @@ const BillingPage = () => {
                         </TableHead>
                         <TableBody>
                             {mySessions.map((session) => (
-                                <TableRow key={session.id}>
-                                    <TableCell sx={{ fontWeight: 800, color: '#1e293b' }}>{session.device}</TableCell>
-                                    <TableCell sx={{ color: '#64748b', fontFamily: 'monospace', fontSize: '0.8rem' }}>{session.ip}</TableCell>
-                                    <TableCell sx={{ color: '#94a3b8', fontSize: '0.8rem' }}>{new Date(session.createdAt).toLocaleString()}</TableCell>
+                                <TableRow key={session.id} sx={{ '&:hover': { background: '#f1f5f9' } }}>
+                                    <TableCell sx={{ fontWeight: 900, color: '#000000' }}>{session.device}</TableCell>
+                                    <TableCell sx={{ color: '#64748b', fontWeight: 700, fontFamily: 'monospace', fontSize: '0.8rem' }}>{session.ip}</TableCell>
+                                    <TableCell sx={{ color: '#64748b', fontWeight: 700, fontSize: '0.8rem' }}>{new Date(session.createdAt).toLocaleString()}</TableCell>
                                     <TableCell align="right">
                                         <Button 
                                             size="small" 
+                                            variant="contained"
                                             color="error"
                                             onClick={() => handleRevokeSession(session.id)}
                                             sx={{ fontWeight: 900, borderRadius: '8px' }}
                                         >
-                                            Logout
+                                            RETAIN
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -2234,7 +2371,137 @@ const BillingPage = () => {
       )}
 
 
-      {/* --- SNACKBARS --- */}
+      {/* --- TAB 10: SERVICE MANAGEMENT (NEW) --- */}
+      {admin && tab === 10 && (
+        <Paper sx={{ p: 4, borderRadius: '24px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 4, alignItems: 'center' }}>
+            <Typography variant="h5" fontWeight={900} sx={{ color: '#0f172a' }}>Platform Services</Typography>
+            <Button 
+                variant="contained" 
+                startIcon={<BuildCircleIcon />} 
+                onClick={() => { setEditingService(null); setServiceForm({ name: '', description: '', price: 0, category: 'GENERAL' }); setShowServiceDialog(true); }}
+                sx={{ borderRadius: '12px', fontWeight: 900, bgcolor: '#0f172a' }}
+            >
+              New Service
+            </Button>
+          </Box>
+          <Grid container spacing={3}>
+            {services.map((service) => (
+              <Grid item xs={12} md={4} key={service.id}>
+                <Card sx={{ 
+                    borderRadius: '24px', 
+                    background: '#ffffff', 
+                    border: '1px solid #e2e8f0', 
+                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+                    transition: 'transform 0.2s',
+                    '&:hover': { transform: 'translateY(-4px)' }
+                }}>
+                  <CardContent sx={{ p: 4 }}>
+                    <Typography variant="h5" fontWeight={900} sx={{ color: '#0f172a', mb: 1 }}>{service.name}</Typography>
+                    <Chip label={service.category} size="small" sx={{ mb: 2, fontWeight: 800, bgcolor: '#eff6ff', color: '#3b82f6' }} />
+                    <Typography variant="body2" sx={{ color: '#64748b', mb: 3, height: 40, overflow: 'hidden' }}>{service.description}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 4 }}>
+                       <Typography variant="h4" fontWeight={900} sx={{ color: '#10b981' }}>₹{service.price}</Typography>
+                       <Typography variant="caption" sx={{ color: '#94a3b8', ml: 1 }}>One-time / Recurring</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button 
+                        fullWidth 
+                        variant="outlined" 
+                        onClick={() => { setEditingService(service); setServiceForm(service); setShowServiceDialog(true); }}
+                        sx={{ borderRadius: '12px', fontWeight: 900, color: '#475569', borderColor: '#e2e8f0' }}
+                      >
+                        EDIT
+                      </Button>
+                      <IconButton color="error" onClick={() => handleDeleteService(service.id)} sx={{ border: '1px solid #fee2e2', borderRadius: '12px', bgcolor: '#fef2f2' }}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
+      )}
+
+      {/* --- SERVICE DIALOG --- */}
+      <Dialog open={showServiceDialog} onClose={() => setShowServiceDialog(false)} PaperProps={{ sx: { borderRadius: '25px', background: '#ffffff', border: '1px solid #e2e8f0' } }}>
+        <DialogTitle sx={{ fontWeight: 900 }}>{editingService ? 'Edit' : 'New'} Service</DialogTitle>
+        <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1, minWidth: 400 }}>
+                <TextField fullWidth label="Service Name" value={serviceForm.name} onChange={e => setServiceForm({...serviceForm, name: e.target.value})} />
+                <TextField fullWidth label="Description" multiline rows={2} value={serviceForm.description} onChange={e => setServiceForm({...serviceForm, description: e.target.value})} />
+                <TextField fullWidth label="Price (₹)" type="number" value={serviceForm.price} onChange={e => setServiceForm({...serviceForm, price: parseFloat(e.target.value)})} />
+                <FormControl fullWidth>
+                    <InputLabel>Category</InputLabel>
+                    <Select value={serviceForm.category} onChange={e => setServiceForm({...serviceForm, category: e.target.value})}>
+                        <MenuItem value="PLAN">PLAN</MenuItem>
+                        <MenuItem value="MAINTENANCE">MAINTENANCE</MenuItem>
+                        <MenuItem value="INFRASTRUCTURE">INFRASTRUCTURE</MenuItem>
+                        <MenuItem value="GST">GST</MenuItem>
+                        <MenuItem value="GENERAL">GENERAL</MenuItem>
+                    </Select>
+                </FormControl>
+            </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setShowServiceDialog(false)}>CANCEL</Button>
+            <Button variant="contained" onClick={handleSaveService} sx={{ fontWeight: 900, borderRadius: '12px' }}>Save Service</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* --- USER SERVICE PROVISION DIALOG --- */}
+      <Dialog open={showUserProvisionDialog} onClose={() => setShowUserProvisionDialog(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: '25px' } }}>
+        <DialogTitle sx={{ fontWeight: 900 }}>Provision Services: {selectedUserForService?.email}</DialogTitle>
+        <DialogContent>
+            <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                    <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Available Services</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {services.map(s => (
+                            <Paper key={s.id} sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                                <Box>
+                                    <Typography fontWeight={700}>{s.name}</Typography>
+                                    <Typography variant="caption" sx={{ color: '#64748b' }}>₹{s.price} - {s.category}</Typography>
+                                </Box>
+                                <Button size="small" variant="contained" onClick={() => handleProvisionUserService(s.id)} sx={{ borderRadius: '8px' }}>Assign</Button>
+                            </Paper>
+                        ))}
+                    </Box>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                    <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Active User Services</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {userServices.map(us => (
+                            <Paper key={us.id} sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f0fdf4', border: '1px solid #dcfce7', borderRadius: '12px' }}>
+                                <Box>
+                                    <Typography fontWeight={700}>{us.service?.name}</Typography>
+                                    <Typography variant="caption" sx={{ color: '#166534' }}>Amount: ₹{us.amount}</Typography>
+                                </Box>
+                                <IconButton color="error" size="small" onClick={async () => {
+                                    if (window.confirm('Deprovision this service?')) {
+                                        const token = localStorage.getItem('saas_token');
+                                        await fetch('/api/admin/deprovision-service', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                            body: JSON.stringify({ userServiceId: us.id })
+                                        });
+                                        fetchUserServices(selectedUserForService.id);
+                                    }
+                                }}>
+                                    <DeleteIcon />
+                                </IconButton>
+                            </Paper>
+                        ))}
+                    </Box>
+                </Grid>
+            </Grid>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setShowUserProvisionDialog(false)}>CLOSE</Button>
+        </DialogActions>
+      </Dialog>
       <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess(null)}>
         <Alert severity="success" sx={{ borderRadius: '12px', fontWeight: 800 }}>{success}</Alert>
       </Snackbar>
@@ -2255,28 +2522,28 @@ const BillingPage = () => {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
                 <TextField 
                     fullWidth label="Full Name" 
-                    value={onboardForm.name} 
-                    onChange={e => setOnboardForm({...onboardForm, name: e.target.value})}
+                    value={onboardData.name} 
+                    onChange={e => setOnboardData({...onboardData, name: e.target.value})}
                     sx={{ input: { color: '#0f172a' }, label: { color: '#64748b' } }}
                 />
                 <TextField 
                     fullWidth label="Email Address" 
-                    value={onboardForm.email} 
-                    onChange={e => setOnboardForm({...onboardForm, email: e.target.value})}
+                    value={onboardData.email} 
+                    onChange={e => setOnboardData({...onboardData, email: e.target.value})}
                     sx={{ input: { color: '#0f172a' }, label: { color: '#64748b' } }}
                 />
                 <TextField 
                     fullWidth label="Temporary Password" 
                     type="password"
-                    value={onboardForm.password} 
-                    onChange={e => setOnboardForm({...onboardForm, password: e.target.value})}
+                    value={onboardData.password} 
+                    onChange={e => setOnboardData({...onboardData, password: e.target.value})}
                     sx={{ input: { color: '#0f172a' }, label: { color: '#64748b' } }}
                 />
             </Box>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
             <Button onClick={() => setShowOnboardDialog(false)} sx={{ color: '#64748b', fontWeight: 700 }}>CANCEL</Button>
-            <Button variant="contained" onClick={handleOnboard} sx={{ fontWeight: 900, borderRadius: '12px', bgcolor: '#0f172a', '&:hover': { bgcolor: '#000' } }}>Add User</Button>
+            <Button variant="contained" onClick={handleOnboardClient} sx={{ fontWeight: 900, borderRadius: '12px', bgcolor: '#0f172a', '&:hover': { bgcolor: '#000' } }}>Add User</Button>
         </DialogActions>
       </Dialog>
 

@@ -88,12 +88,72 @@ const calculateBreakdown = (total) => {
   };
 };
 
-const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputedSubCount = null) => {
+/**
+ * ✅ NEW: Sync devices from Traccar engine to SaaS database.
+ * Ensures billing reflects devices added directly in the tracking engine.
+ */
+const syncUserDevices = async (userId, geosurepathUserId) => {
+  if (!geosurepathUserId) return;
+  try {
+    const traccarDevices = await geosurepathService.getUserDevices(geosurepathUserId);
+    if (!Array.isArray(traccarDevices)) return;
+
+    for (const td of traccarDevices) {
+      // Check if device already exists in Prisma
+      const existing = await prisma.vehicle.findFirst({
+        where: { 
+          OR: [
+            { geosurepathDeviceId: td.id },
+            { imei: td.uniqueId }
+          ]
+        }
+      });
+
+      if (!existing) {
+        console.log(`[Sync] Adding missing device: ${td.name} (${td.uniqueId}) for User: ${userId}`);
+        await prisma.vehicle.create({
+          data: {
+            userId,
+            name: td.name,
+            imei: td.uniqueId,
+            geosurepathDeviceId: td.id,
+            registrationDate: new Date(),
+            isActive: true
+          }
+        });
+      } else if (!existing.geosurepathDeviceId || existing.userId !== userId) {
+        // Update mapping or ownership if needed
+        await prisma.vehicle.update({
+          where: { id: existing.id },
+          data: { 
+            geosurepathDeviceId: td.id,
+            userId: userId // Ensure it belongs to the right user in SaaS
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.error(`[Sync] Device sync failed for User: ${userId}:`, err.message);
+  }
+};
+
+const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputedSubCount = null, shouldSync = false) => {
+  if (shouldSync) {
+    const user = preloadedUser || await prisma.user.findUnique({ where: { id: userId } });
+    if (user && user.geosurepathUserId) {
+        await syncUserDevices(userId, user.geosurepathUserId);
+    }
+  }
+
   const user =
     preloadedUser ||
     (await prisma.user.findUnique({
       where: { id: userId },
-      include: { vehicles: true, subscriptions: { orderBy: { createdAt: 'desc' } } }
+      include: { 
+        vehicles: true, 
+        subscriptions: { orderBy: { createdAt: 'desc' } },
+        userServices: { where: { status: 'ACTIVE' }, include: { service: true } }
+      }
     }));
   if (!user) return null;
 
@@ -132,7 +192,8 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
     };
   });
 
-  const totalDue = deviceDetails.reduce((sum, d) => sum + d.amount, 0);
+  const totalServicesCost = (user.userServices || []).reduce((sum, us) => sum + us.amount, 0);
+  const totalDue = deviceDetails.reduce((sum, d) => sum + d.amount, 0) + totalServicesCost;
   // Guard against empty array spread — Math.max with no args returns -Infinity
   const maxUnpaidDays =
     deviceDetails.length > 0 ? Math.max(...deviceDetails.map((d) => d.unpaidDays)) : 0;
@@ -167,6 +228,12 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
     })),
     devices: deviceDetails,
     history,
+    services: (user.userServices || []).map(us => ({
+      id: us.id,
+      name: us.service?.name,
+      amount: us.amount,
+      category: us.service?.category
+    })),
     sentry: {
       status: accessStatus,
       unpaidDays: maxUnpaidDays,
@@ -178,7 +245,7 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
 
 const getMyBill = async (req, res) => {
   try {
-    const bill = await calculateBillForAnyUser(req.user.userId);
+    const bill = await calculateBillForAnyUser(req.user.userId, null, null, true);
     res.json(bill);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -366,10 +433,12 @@ const demoSettle = async (req, res) => {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
+    const paymentAmount = parseFloat(amount) || 0;
+
     const payment = await prisma.payment.create({
       data: {
         userId,
-        amount: parseFloat(amount),
+        amount: paymentAmount,
         status: 'CAPTURED',
         paymentMethod: 'DEMO_BYPASS',
         transactionId: `DEMO_${Date.now()}`
@@ -518,7 +587,29 @@ const handleWebhook = async (req, res) => {
           const days = plan.days || 30;
 
           const now = new Date();
-          const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+          let baseDate = now;
+
+          // Check for existing active subscription to extend
+          const existingActiveSub = await prisma.subscription.findFirst({
+            where: { userId: payment.userId, status: 'ACTIVE', expiresAt: { gt: now } },
+            orderBy: { expiresAt: 'desc' }
+          });
+          
+          if (existingActiveSub) {
+            baseDate = new Date(existingActiveSub.expiresAt);
+          }
+
+          const expiresAt = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
+
+          // ✅ SYNC: Ensure we have the latest device count before creating subscription
+          if (payment.user.geosurepathUserId) {
+            await syncUserDevices(payment.userId, payment.user.geosurepathUserId);
+          }
+
+          const updatedUser = await prisma.user.findUnique({
+             where: { id: payment.userId },
+             include: { vehicles: true }
+          });
 
           const invoiceId = await generateInvoiceNumber();
           const subscription = await prisma.subscription.create({
@@ -527,7 +618,7 @@ const handleWebhook = async (req, res) => {
               planId: plan.id,
               price: payment.amount,
               status: 'ACTIVE',
-              deviceCount: payment.user.vehicles.length,
+              deviceCount: updatedUser.vehicles.length,
               expiresAt,
               invoiceId
             }
@@ -621,7 +712,29 @@ const verifyPayment = async (req, res) => {
     const days = plan.days || 30;
 
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    let baseDate = now;
+
+    // Check for existing active subscription to extend
+    const existingActiveSub = await prisma.subscription.findFirst({
+      where: { userId: payment.userId, status: 'ACTIVE', expiresAt: { gt: now } },
+      orderBy: { expiresAt: 'desc' }
+    });
+    
+    if (existingActiveSub) {
+      baseDate = new Date(existingActiveSub.expiresAt);
+    }
+
+    const expiresAt = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
+
+    // ✅ SYNC: Ensure we have the latest device count before creating subscription
+    if (payment.user.geosurepathUserId) {
+      await syncUserDevices(payment.userId, payment.user.geosurepathUserId);
+    }
+
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: payment.userId },
+      include: { vehicles: true }
+    });
 
     const invoiceId = await generateInvoiceNumber();
     const subscription = await prisma.subscription.create({
@@ -630,7 +743,7 @@ const verifyPayment = async (req, res) => {
         planId: plan.id,
         price: payment.amount,
         status: 'ACTIVE',
-        deviceCount: payment.user.vehicles.length,
+        deviceCount: updatedUser.vehicles.length,
         expiresAt,
         invoiceId
       }
@@ -664,17 +777,42 @@ const verifyPayment = async (req, res) => {
   }
 };
 
+const getAIInsights = async (req, res) => {
+  try {
+    const insights = await analyticsService.getAIInsights();
+    res.json(insights);
+  } catch (err) {
+    console.error('[AI Insights Error]', err.message);
+    res.status(500).json({ error: 'Failed to generate AI insights.' });
+  }
+};
+
+const getAllPayments = async (req, res) => {
+  try {
+    const payments = await prisma.payment.findMany({
+      include: { user: { select: { email: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
+    res.json(payments);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getMyBill,
   adminUpdateRegistration,
   settleCash,
   demoSettle,
   getAdminAnalytics,
+  getAIInsights,
   getAllUsersLedger,
   updateGatewayConfig,
   updatePlan,
   getPlans,
   createOrder,
   handleWebhook,
-  verifyPayment
+  verifyPayment,
+  getAllPayments
 };

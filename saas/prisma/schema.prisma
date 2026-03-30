@@ -49,8 +49,8 @@ model User {
   fleets              Fleet[]
   graceExtensionUntil DateTime?
   createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
   auditLogs           AuditLog[]
+  userServices        UserService[]
 
   @@index([role, isActive])
 }
@@ -260,3 +260,29 @@ model AuditLog {
 // Actually, it seems they wanted an index on User's certain field, but @@index([userId]) 
 // inside a model would mean it's an index for THAT model's userId field.
 // Let's put a proper index back where it makes sense (e.g. DeviceToken)
+
+model Service {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  price       Float
+  category    String        @default("GENERAL") // MAINTENANCE, INFRASTRUCTURE, etc.
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  userServices UserService[]
+}
+
+model UserService {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  amount    Float // Store amount at time of provisioning (in case service price changes)
+  status    String   @default("ACTIVE") // ACTIVE, CANCELLED
+  billedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}

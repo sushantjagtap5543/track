@@ -236,7 +236,25 @@ exports.login = async (req, res) => {
 
       await prisma.user.update({
         where: { id: user.id },
-        data: { loginHistory: { create: { ipAddress: req.ip, success: false, device: req.headers['user-agent'] } }, loginAttempts: attempts, lockUntil }
+        data: { 
+          loginHistory: { 
+            create: { 
+              ipAddress: req.ip, 
+              success: false, 
+              device: req.headers['user-agent']
+            } 
+          }, 
+          loginAttempts: attempts, 
+          lockUntil 
+        }
+      });
+
+      // ✅ FIX: Audit Log for Failed Login
+      logAction({
+          userId: user.id,
+          action: AUDIT_ACTIONS.FAILED_LOGIN_ATTEMPT,
+          details: { email: user.email, reason: 'Invalid Password', attempts },
+          ipAddress: req.ip
       });
 
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -249,8 +267,22 @@ exports.login = async (req, res) => {
         loginAttempts: 0, 
         lockUntil: null, 
         lastLoginAt: new Date(),
-        loginHistory: { create: { ipAddress: req.ip, success: true, device: req.headers['user-agent'] } } 
+        loginHistory: { 
+          create: { 
+            ipAddress: req.ip, 
+            success: true, 
+            device: req.headers['user-agent']
+          } 
+        } 
       }
+    });
+
+    // ✅ FIX: Audit Log for Successful Login
+    logAction({
+        userId: user.id,
+        action: AUDIT_ACTIONS.USER_LOGIN,
+        details: { email: user.email },
+        ipAddress: req.ip
     });
 
     if (!user.isActive) return res.status(403).json({ error: 'Account is suspended.' });

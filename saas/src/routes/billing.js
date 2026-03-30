@@ -16,7 +16,8 @@ const {
   createOrder,
   demoSettle,
   handleWebhook,
-  verifyPayment
+  verifyPayment,
+  getAIInsights
 } = require('../controllers/billingController');
 const { authenticateToken, requireRole } = require('../middleware/authMiddleware');
 
@@ -36,5 +37,6 @@ router.post('/admin/update-registration', authenticateToken, requireRole('ADMIN'
 router.post('/admin/settle-cash', authenticateToken, requireRole('ADMIN'), settleCash);
 router.post('/admin/config-gateway', authenticateToken, requireRole('ADMIN'), updateGatewayConfig);
 router.post('/admin/update-plan', authenticateToken, requireRole('ADMIN'), updatePlan);
+router.get('/admin/ai-insights', authenticateToken, requireRole('ADMIN'), getAIInsights);
 
 module.exports = router;

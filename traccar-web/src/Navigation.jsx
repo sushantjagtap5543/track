@@ -117,9 +117,9 @@ const Navigation = () => {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/change-server" element={<ChangeServerPage />} />
-      <Route path="/billing" element={<BillingPage />} />
       <Route path="/" element={<App />}>
         <Route index element={<MainPage />} />
+        <Route path="/billing" element={<BillingPage />} />
         <Route path="position/:id" element={<PositionPage />} />
         <Route path="network/:positionId" element={<NetworkPage />} />
         <Route path="event/:id" element={<EventPage />} />
