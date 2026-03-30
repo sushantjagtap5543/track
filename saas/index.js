@@ -41,6 +41,7 @@ const { startWorkers, stopWorkers, redisConnection } = require('./src/services/q
 const { startGuardian } = require('./src/services/aiGuardian');
 const { startSubscriptionCron } = require('./src/services/subscriptionCron');
 const prisma = require('./src/lib/prisma');
+const sessionGuard = require('./src/middleware/sessionGuard');
 
 const app = express();
 app.set('trust proxy', 1); // Trust the first proxy (Nginx)
@@ -54,7 +55,7 @@ startSubscriptionCron();
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(helmet());
 app.use(cookieParser());
-// Removed xss-clean due to incompatibility with Express 5.x (req.query is read-only)
+app.use(sessionGuard);
 
 
 // Global Rate Limiter

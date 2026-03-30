@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const prisma = require('../lib/prisma');
 const geosurepathService = require('../services/geosurepath');
 const { emailQueue } = require('../services/queue');
+const { logAction, AUDIT_ACTIONS } = require('../services/auditService');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -101,10 +102,17 @@ exports.register = async (req, res) => {
         }
       });
     } catch (prismaError) {
-      console.error('[Register] Prisma creation failed, cleaning up Traccar user:', gUser.id);
       await geosurepathService.deleteUser(gUser.id).catch(() => {});
       throw prismaError;
     }
+
+    // ✅ FIX: Audit Log for User Registration
+    logAction({
+        userId: user.id,
+        action: AUDIT_ACTIONS.USER_REGISTRATION,
+        details: { email: user.email, name: user.name },
+        ipAddress: req.ip
+    });
 
     // ✅ FIX: Send welcome email with login details
     emailQueue.add('welcome-email', {
@@ -153,7 +161,13 @@ exports.register = async (req, res) => {
   } catch (error) {
     // SECURITY: Do not log the full error or req.body to avoid sensitive data exposure
     console.error('[Register] Error occurred during user creation:', error.message); 
-    res.status(500).json({ error: 'Registration failed.' });
+    
+    // ✅ NEW: Relay specific business logic errors to the frontend
+    if (error.message.includes('already exists') || error.message.includes('rejected the password')) {
+        return res.status(400).json({ error: error.message });
+    }
+    
+    res.status(500).json({ error: 'Registration failed. Please try again later.' });
   }
 };
 
@@ -242,14 +256,12 @@ exports.login = async (req, res) => {
 
     // ✅ FIX: Audit Log for Admin Login
     if (user.role === 'ADMIN') {
-        prisma.auditLog.create({
-            data: {
-                adminId: user.id,
-                action: 'ADMIN_LOGIN',
-                details: `Admin ${user.email} logged in to platform`,
-                ipAddress: req.ip
-            }
-        }).catch(e => console.error('Audit Log (Login) fail:', e));
+        logAction({
+            adminId: user.id,
+            action: AUDIT_ACTIONS.ADMIN_LOGIN,
+            details: { email: user.email },
+            ipAddress: req.ip
+        });
     }
 
     res.json({
@@ -333,6 +345,14 @@ exports.forgotPassword = async (req, res) => {
       `
     });
 
+    // Audit Log for Password Reset Request
+    logAction({
+        userId: user.id,
+        action: AUDIT_ACTIONS.PASSWORD_RESET_REQUEST,
+        details: { email: user.email },
+        ipAddress: req.ip
+    });
+
     res.json({ message: 'If that email exists, a reset link has been sent.' });
   } catch (error) {
     res.status(500).json({ error: 'Error processing forgot password' });
@@ -399,6 +419,13 @@ exports.changePassword = async (req, res) => {
       console.error('[ChangePassword] GeoSurePath sync failed:', gsErr.message);
     }
 
+    // Audit Log
+    logAction({
+        userId,
+        action: AUDIT_ACTIONS.PASSWORD_CHANGE,
+        ipAddress: req.ip
+    });
+
     res.json({ message: 'Password updated successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update password' });
@@ -425,14 +452,12 @@ exports.syncSession = async (req, res) => {
 
     // ✅ FIX: Audit Log for Admin Sync (Optional but good for tracking active sessions)
     if (user.role === 'ADMIN') {
-        prisma.auditLog.create({
-            data: {
-                adminId: user.id,
-                action: 'ADMIN_SESSION_SYNC',
-                details: `Admin ${user.email} synchronized session`,
-                ipAddress: req.ip
-            }
-        }).catch(e => console.error('Audit Log (Sync) fail:', e));
+        logAction({
+            adminId: user.id,
+            action: AUDIT_ACTIONS.ADMIN_SESSION_SYNC,
+            details: { email: user.email },
+            ipAddress: req.ip
+        });
     }
 
     const authHeader = req.headers['authorization'];

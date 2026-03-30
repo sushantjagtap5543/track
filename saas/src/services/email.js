@@ -10,6 +10,8 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+console.log(`[EmailService] Initialized with host: ${process.env.SMTP_HOST || 'smtp.gmail.com'}, user: ${process.env.SMTP_USER}`);
+
 const sendEmail = async ({ to, subject, text, html }) => {
   try {
     const info = await transporter.sendMail({

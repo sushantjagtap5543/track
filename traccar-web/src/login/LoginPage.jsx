@@ -13,6 +13,7 @@ import {
   InputAdornment,
   Typography,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import CountryFlag from 'react-country-flag';
@@ -50,50 +51,82 @@ const useStyles = makeStyles()((theme) => ({
   },
   welcomeText: {
     color: '#fff',
-    fontWeight: 600,
-    fontSize: '2rem',
+    fontWeight: 900,
+    fontSize: '2.5rem',
+    letterSpacing: '-1px',
+    lineHeight: 1.1,
   },
   subText: {
-    color: '#ffffff',
-    fontSize: '1.05rem',
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: '1.1rem',
     fontWeight: 500,
-    textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+    marginTop: theme.spacing(1),
   },
   container: {
     display: 'flex',
     flexDirection: 'column',
-    gap: theme.spacing(2),
+    gap: theme.spacing(3),
   },
   extraContainer: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: theme.spacing(1),
+    gap: theme.spacing(2),
+    borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+    paddingTop: theme.spacing(3),
+    marginTop: theme.spacing(1),
   },
   loginButton: {
-    borderRadius: theme.spacing(1.5),
+    borderRadius: '16px',
+    padding: theme.spacing(2, 0),
+    fontSize: '1.1rem',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+    boxShadow: '0 10px 30px rgba(59, 130, 246, 0.4)',
+    transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+    '&:hover': {
+      background: 'linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)',
+      transform: 'translateY(-3px)',
+      boxShadow: '0 15px 40px rgba(59, 130, 246, 0.6)',
+    },
+  },
+  secondaryButton: {
+    borderRadius: '14px',
     padding: theme.spacing(1.5, 0),
     fontSize: '1rem',
-    fontWeight: 600,
+    fontWeight: 700,
     textTransform: 'none',
-    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    color: '#fff',
+    backdropFilter: 'blur(10px)',
+    '&:hover': {
+      borderColor: '#fff',
+      background: 'rgba(255, 255, 255, 0.05)',
+      transform: 'translateY(-2px)',
+    },
   },
   registerLink: {
     color: theme.palette.primary.light,
-    fontWeight: 700,
-    fontSize: '1rem',
+    fontWeight: 800,
+    fontSize: '1.05rem',
     textDecoration: 'none',
+    cursor: 'pointer',
     '&:hover': {
       textDecoration: 'underline',
+      color: '#fff',
     },
   },
   langSelect: {
-    background: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: theme.spacing(1),
+    background: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: '12px',
     color: '#fff',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
     '& .MuiSelect-select': {
       padding: theme.spacing(1, 4, 1, 2),
       color: '#fff',
+      fontWeight: 600,
     },
     '& fieldset': {
       border: 'none',
@@ -170,6 +203,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showServerTooltip, setShowServerTooltip] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' });
 
   // Registration enabled for all time as requested
   const registrationEnabled = true;
@@ -226,7 +260,7 @@ const LoginPage = () => {
         setPassword('');
       }
     } catch (e) {
-      setErrorText(e.message || 'Login failed. Please try again.');
+      setSnackbar({ open: true, message: e.message || 'Access Protocol Failed', severity: 'error' });
       setFailed(true);
       setPassword('');
     } finally {
@@ -350,9 +384,9 @@ const LoginPage = () => {
       </div>
 
       <div className={classes.titleSection}>
-        <Typography className={classes.welcomeText}>{t('loginLogin')}</Typography>
+        <Typography className={classes.welcomeText}>Sovereign Intelligence</Typography>
         <Typography className={classes.subText}>
-          Enter your credentials to access your dashboard
+          Authorized Personnel Only - Encryption Active
         </Typography>
       </div>
 
@@ -442,57 +476,66 @@ const LoginPage = () => {
             <Button
               onClick={handleBillingLogin}
               variant="outlined"
-              color="primary"
               fullWidth
               disabled={loading}
-              sx={{
-                mb: 2,
-                borderRadius: '12px',
-                fontWeight: 900,
-                borderColor: 'rgba(255,255,255,0.3)',
-                color: '#fff',
-                '&:hover': {
-                  borderColor: '#fff',
-                  background: 'rgba(255,255,255,0.05)',
-                },
-              }}
+              className={classes.secondaryButton}
+              sx={{ mb: 1.5 }}
+              startIcon={<ReceiptLongIcon />}
             >
               PAY SUBSCRIPTION BILL
             </Button>
             {registrationEnabled && (
               <Typography
                 variant="body1"
-                sx={{ color: '#ffffff', fontSize: '1rem', fontWeight: 500 }}
+                sx={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '0.95rem', fontWeight: 600 }}
               >
-                Don&apos;t have an account?{' '}
-                <Link
+                New operative?{' '}
+                <Box
+                  component="span"
                   className={classes.registerLink}
                   onClick={() => navigate('/register')}
-                  component="button"
                 >
                   {t('loginRegister')}
-                </Link>
+                </Box>
               </Typography>
             )}
             <Link
               onClick={() => navigate('/reset-password')}
               sx={{
-                color: 'rgba(255, 255, 255, 0.95)',
-                fontSize: '1rem',
+                color: 'rgba(255, 255, 255, 0.4)',
+                fontSize: '0.9rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 textDecoration: 'none',
-                '&:hover': { color: '#fff', textDecoration: 'underline' },
+                transition: 'color 0.3s',
+                mt: 1,
+                '&:hover': { color: '#fff' },
               }}
               component="button"
             >
-              {t('loginReset')}
+              System Restoration (Reset Password)
             </Link>
           </div>
         )}
       </form>
 
       <QrCodeDialog open={showQr} onClose={() => setShowQr(false)} />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%', borderRadius: '12px', fontWeight: 700, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
 
       <Snackbar
         open={!!announcement && !announcementShown}

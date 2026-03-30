@@ -60,22 +60,25 @@ const useStyles = makeStyles()((theme) => ({
   },
   tagline: {
     color: '#fff',
-    fontWeight: 700,
-    fontSize: '3.5rem',
-    lineHeight: 1.2,
+    fontWeight: 900,
+    fontSize: '4rem',
+    lineHeight: 1.1,
     marginBottom: theme.spacing(2),
-    textShadow: '0 4px 12px rgba(0,0,0,0.5)',
+    letterSpacing: '-2px',
+    textShadow: '0 8px 32px rgba(0,0,0,0.5)',
     [theme.breakpoints.down('md')]: {
-      fontSize: '2.5rem',
+      fontSize: '2.8rem',
     },
   },
   subTagline: {
-    color: '#ffffff',
-    fontSize: '1.25rem',
-    opacity: 1,
-    maxWidth: '500px',
-    lineHeight: 1.6,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: '1.4rem',
+    fontWeight: 500,
+    maxWidth: '550px',
+    lineHeight: 1.5,
     textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+    borderLeft: `4px solid ${theme.palette.primary.main}`,
+    paddingLeft: theme.spacing(3),
   },
   formWrapper: {
     flex: 1,
@@ -85,52 +88,28 @@ const useStyles = makeStyles()((theme) => ({
     padding: theme.spacing(4),
   },
   paper: {
-    padding: theme.spacing(5),
+    padding: theme.spacing(6),
     width: '100%',
-    maxWidth: '480px',
-    background: 'rgba(255, 255, 255, 0.1)',
-    backdropFilter: 'blur(25px) saturate(200%)',
-    WebkitBackdropFilter: 'blur(25px) saturate(200%)',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    borderRadius: theme.spacing(3),
-    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
+    maxWidth: '520px',
+    background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%)',
+    backdropFilter: 'blur(40px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    borderRadius: '40px',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
     display: 'flex',
     flexDirection: 'column',
-    gap: theme.spacing(2),
-    '& .MuiTextField-root': {
-      '& .MuiOutlinedInput-root': {
-        background: 'rgba(0, 0, 0, 0.2)',
-        borderRadius: theme.spacing(1.5),
-        color: '#ffffff',
-        fontSize: '1.1rem',
-        '& fieldset': {
-          borderColor: 'rgba(255, 255, 255, 0.5)',
-        },
-        '&:hover fieldset': {
-          borderColor: 'rgba(255, 255, 255, 0.8)',
-        },
-        '&.Mui-focused fieldset': {
-          borderColor: theme.palette.primary.light,
-          borderWidth: '2px',
-        },
-      },
-      '& .MuiInputLabel-root': {
-        color: '#ffffff',
-        fontSize: '1.1rem',
-        fontWeight: 600,
-        textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-        '&.Mui-focused': {
-          color: theme.palette.primary.light,
-        },
-      },
-      '& .MuiInputBase-input': {
-        color: '#ffffff',
-        fontSize: '1.1rem',
-        textTransform: 'none',
-        '&::placeholder': {
-          textTransform: 'none',
-        },
-      },
+    gap: theme.spacing(3),
+    position: 'relative',
+    overflow: 'hidden',
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: '1px',
+      background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%)',
     },
   },
 }));
@@ -142,27 +121,40 @@ const LoginLayout = ({ children }) => {
 
   return (
     <Box component="main" className={classes.root}>
+      {/* Sovereign Pulse Background Overlay */}
+      <Box 
+        sx={{
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
+            zIndex: 1,
+            animation: 'pulse 8s ease-in-out infinite',
+            '@keyframes pulse': {
+                '0%, 100%': { opacity: 0.3, transform: 'scale(1)' },
+                '50%': { opacity: 0.6, transform: 'scale(1.1)' }
+            }
+        }}
+      />
       <motion.div
         className={classes.content}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.5 }}
       >
         <div className={classes.sidebar}>
           <motion.div
             initial={{ x: -100, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.8 }}
+            transition={{ delay: 0.2, duration: 1, type: 'spring', damping: 20 }}
           >
-            <LogoImage color="#fff" width={isMobile ? 120 : 180} />
+            <LogoImage color="#fff" width={isMobile ? 120 : 200} />
             <Typography className={classes.tagline}>
-              Precision Tracking
+              Sovereign Global
               <br />
-              For Your Fleet
+              Intelligence
             </Typography>
             <Typography className={classes.subTagline}>
-              Experience the next generation of GPS intelligence. Premium SaaS solutions for vehicle
-              monitoring, security, and real-time alerts.
+              Elite Fleet Protection & Real-Time Strategic Monitoring. Powered by GeoSurePath Advanced SaaS Infrastructure.
             </Typography>
           </motion.div>
         </div>

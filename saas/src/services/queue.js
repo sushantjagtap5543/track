@@ -34,7 +34,12 @@ redisConnection.on('error', (err) => {
 // ✅ FIX 3: Default job options — auto-clean completed/failed jobs from Redis
 const DEFAULT_JOB_OPTIONS = {
   removeOnComplete: { count: 100 },
-  removeOnFail: { count: 200 }
+  removeOnFail: { count: 200 },
+  attempts: 3,
+  backoff: {
+    type: 'exponential',
+    delay: 5000 // Retry starting at 5 seconds
+  }
 };
 
 const emailQueue = new Queue('EmailQueue', {

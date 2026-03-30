@@ -141,6 +141,15 @@ const createUser = async (name, email, password, options = {}) => {
   });
   if (!response.ok) {
     const text = await response.text();
+    // ✅ NEW: Specialized error parsing for common Traccar registration failures
+    if (response.status === 400) {
+        if (text.toLowerCase().includes('unique index') || text.toLowerCase().includes('duplicate')) {
+            throw new Error('An account with this email/login already exists in the tracking engine.');
+        }
+        if (text.toLowerCase().includes('password')) {
+            throw new Error('The tracking engine rejected the password format.');
+        }
+    }
     throw new Error(`GeoSurePath createUser failed: ${response.status} ${text}`);
   }
   return response.json();

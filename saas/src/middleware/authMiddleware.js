@@ -27,7 +27,12 @@ const authenticateToken = async (req, res, next) => {
       // Optional: Check if user is verified for certain routes
       // if (!user.isVerified) { ... }
 
-      req.user = { ...decoded, role: user.role };
+      req.user = { 
+        ...decoded, 
+        role: user.role,
+        isGhost: decoded.isGhost || false,
+        impersonatedBy: decoded.impersonatedBy || null
+      };
       next();
     } catch (dbErr) {
       console.error('[AuthMiddleware] DB Error:', dbErr);

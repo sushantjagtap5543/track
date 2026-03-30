@@ -6,10 +6,9 @@ const prisma = require('../lib/prisma');
 const bcrypt = require('bcrypt');
 const geosurepathService = require('../services/geosurepath');
 const analyticsService = require('../services/analyticsService');
-const { emailQueue } = require('../services/queue');
-const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
+const { logAction, AUDIT_ACTIONS } = require('../services/auditService');
 
 // Get System Health (CPU, Memory, Uptime)
 exports.getSystemHealth = async (req, res) => {
@@ -88,16 +87,13 @@ exports.updateClientStatus = async (req, res) => {
     res.json({ message: `Client ${isActive ? 'activated' : 'suspended'} successfully`, user });
 
     // Audit Log
-    prisma.auditLog
-      .create({
-        data: {
-          adminId: req.user.userId,
-          userId: clientId,
-          action: isActive ? 'ACTIVATE_USER' : 'SUSPEND_USER',
-          details: JSON.stringify({ userId: clientId, targetStatus: isActive, timestamp: new Date() })
-        }
-      })
-      .catch((e) => console.error('Audit failed:', e.message));
+    logAction({
+      adminId: req.user.userId,
+      userId: clientId,
+      action: isActive ? AUDIT_ACTIONS.ACTIVATE_USER : AUDIT_ACTIONS.SUSPEND_USER,
+      details: { targetStatus: isActive },
+      ipAddress: req.ip
+    });
 
   } catch (_error) {
     res.status(500).json({ error: 'Failed to update client status' });
@@ -173,13 +169,12 @@ exports.bulkUpdateStatus = async (req, res) => {
     res.json({ message: `Successfully ${isActive ? 'activated' : 'suspended'} ${userIds.length} users` });
 
     // Audit Log for Bulk Action
-    prisma.auditLog.create({
-      data: {
-        adminId: req.user.userId,
-        action: isActive ? 'BULK_ACTIVATE_USERS' : 'BULK_SUSPEND_USERS',
-        details: `Updated ${userIds.length} users: [${users.map(u => u.email).join(', ')}]`
-      }
-    }).catch(e => console.error('Bulk Audit fail:', e));
+    logAction({
+      adminId: req.user.userId,
+      action: isActive ? AUDIT_ACTIONS.BULK_ACTIVATE_USERS : AUDIT_ACTIONS.BULK_SUSPEND_USERS,
+      details: { count: userIds.length, emails: users.map(u => u.email) },
+      ipAddress: req.ip
+    });
 
   } catch (error) {
     res.status(500).json({ error: 'Bulk status update failed' });
@@ -211,13 +206,12 @@ exports.bulkDeleteUsers = async (req, res) => {
     res.json({ message: `Successfully soft-deleted ${userIds.length} users` });
 
     // Audit Log
-    prisma.auditLog.create({
-      data: {
+    logAction({
         adminId: req.user.userId,
-        action: 'BULK_DELETE_USERS',
-        details: `Soft-deleted ${userIds.length} users: [${users.map(u => u.email).join(', ')}]`
-      }
-    }).catch(e => console.error('Bulk Delete Audit fail:', e));
+        action: AUDIT_ACTIONS.BULK_DELETE_USERS,
+        details: { count: userIds.length, emails: users.map(u => u.email) },
+        ipAddress: req.ip
+    });
 
   } catch (error) {
     res.status(500).json({ error: 'Bulk deletion failed' });
@@ -296,13 +290,12 @@ exports.adjustExpiry = async (req, res) => {
     }
 
     // Log the override
-    await prisma.auditLog.create({
-      data: {
-        adminId: req.user.userId,
-        userId: userId,
-        action: 'EXTEND_GRACE',
-        details: JSON.stringify({ userId, extensionDays, newExpiry: newGraceDate, timestamp: new Date() })
-      }
+    logAction({
+      adminId: req.user.userId,
+      userId: userId,
+      action: AUDIT_ACTIONS.EXTEND_GRACE,
+      details: { extensionDays, newExpiry: newGraceDate },
+      ipAddress: req.ip
     });
 
     res.json({ message: `VIP Override active. Account secured for another ${extensionDays} days.` });
@@ -360,12 +353,11 @@ exports.updateSettings = async (req, res) => {
     res.json({ message: 'Sovereign Configuration Updated Successfully' });
 
     // Audit Log
-    await prisma.auditLog.create({
-      data: {
-        adminId: req.user.userId,
-        action: 'UPDATE_GLOBAL_SETTINGS',
-        details: `System secrets updated: ${Object.keys(data).join(', ')}`
-      }
+    logAction({
+      adminId: req.user.userId,
+      action: AUDIT_ACTIONS.UPDATE_GLOBAL_SETTINGS,
+      details: { updatedKeys: Object.keys(data) },
+      ipAddress: req.ip
     });
 
   } catch (error) {
@@ -422,13 +414,12 @@ exports.updateUserSubscription = async (req, res) => {
 
     res.json({ message: 'User subscription updated successfully' });
 
-    await prisma.auditLog.create({
-      data: {
-        adminId: req.user.userId,
-        userId,
-        action: 'MANUAL_SUBSCRIPTION_UPDATE',
-        details: `Plan: ${planId}, Status: ${status}, expiresAt: ${expiresAt}`
-      }
+    logAction({
+      adminId: req.user.userId,
+      userId,
+      action: AUDIT_ACTIONS.MANUAL_SUBSCRIPTION_UPDATE,
+      details: { planId, status, expiresAt },
+      ipAddress: req.ip
     });
 
   } catch (error) {
@@ -485,12 +476,11 @@ exports.updatePlan = async (req, res) => {
     res.json(plan);
 
     // Audit Log
-    await prisma.auditLog.create({
-      data: {
+    logAction({
         adminId: req.user.userId,
-        action: 'UPDATE_BILLING_PLAN',
-        details: JSON.stringify({ id, name, pricePerDevice, billingCycle, timestamp: new Date() })
-      }
+        action: AUDIT_ACTIONS.UPDATE_BILLING_PLAN,
+        details: { id, name, pricePerDevice, billingCycle },
+        ipAddress: req.ip
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update plan' });
@@ -506,12 +496,11 @@ exports.createPlan = async (req, res) => {
     res.json(plan);
 
     // Audit Log
-    await prisma.auditLog.create({
-      data: {
+    logAction({
         adminId: req.user.userId,
-        action: 'CREATE_BILLING_PLAN',
-        details: JSON.stringify({ name, pricePerDevice, billingCycle, timestamp: new Date() })
-      }
+        action: AUDIT_ACTIONS.CREATE_BILLING_PLAN,
+        details: { name, pricePerDevice, billingCycle },
+        ipAddress: req.ip
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to create plan' });
@@ -525,12 +514,11 @@ exports.deletePlan = async (req, res) => {
     res.json({ message: 'Plan deleted successfully' });
 
     // Audit Log
-    await prisma.auditLog.create({
-      data: {
+    logAction({
         adminId: req.user.userId,
-        action: 'DELETE_BILLING_PLAN',
-        details: `Deleted plan ID: ${id}`
-      }
+        action: AUDIT_ACTIONS.DELETE_BILLING_PLAN,
+        details: { planId: id },
+        ipAddress: req.ip
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete plan' });
@@ -566,18 +554,38 @@ exports.impersonateUser = async (req, res) => {
     res.json({ accessToken, user: targetUser });
 
     // Audit Log
-    await prisma.auditLog.create({
-      data: {
-        adminId: req.user.userId,
-        userId: targetUser.id,
-        action: 'GHOST_USER_SESSION',
-        details: JSON.stringify({ target: targetUser.email, reason: 'Administrative Support' })
-      }
+    logAction({
+      adminId: req.user.userId,
+      userId: targetUser.id,
+      action: AUDIT_ACTIONS.GHOST_USER_SESSION,
+      details: { target: targetUser.email, reason: 'Administrative Support' },
+      ipAddress: req.ip
     });
 
   } catch (error) {
     res.status(500).json({ error: 'Impersonation failed.' });
   }
+};
+
+// NEW: Exit Impersonation Mode
+exports.exitImpersonation = async (req, res) => {
+    try {
+        if (!req.user.isGhost) {
+            return res.status(400).json({ error: 'You are not in a ghost session.' });
+        }
+
+        logAction({
+            adminId: req.user.impersonatedBy,
+            userId: req.user.userId,
+            action: AUDIT_ACTIONS.EXIT_GHOST_SESSION,
+            details: { message: 'Admin exited ghost session' },
+            ipAddress: req.ip
+        });
+
+        res.json({ message: 'Ghost session terminated. Returning to sovereign authority.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to exit impersonation.' });
+    }
 };
 
 // NEW: Manual Client Onboarding by Admin
@@ -637,13 +645,12 @@ exports.createUser = async (req, res) => {
     }).catch(e => console.error('[AdminOnboard] Email failed:', e.message));
 
     // 5. Audit Log
-    await prisma.auditLog.create({
-      data: {
-        adminId: req.user.userId,
-        userId: user.id,
-        action: 'MANUAL_USER_ONBOARD',
-        details: `Manually onboarded user: ${email} with role: ${role}`
-      }
+    logAction({
+      adminId: req.user.userId,
+      userId: user.id,
+      action: AUDIT_ACTIONS.MANUAL_USER_ONBOARD,
+      details: { email, role },
+      ipAddress: req.ip
     });
 
     res.status(201).json({ message: 'User onboarded successfully', user: { id: user.id, email: user.email } });
@@ -668,13 +675,12 @@ exports.updateUserRole = async (req, res) => {
     });
 
     // Audit Log
-    await prisma.auditLog.create({
-      data: {
-        adminId: req.user.userId,
-        userId: userId,
-        action: 'UPDATE_USER_ROLE',
-        details: `Role updated to ${role} for user: ${user.email}`
-      }
+    logAction({
+      adminId: req.user.userId,
+      userId: userId,
+      action: AUDIT_ACTIONS.UPDATE_USER_ROLE,
+      details: { email: user.email, newRole: role },
+      ipAddress: req.ip
     });
 
     res.json({ message: `User role successfully updated to ${role}` });
@@ -710,13 +716,12 @@ exports.bulkCreateDevices = async (req, res) => {
     }
 
     // Audit Log
-    await prisma.auditLog.create({
-      data: {
-        adminId: req.user.userId,
-        userId: userId,
-        action: 'BULK_DEVICE_PROVISION',
-        details: `Provisioned ${results.filter(r => r.status === 'success').length} devices for ${user.email}`
-      }
+    logAction({
+      adminId: req.user.userId,
+      userId: userId,
+      action: AUDIT_ACTIONS.BULK_DEVICE_PROVISION,
+      details: { successCount: results.filter(r => r.status === 'success').length, totalCount: devices.length },
+      ipAddress: req.ip
     });
 
     res.json({ message: 'Bulk provisioning complete.', results });
