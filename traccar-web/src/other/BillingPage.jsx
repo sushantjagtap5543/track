@@ -56,6 +56,11 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import SecurityIcon from '@mui/icons-material/Security';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import DeleteIcon from '@mui/icons-material/Delete';
+import DnsIcon from '@mui/icons-material/Dns';
+import HistoryIcon from '@mui/icons-material/History';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 import { useNavigate } from 'react-router-dom';
 import { useAdministrator } from '../common/util/permissions';
@@ -236,6 +241,7 @@ const BillingPage = () => {
         clearInterval(interval);
     };
   }, [admin, lastActivity]);
+  const showFeedback = (message, severity = 'success') => {
     setSnackbar({ open: true, message, severity });
   };
 
