@@ -29,7 +29,6 @@ router.delete('/users/:userId', adminController.deleteUser);
 router.post('/sync-devices/:userId', adminController.syncDevicesForUser);
 router.post('/users/:userId/sync-events', adminController.syncVehicleEvents);
 router.post('/vehicles/:vehicleId/transfer', adminController.transferVehicle); 
-router.get('/health', adminController.checkDbHealth);
 router.get('/audit-export', adminController.getAuditLogsExport);
 router.post('/users/:userId/region', adminController.updateUserRegion);
 router.post('/users/:userId/force-debt-sync', adminController.forceDebtSync);
