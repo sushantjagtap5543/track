@@ -4,18 +4,17 @@ async function diag() {
     try {
         const users = await prisma.user.findMany({
             select: { id: true, email: true, geosurepathUserId: true },
-            where: { geosurepathUserId: { not: null } }
         });
 
-        const seen = new Map();
-        const dups = [];
+        console.log('--- SaaS User Account Mapping ---');
+        users.forEach(u => {
+            console.log(`${u.email.padEnd(30)} | GID: ${String(u.geosurepathUserId).padEnd(10)} | ID: ${u.id}`);
+        });
 
-        for (const u of users) {
-            if (seen.has(u.geosurepathUserId)) {
-                dups.push({ gid: u.geosurepathUserId, user1: seen.get(u.geosurepathUserId), user2: u });
-            } else {
-                seen.set(u.geosurepathUserId, u);
-            }
+        const gids = users.filter(u => u.geosurepathUserId).map(u => u.geosurepathUserId);
+        const uniqueGids = new Set(gids);
+        if (gids.length !== uniqueGids.size) {
+            console.log('\n🚨 Duplicate GIDs detected in current SaaS state!');
         }
 
         if (dups.length === 0) {
