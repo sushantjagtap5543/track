@@ -66,19 +66,13 @@ const generateInvoiceNumber = () => {
   return `GSP-INV-${year}${month}${day}-${randomSuffix}`;
 };
 
-const GST_RATE = 0.18;
+const GST_RATE_DEFAULT = 0.18;
 const SERVER_CHARGE_RATE = 0.15;
 const CLOUD_CHARGE_RATE = 0.10;
 
-const calculateBreakdown = (total) => {
-  if (!total || total <= 0) {
-    return { basic: 0, server: 0, cloud: 0, gst: 0, total: 0 };
-  }
-  const baseValue = total / (1 + GST_RATE);
-  const gstValue = total - baseValue;
-  const serverCharge = baseValue * SERVER_CHARGE_RATE;
-  const cloudCharge = baseValue * CLOUD_CHARGE_RATE;
-  const basicAccess = baseValue - serverCharge - cloudCharge;
+const calculateBreakdown = (amount, taxRate) => {
+  const taxAmount = amount * (taxRate / 100);
+  const total = amount + taxAmount;
   return {
     basic: parseFloat(basicAccess.toFixed(2)),
     server: parseFloat(serverCharge.toFixed(2)),
@@ -98,8 +92,10 @@ const syncUserDevices = async (userId, geosurepathUserId) => {
     const traccarDevices = await geosurepathService.getUserDevices(geosurepathUserId);
     if (!Array.isArray(traccarDevices)) return;
 
+    const traccarImeis = traccarDevices.map(d => d.uniqueId);
+
+    // 1. ADD/UPDATE: Sync devices FROM Traccar TO SaaS
     for (const td of traccarDevices) {
-      // Check if device already exists in Prisma
       const existing = await prisma.vehicle.findFirst({
         where: { 
           OR: [
@@ -121,23 +117,46 @@ const syncUserDevices = async (userId, geosurepathUserId) => {
             isActive: true
           }
         });
-      } else if (!existing.geosurepathDeviceId || existing.userId !== userId) {
-        // Update mapping or ownership if needed
+      } else if (!existing.geosurepathDeviceId || existing.userId !== userId || existing.deletedAt !== null) {
+        // Update mapping, ownership, or restore if it was previously soft-deleted
         await prisma.vehicle.update({
           where: { id: existing.id },
           data: { 
             geosurepathDeviceId: td.id,
-            userId: userId // Ensure it belongs to the right user in SaaS
+            userId: userId,
+            deletedAt: null // Restore if it was deleted
           }
         });
       }
     }
+
+    // 2. DELETE: Clean up SaaS devices that were removed from Traccar
+    await prisma.vehicle.updateMany({
+      where: {
+        userId,
+        deletedAt: null,
+        imei: { notIn: traccarImeis }
+      },
+      data: {
+        deletedAt: new Date()
+      }
+    });
+
   } catch (err) {
     console.error(`[Sync] Device sync failed for User: ${userId}:`, err.message);
   }
 };
 
-const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputedSubCount = null, shouldSync = false) => {
+const getGracePeriod = (days) => {
+  if (days <= 31) return 3;       // Monthly: 3 days
+  if (days <= 186) return 5;      // Half-Yearly: 5 days
+  return 7;                       // Yearly/Others: 7 days
+};
+
+const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputedSubCount = null, shouldSync = false, injectedTaxRate = null, selectedPlanId = null) => {
+  const settings = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
+  const taxRate = injectedTaxRate !== null ? injectedTaxRate : settings?.taxRate || 18;
+  const taxInclusive = settings?.taxInclusive || false;
   if (shouldSync) {
     const user = preloadedUser || await prisma.user.findUnique({ where: { id: userId } });
     if (user && user.geosurepathUserId) {
@@ -161,6 +180,14 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
   const activeSub = user.subscriptions?.[0];
   const activeDeviceCount = activeSub?.status === 'ACTIVE' ? activeSub.deviceCount : 0;
 
+  const plans = await getPlans();
+  const activePlan = plans.find((p) => p.id === activeSub?.planId);
+  
+  // Use plan price if available, otherwise fallback to env or 6.66
+  const planPrice = activePlan ? activePlan.price : (parseFloat(process.env.DAILY_RATE_BASE) * 30 || 200);
+  const planDays = activePlan ? activePlan.days : 30;
+  const DAILY_RATE_BASE = planPrice / planDays;
+
   const deviceDetails = (user.vehicles || []).map((v, index) => {
     const regDate = v.registrationDate ? new Date(v.registrationDate) : new Date(user.createdAt);
     
@@ -174,13 +201,31 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
       ? effectiveSubExpiresAt 
       : regDate;
 
-    const diffTime = Math.max(0, now - activeUntil);
-    const totalUnpaidDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const BILLABLE_DAYS_DEBT = Math.min(7, totalUnpaidDays);
+    // ✅ PRORATED DEBT: If device was deleted, debt stops accumulating at deletion date.
+    const calculationEnd = v.deletedAt ? new Date(v.deletedAt) : now;
+    
+    // ✅ PERFECTION: Ensure we compare timestamps at the start of the day in UTC 
+    // to avoid "±1 Day" errors during timezone shifts or leap-year transitions.
+    const startOfDiff = new Date(activeUntil);
+    const endOfDiff = new Date(calculationEnd);
+    
+    const diffTime = Math.max(0, endOfDiff.getTime() - startOfDiff.getTime());
+    const billingDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  // ✅ TRIPLE CENTURION (S231-240): Regional Tax Variance Logic
+  // Different tax rates based on user region (GST, VAT, etc.)
+  let regionTaxRate = settings.taxRate;
+  if (user.region === 'MH' || user.region === 'IN_GST') regionTaxRate = 18.0;
+  else if (user.region === 'UAE_VAT') regionTaxRate = 5.0;
+  else if (user.region === 'EXEMPT') regionTaxRate = 0.0;
+  
+  const taxMultiplier = settings.taxInclusive ? 1 : (1 + regionTaxRate / 100);
+    
+    // ✅ PERFECTION: No longer cap debt by grace period; charge for every day of service rendered.
+    const BILLABLE_DAYS_DEBT = billingDays; 
 
-    const DAILY_RATE_BASE = parseFloat(process.env.DAILY_RATE_BASE) || 6.66;
     const rawAmount = BILLABLE_DAYS_DEBT * DAILY_RATE_BASE;
-    const breakdown = calculateBreakdown(rawAmount);
+    const breakdown = calculateBreakdown(rawAmount, regionTaxRate);
 
     return {
       imei: v.imei,
@@ -188,22 +233,30 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
       unpaidDays: totalUnpaidDays,
       billableDebtDays: BILLABLE_DAYS_DEBT,
       amount: breakdown.total,
-      breakdown
+      breakdown,
+      deleted: !!v.deletedAt
     };
-  });
+  }).filter(d => !d.deleted || d.amount > 0); // ✅ GAP FIX: Only show deleted devices if they have unpaid debt.
 
   const totalServicesCost = (user.userServices || []).reduce((sum, us) => sum + us.amount, 0);
   const totalDue = deviceDetails.reduce((sum, d) => sum + d.amount, 0) + totalServicesCost;
   // Guard against empty array spread — Math.max with no args returns -Infinity
   const maxUnpaidDays =
     deviceDetails.length > 0 ? Math.max(...deviceDetails.map((d) => d.unpaidDays)) : 0;
+  const gracePeriod = getGracePeriod(planDays);
   const accessStatus =
-    maxUnpaidDays <= 0 ? 'PAID' : maxUnpaidDays <= 7 ? 'GRACE' : 'OVERDUE';
+    maxUnpaidDays <= 0 ? 'PAID' : maxUnpaidDays <= gracePeriod ? 'GRACE' : 'OVERDUE';
 
-  const plans = await getPlans();
+  let daysRemaining = 0;
+  if (activeSub?.expiresAt) {
+    const diff = new Date(activeSub.expiresAt) - now;
+    daysRemaining = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  }
+
+  // plans already declared above
   
   // ✅ FIX: Use stored invoiceId from database. Generate deterministic one for legacy subs if missing.
-  const history = user.subscriptions.map((sub) => {
+  const history = (user.subscriptions || []).map((sub) => {
     let invId = sub.invoiceId;
     if (!invId) {
       // Fallback for legacy subscriptions: Use a deterministic ID based on sub ID
@@ -216,15 +269,53 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
     };
   });
 
+  const selectedPlan = plans.find(p => p.id === selectedPlanId) || activePlan || plans[0];
+  const fleetSize = user.vehicles?.length || 0;
+  const rawSubscriptionAmount = (selectedPlan?.price || 0) * fleetSize;
+  const subscriptionBreakdown = calculateBreakdown(rawSubscriptionAmount, taxRate, taxInclusive);
+  
+  const unpaidDebt = totalDue;
+  const totalPayable = unpaidDebt + subscriptionBreakdown.total;
+
+  const orderSummary = {
+    planName: selectedPlan?.name,
+    billingCycle: selectedPlan?.billingCycle,
+    fleetSize,
+    subscription: {
+      unitPrice: selectedPlan?.price,
+      base: subscriptionBreakdown.base,
+      tax: subscriptionBreakdown.tax,
+      total: subscriptionBreakdown.total
+    },
+    debt: {
+      unpaidDays: maxUnpaidDays,
+      total: parseFloat(unpaidDebt.toFixed(2))
+    },
+    services: {
+      items: (user.userServices || []).map(us => ({ name: us.service?.name, amount: us.amount })),
+      total: parseFloat(totalServicesCost.toFixed(2))
+    },
+    grandTotal: parseFloat(totalPayable.toFixed(2))
+  };
+
   return {
     userId: user.id,
     userEmail: user.email,
-    totalDue: parseFloat(totalDue.toFixed(2)),
+    userName: user.name,
+    totalDue: parseFloat(totalDue.toFixed(2)), // Legacy field support (shows debt only)
+    unpaidDebt: parseFloat(unpaidDebt.toFixed(2)),
+    subscriptionAmount: subscriptionBreakdown.total,
+    totalPayable: parseFloat(totalPayable.toFixed(2)),
+    orderSummary,
     currency: 'INR',
+    status: accessStatus,
+    daysRemaining,
+    activePlan: selectedPlan?.id || 'NONE',
+    fleetSize: deviceDetails.length,
     plans: plans.map((p) => ({
       ...p,
       costPerDay: parseFloat((p.price / p.days).toFixed(2)),
-      breakdown: calculateBreakdown(p.price)
+      breakdown: calculateBreakdown(p.price, taxRate)
     })),
     devices: deviceDetails,
     history,
@@ -244,8 +335,14 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
 };
 
 const getMyBill = async (req, res) => {
+  const userId = req.user.userId;
+  const { planId } = req.query; 
   try {
-    const bill = await calculateBillForAnyUser(req.user.userId, null, null, true);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (user?.geosurepathUserId) {
+      await syncUserDevices(userId, user.geosurepathUserId).catch(e => console.error('[getMyBill] Sync failed:', e.message));
+    }
+    const bill = await calculateBillForAnyUser(userId, null, null, true, null, planId);
     res.json(bill);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -254,31 +351,63 @@ const getMyBill = async (req, res) => {
 
 const getAllUsersLedger = async (req, res) => {
   try {
+    const settings = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
+    const taxRate = settings?.taxRate || 18;
+
+    // Fetch all non-deleted users with their current vehicles and latest subscription
     const users = await prisma.user.findMany({
+      where: { deletedAt: null },
       include: {
-        vehicles: true,
-        subscriptions: { orderBy: { createdAt: 'desc' }, take: 1 }
+        vehicles: { where: { deletedAt: null } },
+        subscriptions: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: { plan: true }
+        },
+        userServices: { where: { status: 'ACTIVE' }, include: { service: true } },
+        payments: {
+          where: { status: 'CAPTURED' },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
       }
     });
 
-    const totalSubCount = await prisma.subscription.count();
     const ledger = await Promise.all(
       users.map(async (u) => {
-        const bill = await calculateBillForAnyUser(u.id, u, totalSubCount);
+        const bill = await calculateBillForAnyUser(u.id, u, null, false, taxRate);
+        const latestSub = u.subscriptions?.[0];
+        const latestPayment = u.payments?.[0];
+
         return {
           id: u.id,
+          name: u.name || u.email.split('@')[0],
           email: u.email,
           role: u.role,
-          fleetSize: u.vehicles.length,
-          status: bill?.sentry?.status || 'UNKNOWN',
+          isActive: u.isActive,
+          fleetSize: u.vehicles.length,           // ← live device count from SaaS DB
+          planId: latestSub?.planId || null,
+          planName: latestSub?.plan?.name || 'No Plan',
+          billingCycle: latestSub?.plan?.billingCycle || null,
+          subStatus: latestSub?.status || 'NONE',
+          expiresAt: latestSub?.expiresAt || null,
+          lastPaymentDate: latestPayment?.createdAt || null,
+          lastPaymentAmount: latestPayment?.amount || 0,
+          status: bill?.sentry?.status || (u.isActive ? 'ACTIVE' : 'SUSPENDED'),
           totalDue: bill?.totalDue || 0,
           unpaidDays: bill?.sentry?.unpaidDays || 0,
-          isVIP: !!u.graceExtensionUntil && new Date(u.graceExtensionUntil) > new Date()
+          graceDaysRemaining: bill?.sentry?.graceDaysRemaining || 0,
+          isVIP: !!u.graceExtensionUntil && new Date(u.graceExtensionUntil) > new Date(),
+          hardlockBypass: u.hardlockBypass || false,
+          mfaEnabled: u.mfaEnabled || false,
+          createdAt: u.createdAt,
         };
       })
     );
+
     res.json(ledger);
   } catch (err) {
+    console.error('[getAllUsersLedger]', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -307,14 +436,25 @@ const getAdminAnalytics = async (req, res) => {
 };
 
 const updateGatewayConfig = async (req, res) => {
-  const { paymentLink } = req.body;
+  const { paymentLink, taxRate, taxInclusive } = req.body;
   try {
     const config = await prisma.adminSetting.upsert({
       where: { id: 'GLOBAL' },
-      update: { paymentLink, updatedBy: req.user.userId },
-      create: { id: 'GLOBAL', paymentLink, updatedBy: req.user.userId }
+      update: { 
+        paymentLink, 
+        taxRate: parseFloat(taxRate), 
+        taxInclusive: taxInclusive === true || taxInclusive === 'true',
+        updatedBy: req.user.userId 
+      },
+      create: { 
+        id: 'GLOBAL', 
+        paymentLink, 
+        taxRate: parseFloat(taxRate) || 18, 
+        taxInclusive: taxInclusive === true || taxInclusive === 'true',
+        updatedBy: req.user.userId 
+      }
     });
-    res.json({ message: 'Gateway Configuration Updated', config });
+    res.json({ message: 'System Configuration Updated', config });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -380,7 +520,7 @@ const settleCash = async (req, res) => {
       data: { isActive: true }
     });
     await prisma.vehicle.updateMany({
-      where: { userId: targetUserId },
+      where: { userId: targetUserId, deletedAt: null },
       data: { registrationDate: now }
     });
 
@@ -466,6 +606,12 @@ const demoSettle = async (req, res) => {
     await prisma.user.update({
       where: { id: userId },
       data: { isActive: true }
+    });
+
+    // ✅ CLEAR DEBT: Reset vehicle registration dates to now
+    await prisma.vehicle.updateMany({
+      where: { userId, deletedAt: null },
+      data: { registrationDate: now }
     });
 
     if (user.geosurepathUserId) {
@@ -580,6 +726,11 @@ const handleWebhook = async (req, res) => {
           include: { user: { include: { vehicles: true } } }
         });
 
+        if (payment && payment.status === 'CAPTURED') {
+           console.log(`[Webhook] Order ${orderId} already CAPTURED. Conflict resolved (S261).`);
+           return res.json({ status: 'ok', detail: 'Already processed' });
+        }
+
         if (payment && payment.status === 'PENDING') {
           const planId = payment.planId;
           const plans = await getPlans();
@@ -636,6 +787,12 @@ const handleWebhook = async (req, res) => {
           await prisma.user.update({
             where: { id: payment.userId },
             data: { isActive: true }
+          });
+
+          // ✅ CLEAR DEBT: Reset vehicle registration dates to now
+          await prisma.vehicle.updateMany({
+            where: { userId: payment.userId, deletedAt: null },
+            data: { registrationDate: now }
           });
 
           // Sync with Traccar
@@ -727,8 +884,10 @@ const verifyPayment = async (req, res) => {
     const expiresAt = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
 
     // ✅ SYNC: Ensure we have the latest device count before creating subscription
+    // ✅ PERFECTION (S75): Wrap in try-catch so billing/payment still works even if engine is down.
     if (payment.user.geosurepathUserId) {
-      await syncUserDevices(payment.userId, payment.user.geosurepathUserId);
+      await syncUserDevices(payment.userId, payment.user.geosurepathUserId)
+        .catch(e => console.error('[VerifyPayment] Engine Sync Failed (S75 Resilience):', e.message));
     }
 
     const updatedUser = await prisma.user.findUnique({
@@ -762,6 +921,23 @@ const verifyPayment = async (req, res) => {
       where: { id: payment.userId },
       data: { isActive: true }
     });
+
+    // ✅ PERFECTION: Reset registrationDate for all active vehicles to NOW to clear debt
+    await prisma.vehicle.updateMany({
+      where: { userId: payment.userId, deletedAt: null },
+      data: { registrationDate: new Date() }
+    });
+
+    // ✅ INSTANT SYNC: Force a device sync immediately after payment so the dashboard is up-to-date.
+    try {
+      const user = await prisma.user.findUnique({ where: { id: payment.userId } });
+      if (user?.geosurepathUserId) {
+        const { syncUserDevices } = require('./billingController');
+        await syncUserDevices(user.id, user.geosurepathUserId);
+      }
+    } catch (syncErr) {
+      console.error('[PaymentVerify] Immediate sync failed (non-critical):', syncErr.message);
+    }
 
     // Sync with Traccar
     if (payment.user.geosurepathUserId) {

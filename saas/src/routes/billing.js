@@ -20,12 +20,13 @@ const {
   getAIInsights
 } = require('../controllers/billingController');
 const { authenticateToken, requireRole } = require('../middleware/authMiddleware');
+const { billingLimiter } = require('../middleware/rateLimiter');
 
 // Client routes (any authenticated user)
 router.get('/my-bill', authenticateToken, getMyBill);
 router.post('/demo-settle', authenticateToken, demoSettle);
-router.post('/create-order', authenticateToken, createOrder);
-router.post('/verify', authenticateToken, verifyPayment);
+router.post('/create-order', authenticateToken, billingLimiter, createOrder);
+router.post('/verify', authenticateToken, billingLimiter, verifyPayment);
 
 // Webhook (Public, signature verified in controller)
 router.post('/webhook', handleWebhook);

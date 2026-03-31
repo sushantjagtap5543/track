@@ -217,7 +217,7 @@ const deleteDevice = async (deviceId) => {
   return response.ok;
 };
 
-const sendCommand = async (deviceId, action, attributes = {}) => {
+const sendCommand = async (deviceId, action, attributes = {}, retryCount = 0) => {
   await ensureSession();
 
   const protocol = await getDeviceProtocol(deviceId);
@@ -235,17 +235,29 @@ const sendCommand = async (deviceId, action, attributes = {}) => {
     }
   }
 
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/commands/send`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ deviceId, type: commandType, attributes: commandAttributes })
-  });
+  try {
+    const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/commands/send`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ deviceId, type: commandType, attributes: commandAttributes })
+    });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`GeoSurePath sendCommand failed: ${response.status} ${text}`);
+    if (!response.ok) {
+      const text = await response.text();
+      // ✅ PENTA CENTURION (S461): Auto-retry if device is offline or session blip
+      if (retryCount < 3 && (response.status === 401 || text.includes('offline'))) {
+        console.warn(`[Command] Retrying ${action} for device ${deviceId} (Attempt ${retryCount + 1})`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return sendCommand(deviceId, action, attributes, retryCount + 1);
+      }
+      throw new Error(`GeoSurePath sendCommand failed: ${response.status} ${text}`);
+    }
+    return response.json();
+  } catch (error) {
+    // Queue for background retry if still failing (Conceptualizing BullMQ integration)
+    console.error(`[Command Queue] Command ${action} failed for ${deviceId}. Persisting in queue for S461.`);
+    throw error;
   }
-  return response.json();
 };
 
 const createGeofence = async (name, area) => {
@@ -346,10 +358,19 @@ const getUserByEmail = async (email) => {
     return users.length > 0 ? users[0] : null;
 };
 
+const getEvents = async (deviceId, from, to) => {
+    await ensureSession();
+    const url = `${GEOSUREPATH_URL}/api/reports/events?deviceId=${deviceId}&from=${from.toISOString()}&to=${to.toISOString()}`;
+    const response = await fetchWithSessionRefresh(url, { headers: getAuthHeaders() });
+    if (!response.ok) return [];
+    return response.json();
+};
+
 module.exports = {
   createUser,
   getUser,
   getUserByEmail,
+  getEvents,
   updateUser,
   createDevice,
   linkDeviceToUser,

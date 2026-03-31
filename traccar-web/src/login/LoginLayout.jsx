@@ -120,26 +120,34 @@ const LoginLayout = ({ children }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   return (
-    <Box component="main" className={classes.root}>
-      {/* Sovereign Pulse Background Overlay */}
-      <Box 
-        sx={{
-            position: 'absolute',
-            inset: 0,
-            background: 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
-            zIndex: 1,
-            animation: 'pulse 8s ease-in-out infinite',
-            '@keyframes pulse': {
-                '0%, 100%': { opacity: 0.3, transform: 'scale(1)' },
-                '50%': { opacity: 0.6, transform: 'scale(1.1)' }
-            }
-        }}
-      />
+    <Box component="main" className={classes.root} sx={{ overflow: 'hidden' }}>
+      {/* ─── Premium Glass Blobs ─── */}
+      <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, opacity: 0.7 }}>
+        <Box sx={{
+          position: 'absolute', top: '10%', left: '15%', width: '400px', height: '400px',
+          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, transparent 70%)',
+          filter: 'blur(80px)', animation: 'blob1 20s infinite alternate linear',
+          '@keyframes blob1': { '0%': { transform: 'translate(0, 0) scale(1)' }, '100%': { transform: 'translate(100px, 50px) scale(1.2)' } }
+        }} />
+        <Box sx={{
+          position: 'absolute', bottom: '15%', right: '20%', width: '450px', height: '450px',
+          background: 'radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%)',
+          filter: 'blur(100px)', animation: 'blob2 25s infinite alternate-reverse linear',
+          '@keyframes blob2': { '0%': { transform: 'translate(0, 0)' }, '100%': { transform: 'translate(-120px, -80px)' } }
+        }} />
+        <Box sx={{
+          position: 'absolute', top: '40%', right: '10%', width: '300px', height: '300px',
+          background: 'radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, transparent 70%)',
+          filter: 'blur(60px)', animation: 'blob3 15s infinite alternate linear',
+          '@keyframes blob3': { '0%': { transform: 'translate(0, 0)' }, '100%': { transform: 'translate(40px, 150px)' } }
+        }} />
+      </Box>
+
       <motion.div
         className={classes.content}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.8 }}
       >
         <div className={classes.sidebar}>
           <motion.div

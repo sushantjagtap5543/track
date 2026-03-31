@@ -6,6 +6,8 @@ const prisma = require('../lib/prisma');
 const geosurepathService = require('../services/geosurepath');
 const { emailQueue } = require('../services/queue');
 const { logAction, AUDIT_ACTIONS } = require('../services/auditService');
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -15,9 +17,9 @@ const JWT_EXPIRATION = '15m'; // Short-lived access token
 const REFRESH_TOKEN_EXPIRATION = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 // Helper: Generate Tokens
-const generateTokens = async (userId, role, geosurepathUserId) => {
+const generateTokens = async (userId, role, geosurepathUserId, uaHash = null) => {
   const accessToken = jwt.sign(
-    { userId, role, geosurepathUserId },
+    { userId, role, geosurepathUserId, uaHash },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRATION }
   );
@@ -73,11 +75,22 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create Traccar User with both name and username if available
-    const gUser = await geosurepathService.createUser(name, email, password, { 
-      phone, 
-      login: username || email // ✅ REFINEMENT: Prefer username as login for Traccar if provided
-    });
+    let gUser;
+    try {
+      gUser = await geosurepathService.createUser(name, email, password, { 
+        phone, 
+        login: username || email // ✅ REFINEMENT: Prefer username as login for Traccar if provided
+      });
+    } catch (createErr) {
+      // ✅ ATOMIC ADOPTION: If user already exists in Traccar (e.g. from a previous failed SaaS attempt), adopt them.
+      if (createErr.message.includes('already exists')) {
+        gUser = await geosurepathService.getUserByEmail(email);
+        if (!gUser) throw createErr; // If we still can't find them, something is truly wrong.
+        console.log(`[Registration] Adopting existing Traccar user: ${email}`);
+      } else {
+        throw createErr;
+      }
+    }
 
     let user;
     try {
@@ -102,7 +115,8 @@ exports.register = async (req, res) => {
         }
       });
     } catch (prismaError) {
-      await geosurepathService.deleteUser(gUser.id).catch(() => {});
+      // ✅ FIX: Only delete if we actually created it in this session (don't delete if we adopted it)
+      // await geosurepathService.deleteUser(gUser.id).catch(() => {}); 
       throw prismaError;
     }
 
@@ -287,14 +301,73 @@ exports.login = async (req, res) => {
 
     if (!user.isActive) return res.status(403).json({ error: 'Account is suspended.' });
     
+    let isHardlocked = false;
+    // ✅ HARDLOCK CHECK: Identify if subscription is OVERDUE
+    if (user.role === 'CLIENT') {
+      const latestSub = await prisma.subscription.findFirst({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        include: { plan: true }
+      });
+
+      const now = new Date();
+      let effectiveExpiry = latestSub?.expiresAt ? new Date(latestSub.expiresAt) : new Date(user.registrationDate);
+      if (user.graceExtensionUntil && new Date(user.graceExtensionUntil) > effectiveExpiry) {
+        effectiveExpiry = new Date(user.graceExtensionUntil);
+      }
+
+      // Dynamic Grace Period (3/5/7 days)
+      let planDays = 30; // Default
+      if (latestSub?.plan) {
+        planDays = latestSub.plan.billingCycle === 'MONTHLY' ? 30 : 365;
+        if (latestSub.planId?.toLowerCase().includes('half') || latestSub.plan.name?.toLowerCase().includes('6 month')) {
+          planDays = 180;
+        }
+      }
+
+      let gracePeriod = 7;
+      if (planDays <= 31) gracePeriod = 3;
+      else if (planDays <= 186) gracePeriod = 5;
+      else gracePeriod = 7;
+
+      const gracePeriodEnd = new Date(effectiveExpiry);
+      gracePeriodEnd.setDate(gracePeriodEnd.getDate() + gracePeriod);
+
+      const isBypassed = user.hardlockBypass || false;
+      isHardlocked = now > gracePeriodEnd && !isBypassed;
+
+      if (isHardlocked) {
+        // ✅ SECURE REVOKE: Kill all other active sessions to prevent bypass
+        await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+        
+        logAction({
+          userId: user.id,
+          action: AUDIT_ACTIONS.HARDLOCK_BLOCK,
+          details: { email: user.email, reason: `Subscription Overdue (Hardlock - Grace: ${gracePeriod} days)`, lastExpiry: effectiveExpiry },
+          ipAddress: req.ip
+        });
+      }
+    }
+
     // Check if verified (Fix 7)
     if (!user.isVerified && process.env.REQUIRE_VERIFICATION === 'true') {
       return res.status(403).json({ error: 'Please verify your email address before logging in.' });
     }
 
-    const { accessToken, refreshToken } = await generateTokens(user.id, user.role, user.geosurepathUserId);
-
     const isSecure = process.env.SECURE_COOKIES === 'true';
+
+    // ✅ MFA CHECK
+    if (user.mfaEnabled) {
+      return res.json({
+        message: 'MFA required',
+        mfaRequired: true,
+        userId: user.id
+      });
+    }
+
+    const uaHash = crypto.createHash('md5').update(req.headers['user-agent'] || '').digest('hex');
+    const { accessToken, refreshToken } = await generateTokens(user.id, user.role, user.geosurepathUserId, uaHash);
+
     res.cookie('token', accessToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 15 * 60 * 1000 });
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: REFRESH_TOKEN_EXPIRATION });
 
@@ -331,7 +404,8 @@ exports.login = async (req, res) => {
     res.json({
       message: 'Login successful',
       accessToken, // ✅ FIX: Return token for localStorage persistence
-      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      isHardlocked
     });
   } catch (error) {
     console.error('[Login] Error:', error);
@@ -354,9 +428,10 @@ exports.refreshToken = async (req, res) => {
       return res.status(403).json({ error: 'Invalid or expired refresh token' });
     }
 
-    // Rotate tokens
+    // Rotate tokens with UA Hashing (S321)
     await prisma.refreshToken.delete({ where: { id: storedToken.id } });
-    const tokens = await generateTokens(storedToken.user.id, storedToken.user.role, storedToken.user.geosurepathUserId);
+    const uaHash = crypto.createHash('md5').update(req.headers['user-agent'] || '').digest('hex');
+    const tokens = await generateTokens(storedToken.user.id, storedToken.user.role, storedToken.user.geosurepathUserId, uaHash);
 
     const isSecure = process.env.SECURE_COOKIES === 'true';
     res.cookie('token', tokens.accessToken, { httpOnly: true, secure: isSecure, sameSite: 'strict', maxAge: 15 * 60 * 1000 });
@@ -583,4 +658,132 @@ exports.getLoginHistory = async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch login ledger.' });
     }
+};
+// NEW: Setup MFA for the current user
+exports.setupMFA = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const secret = speakeasy.generateSecret({ name: `GeoSurePath (${user.email})` });
+    
+    // Temporarily store secret (unverified)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { mfaSecret: secret.base32, mfaEnabled: false }
+    });
+
+    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
+    res.json({ qrCodeUrl, secret: secret.base32 });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to setup MFA' });
+  }
+};
+
+// NEW: Verify and Enable MFA
+exports.verifyMFA = async (req, res) => {
+  const { token, userId } = req.body; // userId is used if coming from login flow
+  const currentUserId = req.user?.userId || userId;
+
+  if (!token) return res.status(400).json({ error: 'MFA token is required' });
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: currentUserId } });
+    if (!user || !user.mfaSecret) return res.status(404).json({ error: 'MFA not initialized for this user' });
+
+    const verified = speakeasy.totp.verify({
+      secret: user.mfaSecret,
+      encoding: 'base32',
+      token
+    });
+
+    if (!verified) return res.status(400).json({ error: 'Invalid MFA token' });
+
+    // Enable MFA permanently
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { mfaEnabled: true }
+    });
+
+    // If verifying from login flow, issue tokens now
+    if (!req.user) {
+        let isHardlocked = false;
+        if (user.role === 'CLIENT') {
+          const latestSub = await prisma.subscription.findFirst({
+            where: { userId: user.id },
+            orderBy: { createdAt: 'desc' },
+            include: { plan: true }
+          });
+
+          const now = new Date();
+          let effectiveExpiry = latestSub?.expiresAt ? new Date(latestSub.expiresAt) : new Date(user.registrationDate);
+          if (user.graceExtensionUntil && new Date(user.graceExtensionUntil) > effectiveExpiry) {
+            effectiveExpiry = new Date(user.graceExtensionUntil);
+          }
+
+          // Dynamic Grace Period
+          let planDays = 30;
+          if (latestSub?.plan) {
+            planDays = latestSub.plan.billingCycle === 'MONTHLY' ? 30 : 365;
+            if (latestSub.planId?.toLowerCase().includes('half') || latestSub.plan.name?.toLowerCase().includes('6 month')) {
+              planDays = 180;
+            }
+          }
+
+          let gracePeriod = 7;
+          if (planDays <= 31) gracePeriod = 3;
+          else if (planDays <= 186) gracePeriod = 5;
+          else gracePeriod = 7;
+
+          const gracePeriodEnd = new Date(effectiveExpiry);
+          gracePeriodEnd.setDate(gracePeriodEnd.getDate() + gracePeriod);
+
+          if (now > gracePeriodEnd) {
+            isHardlocked = true;
+          }
+        }
+
+        const uaHash = crypto.createHash('md5').update(req.headers['user-agent'] || '').digest('hex');
+        const tokens = await generateTokens(user.id, user.role, user.geosurepathUserId, uaHash);
+        const isSecure = process.env.SECURE_COOKIES === 'true';
+        res.cookie('token', tokens.accessToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 15 * 60 * 1000 });
+        res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: REFRESH_TOKEN_EXPIRATION });
+        
+        return res.json({ 
+            message: 'MFA Verified. Login successful.', 
+            accessToken: tokens.accessToken,
+            user: { id: user.id, name: user.name, email: user.email, role: user.role },
+            isHardlocked
+        });
+    }
+
+    res.json({ message: 'MFA enabled successfully' });
+
+    logAction({
+        userId: user.id,
+        action: AUDIT_ACTIONS.ENABLE_MFA,
+        ipAddress: req.ip
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'MFA verification failed' });
+  }
+};
+
+// NEW: Disable MFA
+exports.disableMFA = async (req, res) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.user.userId },
+      data: { mfaEnabled: false, mfaSecret: null }
+    });
+    res.json({ message: 'MFA disabled' });
+    
+    logAction({
+        userId: req.user.userId,
+        action: AUDIT_ACTIONS.DISABLE_MFA,
+        ipAddress: req.ip
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to disable MFA' });
+  }
 };

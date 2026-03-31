@@ -47,7 +47,11 @@ model User {
   deviceTokens        DeviceToken[]
   refreshTokens       RefreshToken[]
   fleets              Fleet[]
+  mfaSecret           String?
+  mfaEnabled          Boolean        @default(false)
   graceExtensionUntil DateTime?
+  hardlockBypass      Boolean        @default(false)
+  region              String         @default("GLOBAL") // NEW: Region for Tax Variance (S231)
   createdAt           DateTime       @default(now())
   auditLogs           AuditLog[]
   userServices        UserService[]
@@ -85,10 +89,16 @@ model Vehicle {
   parkingLat            Float?
   parkingLng            Float?
   parkingRadius         Float?
+  isAIS140              Boolean      @default(false)
+  forwardingEnabled     Boolean      @default(false)
+  governmentEndpoint    String?
+  lastForwardedAt       DateTime?
+  forwardingStatus      String?      // SUCCESS, FAILED
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
   alertRules            AlertRule[]
   vehicleLogs           VehicleLog[]
+  events                VehicleEvent[]
 
   @@index([userId])
   @@index([fleetId])
@@ -235,9 +245,28 @@ model AdminSetting {
   
   // System Contact
   supportEmail String?
+  taxRate      Float    @default(18.0)
+  taxInclusive Boolean  @default(false)
+
+  // Multi-Currency (S31)
+  currency       String  @default("INR")
+  currencySymbol String  @default("₹")
 
   updatedBy   String?
+  aiWarningThreshold Float @default(100.0) // NEW: Threshold for predictive debt warnings (S401)
   updatedAt   DateTime @updatedAt
+}
+
+model VehicleEvent {
+  id        String   @id @default(uuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type      String   // ignitionOn, ignitionOff, maintenance, overspeed
+  message   String
+  serverTime DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([vehicleId, createdAt])
 }
 
 model AuditLog {
@@ -252,6 +281,7 @@ model AuditLog {
 
   @@index([userId, createdAt])
   @@index([adminId, createdAt])
+  @@index([action, createdAt]) // NEW: High-volume audit search optimization (S291)
 }
 
 // Global user index for all relevant models

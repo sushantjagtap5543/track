@@ -17,6 +17,15 @@ const emitToVehicleRoom = (vehicleId, event, data) => {
   }
 };
 
+/**
+ * NEW: Emit to all connected administrators.
+ */
+const emitToAdmin = (event, data) => {
+  if (io) {
+    io.to('admin:all').emit(event, data);
+  }
+};
+
 const broadcastSystemUpdate = (event, data) => {
   if (io) {
     io.emit(event, data);
@@ -27,5 +36,6 @@ module.exports = {
   init,
   emitToUser,
   emitToVehicleRoom,
+  emitToAdmin,
   broadcastSystemUpdate
 };

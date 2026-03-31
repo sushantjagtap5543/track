@@ -163,6 +163,7 @@ app.use('/api/admin', require('./src/routes/admin'));
 app.use('/api/reports', require('./src/routes/reports'));
 app.use('/api/geosurepath', require('./src/routes/geosurepath'));
 app.use('/api/notifications', require('./src/routes/notifications'));
+app.use('/api/webhooks', require('./src/routes/webhooks')); // NEW: Centralized Webhooks
 
 // --- Global Error Handler ---
 // eslint-disable-next-line no-unused-vars
@@ -197,9 +198,16 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   const userId = socket.user.userId;
-  console.log(`[Socket] User connected: ${userId} (ID: ${socket.id})`);
+  const role = socket.user.role;
+  console.log(`[Socket] User connected: ${userId} (Role: ${role}, ID: ${socket.id})`);
   
   socket.join(`user:${userId}`);
+
+  // Join admin room if applicable
+  if (role === 'ADMIN') {
+    socket.join('admin:all');
+    console.log(`[Socket] Admin joined room: admin:all`);
+  }
   
   // Join vehicle rooms for vehicles owned by this user
   prisma.vehicle.findMany({ where: { userId, deletedAt: null }, select: { id: true } })

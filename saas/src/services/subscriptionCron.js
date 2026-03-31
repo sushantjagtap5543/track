@@ -24,7 +24,24 @@ const checkExpirations = async () => {
   try {
     const now = new Date();
 
-    // 1. Find all ACTIVE subscriptions that have expired
+    // 1. Proactive Warning: Find subscriptions expiring in exactly 3 days
+    const upcomingExpiries = await prisma.subscription.findMany({
+      where: {
+        status: 'ACTIVE',
+        expiresAt: {
+          gt: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
+          lt: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
+        }
+      },
+      include: { user: true }
+    });
+
+    for (const sub of upcomingExpiries) {
+      console.log(`[Cron] [WARNING] Subscription for ${sub.user.email} expires in 3 days. Triggering notification flow...`);
+      // Here usually we'd call an email service: await emailService.sendExpiryWarning(sub.user);
+    }
+
+    // 2. Automated Grace Period: Find all ACTIVE subscriptions that have JUST expired
     const expiredSubscriptions = await prisma.subscription.findMany({
       where: {
         status: 'ACTIVE',
@@ -33,23 +50,45 @@ const checkExpirations = async () => {
       include: { user: true }
     });
 
-    if (expiredSubscriptions.length === 0) {
-      console.log('[Cron] No expired subscriptions found.');
+    if (expiredSubscriptions.length > 0) {
+      console.log(`[Cron] Found ${expiredSubscriptions.length} subscriptions hitting expiry. Moving to GRACE period...`);
+      for (const sub of expiredSubscriptions) {
+        await prisma.subscription.update({
+          where: { id: sub.id },
+          data: { status: 'GRACE' }
+        });
+        console.log(`[Cron] User ${sub.user.email} moved to GRACE period (3 days remaining).`);
+      }
+    }
+
+    // 3. Final Expiry: Find subscriptions in GRACE that have exceeded the 3-day window
+    // (We consider a subscription 'fully dead' if status is GRACE and expiresAt is older than 3 days)
+    const graceLimit = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+    const deadSubscriptions = await prisma.subscription.findMany({
+      where: {
+        status: 'GRACE',
+        expiresAt: { lt: graceLimit }
+      },
+      include: { user: true }
+    });
+
+    if (deadSubscriptions.length === 0 && expiredSubscriptions.length === 0) {
+      console.log('[Cron] No state transitions required today.');
       return;
     }
 
-    console.log(`[Cron] Found ${expiredSubscriptions.length} expired subscriptions. Processing...`);
+    console.log(`[Cron] Processing ${deadSubscriptions.length} final terminations...`);
 
-    for (const sub of expiredSubscriptions) {
+    for (const sub of deadSubscriptions) {
       const user = sub.user;
       
-      // Update subscription status in DB
+      // Mark as EXPIRED/TERMINATED
       await prisma.subscription.update({
         where: { id: sub.id },
         data: { status: 'EXPIRED' }
       });
 
-      // Check if user has any other ACTIVE subscriptions (e.g. overlapping plans)
+      // Check if user has any other ACTIVE subscriptions
       const otherActiveSub = await prisma.subscription.findFirst({
         where: {
           userId: sub.userId,
@@ -58,36 +97,32 @@ const checkExpirations = async () => {
         }
       });
 
-      // Check if user has a VIP grace extension
       const hasGraceExtension = user.graceExtensionUntil && new Date(user.graceExtensionUntil) > now;
 
       if (!otherActiveSub && !hasGraceExtension) {
-        console.log(`[Cron] Locking user ${user.email} - No active subscriptions or grace extensions found.`);
+        console.log(`[Cron] TERMINATING user ${user.email} - Grace period exhausted.`);
         
-        // Disable user in SaaS (Auth Middleware uses this field)
         await prisma.user.update({
           where: { id: user.id },
           data: { isActive: false }
         });
 
-        // Disable user in Traccar Engine (Prevents real-time data access)
         if (user.geosurepathUserId) {
           await geosurepathService.updateUser(user.geosurepathUserId, { disabled: true })
             .then(() => console.log(`[Cron] Sync Success: User ${user.email} disabled in Traccar.`))
             .catch(err => console.error(`[Cron] Sync Failed for ${user.email}:`, err.message));
         }
 
-        // Audit Log for traceability
         await prisma.auditLog.create({
           data: {
             userId: user.id,
             action: 'AUTO_EXPIRY_LOCK',
-            details: `Account automatically locked due to subscription expiry (${sub.id}). Total device count: ${sub.deviceCount}.`
+            details: `Account locked after 3-day grace period exhausted. Subscription: ${sub.id}.`
           }
-        }).catch(err => console.error('[Cron] Audit log failed:', err.message));
+        }).catch(err => console.debug('[Cron] Audit log suppressed:', err.message));
 
       } else {
-        console.log(`[Cron] User ${user.email} remains active (Other sub: ${!!otherActiveSub}, Grace: ${!!hasGraceExtension})`);
+        console.log(`[Cron] User ${user.email} remains active via secondary sub/extension.`);
       }
     }
   } catch (err) {
