@@ -16,8 +16,11 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
 COPY . .
 
-# Security: Run as non-root
-USER node
+# Generate Prisma client in the runtime stage to ensure correct binary for the OS
+RUN npx prisma generate
+
+# Security: Run as non-root (optional, but if used, ensure permissions for prisma)
+# USER node
 
 EXPOSE 3001
 CMD ["npm", "start"]
