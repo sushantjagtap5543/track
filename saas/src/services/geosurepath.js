@@ -355,7 +355,10 @@ const getUserByEmail = async (email) => {
     });
     if (!response.ok) return null;
     const users = await response.json();
-    return users.length > 0 ? users[0] : null;
+    // ✅ FIX: Explicitly verify that the returned user matches the requested email.
+    // Traccar may return the current user in some search scopes.
+    const match = users.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
+    return match || null;
 };
 
 const getEvents = async (deviceId, from, to) => {
