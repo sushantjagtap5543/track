@@ -1,6 +1,8 @@
 // src/controllers/adminController.js
 // ✅ FIX: Use shared Prisma singleton instead of `new PrismaClient()`.
 
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const os = require('os');
 const prisma = require('../lib/prisma');
 const bcrypt = require('bcrypt');
@@ -306,6 +308,7 @@ exports.adjustExpiry = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to adjust expiry.' });
   }
+};
 
 // ─── ADMIN SETTINGS (Consolidated) ───
 exports.getSettings = async (req, res) => {
