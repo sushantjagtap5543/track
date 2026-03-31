@@ -15,6 +15,10 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - ./docker/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    sysctls:
+      - net.core.somaxconn=1024
 
 
   redis:
@@ -41,6 +45,10 @@ services:
       - DATABASE_USER=geosurepath
       - DATABASE_PASSWORD=${DB_PASSWORD}
       - CONFIG_USE_ENVIRONMENT_VARIABLES=true
+      - JAVA_OPTS=-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200
+    sysctls:
+      - net.core.somaxconn=1024
+      - net.ipv4.tcp_fin_timeout=30
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/api/health"]
       interval: 10s

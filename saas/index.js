@@ -34,6 +34,7 @@ const { Server } = require('socket.io');
 const socketService = require('./src/services/socketService');
 const { fetchFreeModels } = require('./src/services/modelScheduler'); // Initialize weekly free model fetch
 const cookieParser = require('cookie-parser');
+const compression = require('compression');
 // const xss = require('xss-clean');
 
 const rateLimit = require('express-rate-limit');
@@ -54,6 +55,7 @@ startSubscriptionCron();
 // --- Security Middleware ---
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(helmet());
+app.use(compression());
 app.use(cookieParser());
 app.use(sessionGuard);
 
