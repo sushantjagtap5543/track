@@ -128,14 +128,13 @@ const useStyles = makeStyles()((theme) => ({
     color: '#fff',
     border: '1px solid rgba(255, 255, 255, 0.1)',
     background: 'rgba(255, 255, 255, 0.03)',
-    borderColor: 'rgba(255, 255, 255, 0.2)',
     backdropFilter: 'blur(10px)',
     transition: 'all 0.3s ease',
     '&:hover': {
-      borderColor: '#fff',
-      background: 'rgba(255, 255, 255, 0.08)',
+      borderColor: '#3b82f6',
+      background: 'rgba(59, 130, 246, 0.12)',
       transform: 'translateY(-2px)',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
+      boxShadow: '0 8px 24px rgba(59, 130, 246, 0.2)',
     },
   },
   registerLink: {
@@ -749,9 +748,9 @@ const LoginPage = () => {
                   fullWidth
                   disabled={loading}
                   className={classes.secondaryButton}
-                  startIcon={<ReceiptLongIcon />}
+                  startIcon={<PaymentIcon />}
                 >
-                  Pay Subscription / Billing portal
+                  New Registration & Billing
                 </Button>
               </motion.div>
 

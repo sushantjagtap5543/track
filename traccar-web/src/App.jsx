@@ -73,7 +73,13 @@ const App = () => {
             }
           }
           window.sessionStorage.setItem('postLogin', pathname + search);
-          navigate(newServer ? '/register' : '/login', { replace: true });
+          // ✅ FIX: Only redirect to register if it's truly a fresh server AND no SaaS token exist
+          const hasSaasToken = !!window.localStorage.getItem('saas_token');
+          if (newServer && !hasSaasToken) {
+            navigate('/register', { replace: true });
+          } else {
+            navigate('/login', { replace: true });
+          }
         }
       } catch (err) {
         // Network error or crash - redirect to login

@@ -209,9 +209,18 @@ const BillingPage = () => {
   // ── Data Fetchers ──
   const fetchBill = useCallback(async () => {
     if (!token) return;
-    const res = await API('/api/billing/my-bill');
-    if (res.ok) setBill(await res.json());
-  }, [token]);
+    try {
+      const res = await API('/api/billing/my-bill');
+      if (res.ok) setBill(await res.json());
+      else {
+        console.error('[fetchBill] Failed:', res.status);
+        showFeedback('Could not load billing data. Please try again.', 'error');
+      }
+    } catch (err) {
+      console.error('[fetchBill] Error:', err);
+      showFeedback('Connection error while fetching bill.', 'error');
+    }
+  }, [token, showFeedback]);
 
   const fetchAdminData = useCallback(async (forcedTab = null) => {
     if (!admin || !token) return;
@@ -268,23 +277,35 @@ const BillingPage = () => {
     }
   }, [admin, token, tab, plans.length, adminSettings.supportEmail]);
   useEffect(() => {
+    let isMounted = true;
     const init = async () => {
       setLoading(true);
-      // On initial load, only fetch the current user's bill and the dashboard essentials (tab 0)
-      await Promise.all([fetchBill(), fetchAdminData(0)]);
-      setLoading(false);
+      try {
+        // On initial load, only fetch the current user's bill and the dashboard essentials (tab 0)
+        await Promise.all([fetchBill(), fetchAdminData(0)]);
+      } catch (err) {
+        console.error('[BillingPage] Init failed:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     };
     init();
 
     // SMART POLLING: Only refresh if no tab is currently loading
     const interval = setInterval(() => {
-      if (admin && Object.values(tabLoading).every(v => v === false)) {
+      // NOTE: We check the ref or the current state value without including tabLoading in the [deps]
+      // using a functional check if needed, but for now simple interval is safer.
+      if (admin) {
         fetchAdminData();
       }
     }, 45000);
     
-    return () => clearInterval(interval);
-  }, [fetchBill, fetchAdminData, admin, tabLoading]);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchBill, fetchAdminData, admin]); // Removed tabLoading to prevent infinite loops
 
   // ── Admin Actions ──
   const handleImpersonate = async (userId) => {

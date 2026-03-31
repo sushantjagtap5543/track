@@ -28,59 +28,98 @@ const useStyles = makeStyles()((theme) => ({
   container: {
     display: 'flex',
     flexDirection: 'column',
-    gap: theme.spacing(2),
+    gap: theme.spacing(3),
   },
   header: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    marginBottom: theme.spacing(2),
   },
   title: {
-    color: theme.palette.text.primary,
-    fontWeight: 600,
-    fontSize: '2rem',
+    color: '#fff',
+    fontWeight: 900,
+    fontSize: '2.5rem',
+    letterSpacing: '-1.5px',
+    lineHeight: 1.1,
+    textShadow: '0 4px 12px rgba(0,0,0,0.3)',
   },
   subText: {
-    color: theme.palette.text.primary,
+    color: 'rgba(255, 255, 255, 0.7)',
     fontSize: '1.05rem',
     fontWeight: 500,
     textAlign: 'center',
-    textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+    marginTop: theme.spacing(1),
   },
   backButton: {
     position: 'absolute',
     top: theme.spacing(2),
     left: theme.spacing(2),
     color: 'rgba(255, 255, 255, 0.5)',
+    zIndex: 10,
     '&:hover': {
       color: theme.palette.primary.main,
       background: 'rgba(255, 255, 255, 0.1)',
+      transform: 'translateX(-4px)',
     },
   },
-  registerButton: {
-    borderRadius: theme.spacing(1.5),
-    padding: theme.spacing(1.5, 0),
-    fontSize: '1rem',
-    fontWeight: 600,
-    textTransform: 'none',
-    background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
-    boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
-    '&:hover': {
-      background: 'linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)',
+  input: {
+    '& .MuiOutlinedInput-root': {
+        borderRadius: '16px',
+        background: 'rgba(255, 255, 255, 0.04)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        color: '#fff',
+        transition: 'all 0.3s ease',
+        '&:hover': {
+            background: 'rgba(255, 255, 255, 0.08)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+        },
+        '&.Mui-focused': {
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.5)',
+            boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.15)',
+        }
     },
+    '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.5)' },
+    '& .MuiInputLabel-root.Mui-focused': { color: '#3b82f6' },
+    '& .MuiOutlinedInput-notchedOutline': { border: 'none' }
+  },
+  registerButton: {
+    borderRadius: '18px',
+    padding: theme.spacing(2, 0),
+    fontSize: '1.1rem',
+    fontWeight: 900,
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+    boxShadow: '0 12px 35px rgba(59, 130, 246, 0.45)',
+    transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+    marginTop: theme.spacing(2),
+    '&:hover': {
+      background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
+      transform: 'translateY(-4px) scale(1.01)',
+      boxShadow: '0 18px 45px rgba(59, 130, 246, 0.6)',
+    },
+    '&:disabled': {
+        background: 'rgba(255,255,255,0.05)',
+        color: 'rgba(255,255,255,0.2)',
+    }
   },
   footer: {
     display: 'flex',
     justifyContent: 'center',
+    marginTop: theme.spacing(2),
   },
   loginLink: {
     color: theme.palette.primary.light,
-    fontWeight: 700,
-    fontSize: '1rem',
+    fontWeight: 800,
+    fontSize: '1.05rem',
     textDecoration: 'none',
     cursor: 'pointer',
     '&:hover': {
       textDecoration: 'underline',
+      color: '#fff',
     },
   },
 }));
@@ -223,6 +262,7 @@ const RegisterPage = () => {
           value={name}
           autoComplete="name"
           onChange={(event) => setName(event.target.value)}
+          className={classes.input}
         />
         <TextField
           required
@@ -233,6 +273,7 @@ const RegisterPage = () => {
           value={email}
           autoComplete="email"
           onChange={(event) => setEmail(event.target.value)}
+          className={classes.input}
         />
         <TextField
           fullWidth
@@ -240,6 +281,7 @@ const RegisterPage = () => {
           name="phone"
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
+          className={classes.input}
         />
 
         <Box sx={{ mt: 1, mb: 1 }}>
@@ -261,6 +303,7 @@ const RegisterPage = () => {
             type="password"
             autoComplete="new-password"
             onChange={(event) => setPassword(event.target.value)}
+            className={classes.input}
           />
           <TextField
             required
@@ -272,6 +315,7 @@ const RegisterPage = () => {
             autoComplete="new-password"
             error={!!confirmPassword && password !== confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
+            className={classes.input}
           />
         </Box>
 
