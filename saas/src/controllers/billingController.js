@@ -343,9 +343,10 @@ const getMyBill = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (user?.geosurepathUserId) {
-      await syncUserDevices(userId, user.geosurepathUserId).catch(e => console.error('[getMyBill] Sync failed:', e.message));
+        // ✅ PERFORMANCE: Background sync. Don't block the UI for a device sync.
+        syncUserDevices(userId, user.geosurepathUserId).catch(e => console.error('[getMyBill] Background Sync failed:', e.message));
     }
-    const bill = await calculateBillForAnyUser(userId, null, null, true, null, planId);
+    const bill = await calculateBillForAnyUser(userId, null, null, false, null, planId); // Set shouldSync to false
     res.json(bill);
   } catch (err) {
     res.status(500).json({ error: err.message });

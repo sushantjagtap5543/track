@@ -9,9 +9,9 @@ const authLimiter = rateLimit({
 });
 
 const billingLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 50, // Relaxed: 50 attempts per hour
-  message: { error: 'Billing action limit reached. Please contact support if you are having issues.' },
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // Relaxed: 1000 attempts per 15 mins (was 50/hour)
+  message: { error: 'Too many requests. Please slow down.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
