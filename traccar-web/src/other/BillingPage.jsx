@@ -187,6 +187,8 @@ const BillingPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [paymentSearch, setPaymentSearch] = useState('');
+  const [ledgerMeta, setLedgerMeta] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [ledgerPage, setLedgerPage] = useState(1);
 
   // ── Dialog State ──
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -228,7 +230,7 @@ const BillingPage = () => {
 
     const endpoints = {
       0: ['/api/admin/stats', '/api/admin/payments', 'analytics', 'payments'], // Dashboard overview uses stats + recent payments
-      1: ['/api/billing/admin/ledger', 'ledger'],
+      1: [`/api/admin/ledger?page=${ledgerPage}&search=${searchQuery}&status=${statusFilter === 'ALL' ? '' : statusFilter}`, 'ledger'],
       2: ['/api/admin/payments', 'payments'],
       3: ['/api/admin/audit-logs', 'auditLogs'],
       4: ['/api/admin/health/full', 'systemHealth'],
@@ -264,7 +266,15 @@ const BillingPage = () => {
         if (!data) return;
         const key = toFetch[index][1];
         if (key === 'analytics') setAnalytics(data);
-        if (key === 'ledger') setLedger(data);
+        if (key === 'ledger') {
+          // Handle both old array format and new paginated object format
+          if (data.data) {
+             setLedger(data.data);
+             setLedgerMeta(data.meta);
+          } else {
+             setLedger(Array.isArray(data) ? data : []);
+          }
+        }
         if (key === 'auditLogs') setAuditLogs(data);
         if (key === 'payments') setPayments(data);
         if (key === 'plans') setPlans(data);
@@ -291,21 +301,18 @@ const BillingPage = () => {
     };
     init();
 
-    // SMART POLLING: Only refresh if no tab is currently loading
-    const interval = setInterval(() => {
-      // NOTE: We check the ref or the current state value without including tabLoading in the [deps]
-      // using a functional check if needed, but for now simple interval is safer.
-      if (admin) {
-        fetchAdminData();
-      }
-    }, 45000);
-    
+    // SMART RE-FETCH for Search/Status
+    const delayDebounceFn = setTimeout(() => {
+        if (admin && tab === 1) fetchAdminData(1);
+    }, 500);
+
     return () => {
       isMounted = false;
       clearInterval(interval);
+      clearTimeout(delayDebounceFn);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchBill, fetchAdminData, admin]); // Removed tabLoading to prevent infinite loops
+  }, [fetchBill, fetchAdminData, admin, searchQuery, statusFilter, ledgerPage]); 
 
   // ── Admin Actions ──
   const handleImpersonate = async (userId) => {
@@ -424,17 +431,7 @@ const BillingPage = () => {
 
   const handleLogout = () => { localStorage.clear(); navigate('/login'); };
 
-  const filteredLedger = (ledger || []).filter(u => {
-    const matchesSearch = (u.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (u.name || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || 
-                         (statusFilter === 'BYPASSED' && u.hardlockBypass) ||
-                         (statusFilter === 'OVERDUE' && u.status === 'OVERDUE') ||
-                         (statusFilter === 'GRACE' && u.status === 'GRACE') ||
-                         (statusFilter === 'ACTIVE' && u.isActive && u.status === 'PAID') ||
-                         (statusFilter === 'SUSPENDED' && !u.isActive);
-    return matchesSearch && matchesStatus;
-  });
+  const filteredLedger = ledger || [];
 
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('ALL');
   const [auditActionFilter, setAuditActionFilter] = useState('ALL');
@@ -704,6 +701,31 @@ const BillingPage = () => {
                     </Table>
                   </TableContainer>
                 </Paper>
+
+                {/* Pagination Controls */}
+                {ledgerMeta.totalPages > 1 && (
+                  <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
+                    <Button 
+                      disabled={ledgerPage <= 1} 
+                      onClick={() => { setLedgerPage(p => p - 1); fetchAdminData(1); }}
+                      variant="outlined"
+                      sx={{ borderRadius: '10px' }}
+                    >
+                      Previous
+                    </Button>
+                    <Typography variant="body2" fontWeight={700}>
+                      Page {ledgerPage} of {ledgerMeta.totalPages}
+                    </Typography>
+                    <Button 
+                      disabled={ledgerPage >= ledgerMeta.totalPages} 
+                      onClick={() => { setLedgerPage(p => p + 1); fetchAdminData(1); }}
+                      variant="outlined"
+                      sx={{ borderRadius: '10px' }}
+                    >
+                      Next
+                    </Button>
+                  </Box>
+                )}
               </>
             )}
 
