@@ -53,6 +53,11 @@ router.post('/plans', adminController.createPlan);
 router.put('/plans', adminController.updatePlan);
 router.delete('/plans/:id', adminController.deletePlan);
 
+// --- AIS 140 GOVERNMENT COMPLIANCE (NEW) ---
+router.get('/ais140-inventory', adminController.getAIS140Inventory);
+router.post('/ais140-approval', adminController.updateRTOApproval);
+router.post('/ais140-forwarding', adminController.configureAIS140Forwarding);
+
 // --- SERVICES (NEW) ---
 router.get('/services', adminController.getServices);
 router.post('/services', adminController.createService);

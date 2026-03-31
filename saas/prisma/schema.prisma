@@ -89,19 +89,33 @@ model Vehicle {
   parkingLat            Float?
   parkingLng            Float?
   parkingRadius         Float?
-  isAIS140              Boolean      @default(false)
-  forwardingEnabled     Boolean      @default(false)
+  isAIS140              Boolean       @default(false)
+  approvalStatus        RTOStatus     @default(PENDING)
+  certNumber            String?
+  ais140Expiry          DateTime?
+  forwardingEnabled     Boolean       @default(false)
   governmentEndpoint    String?
   lastForwardedAt       DateTime?
-  forwardingStatus      String?      // SUCCESS, FAILED
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
+  forwardingStatus      String?       // SUCCESS, FAILED
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
   alertRules            AlertRule[]
   vehicleLogs           VehicleLog[]
   events                VehicleEvent[]
 
   @@index([userId])
   @@index([fleetId])
+}
+
+enum RTOStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PlanCategory {
+  GENERAL
+  AIS140
 }
 
 model Fleet {
@@ -151,6 +165,7 @@ model Plan {
   description    String?
   pricePerDevice Float
   billingCycle   PlanType       @default(MONTHLY)
+  category       PlanCategory   @default(GENERAL)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   subscriptions  Subscription[]

@@ -60,6 +60,7 @@ import { useLocalization } from './common/components/LocalizationProvider';
 import fetchOrThrow from './common/util/fetchOrThrow';
 import AuditPage from './reports/AuditPage';
 import BillingPage from './other/BillingPage';
+import AIS140Page from './settings/AIS140Page';
 
 const Navigation = () => {
   const dispatch = useDispatch();
@@ -164,6 +165,7 @@ const Navigation = () => {
           <Route path="preferences" element={<PreferencesPage />} />
           <Route path="server" element={<ServerPage />} />
           <Route path="users" element={<UsersPage />} />
+          <Route path="ais140" element={<AIS140Page />} />
           <Route path="user/:id/connections" element={<UserConnectionsPage />} />
           <Route path="user/:id" element={<UserPage />} />
           <Route path="user" element={<UserPage />} />

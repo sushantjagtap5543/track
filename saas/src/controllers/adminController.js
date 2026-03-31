@@ -1467,7 +1467,84 @@ exports.getAuditLogsExport = async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', 'attachment; filename=audit_logs_export.json');
     res.send(JSON.stringify(exportData, null, 2));
-  } catch (error) {
-    res.status(500).json({ error: 'Export failed: ' + error.message });
   }
+};
+
+// --- AIS 140 GOVERNMENT COMPLIANCE (NEW) ---
+
+/**
+ * Get all vehicles marked as AIS 140 for specialized management
+ */
+exports.getAIS140Inventory = async (req, res) => {
+    try {
+        const vehicles = await prisma.vehicle.findMany({
+            where: { isAIS140: true },
+            include: { user: { select: { name: true, email: true } } },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(vehicles);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch AIS 140 inventory.' });
+    }
+};
+
+/**
+ * Update RTO Approval status and Certificate details
+ */
+exports.updateRTOApproval = async (req, res) => {
+    const { vehicleId, status, certNumber, expiryDate } = req.body;
+    
+    if (!['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid RTO status.' });
+    }
+
+    try {
+        const vehicle = await prisma.vehicle.update({
+            where: { id: vehicleId },
+            data: {
+                approvalStatus: status,
+                certNumber: certNumber || undefined,
+                ais140Expiry: expiryDate ? new Date(expiryDate) : undefined
+            }
+        });
+
+        logAction({
+            adminId: req.user.userId,
+            action: 'AIS140_RTO_APPROVAL',
+            details: `Updated vehicle ${vehicle.imei} to ${status}. Cert: ${certNumber}`,
+            ipAddress: req.ip
+        });
+
+        res.json({ message: 'RTO approval status updated successfully.', vehicle });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update RTO approval.' });
+    }
+};
+
+/**
+ * Configure Government Data Forwarding
+ */
+exports.configureAIS140Forwarding = async (req, res) => {
+    const { vehicleId, endpoint, enabled } = req.body;
+
+    try {
+        const vehicle = await prisma.vehicle.update({
+            where: { id: vehicleId },
+            data: {
+                governmentEndpoint: endpoint || undefined,
+                forwardingEnabled: !!enabled
+            }
+        });
+
+        logAction({
+            adminId: req.user.userId,
+            action: 'AIS140_FORWARDING_CONFIG',
+            details: `Forwarding for ${vehicle.imei} set to ${enabled}. Endpoint: ${endpoint}`,
+            ipAddress: req.ip
+        });
+
+        res.json({ message: 'Government forwarding configuration saved.', vehicle });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to configure data forwarding.' });
+    }
 };

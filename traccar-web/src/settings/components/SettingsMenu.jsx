@@ -152,6 +152,12 @@ const SettingsMenu = () => {
               />
             )}
             <MenuItem
+              title="Government / AIS 140"
+              link="/settings/ais140"
+              icon={<AdminPanelSettingsIcon />}
+              selected={location.pathname === '/settings/ais140'}
+            />
+            <MenuItem
               title={t('settingsUsers')}
               link="/settings/users"
               icon={<PeopleIcon />}
