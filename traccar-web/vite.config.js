@@ -16,17 +16,7 @@ export default defineConfig(() => ({
     outDir: 'build',
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('mui') || id.includes('emotion')) {
-              return 'vendor_core'; // Group core UI libraries to avoid circularity
-            }
-            if (id.includes('mapbox')) return 'vendor_maps';
-            return 'vendor_lib';
-          }
-        }
-      }
+        // Removed manual chunks to avoid circular dependencies and rely on Rollup native optimization
     }
   },
   plugins: [
