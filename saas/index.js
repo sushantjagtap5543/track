@@ -60,7 +60,7 @@ app.use(cookieParser());
 app.use(sessionGuard);
 
 
-const { globalLimiter, authLimiter, billingLimiter } = require('./src/middleware/rateLimiter');
+const { globalLimiter, authLimiter, billingLimiter } = require('./src/middleware/highDensityRateLimiter');
 app.use(globalLimiter);
 
 // ✅ FIX 4: Correct CORS configuration

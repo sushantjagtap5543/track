@@ -366,12 +366,33 @@ const getMyBill = async (req, res) => {
 
 const getAllUsersLedger = async (req, res) => {
   try {
-    const settings = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
+    const { page = 1, limit = 20, search = '', status = '' } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+
+    const settings = await getSettings();
     const taxRate = settings?.taxRate || 18;
 
-    // Fetch all non-deleted users with their current vehicles and latest subscription
+    const where = {
+      deletedAt: null,
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { username: { contains: search, mode: 'insensitive' } },
+      ]
+    };
+
+    if (status) {
+      where.isActive = status === 'ACTIVE';
+    }
+
+    const total = await prisma.user.count({ where });
+
+    // Fetch paginated non-deleted users
     const users = await prisma.user.findMany({
-      where: { deletedAt: null },
+      where,
+      skip,
+      take,
       include: {
         vehicles: { where: { deletedAt: null } },
         subscriptions: {
@@ -385,7 +406,8 @@ const getAllUsersLedger = async (req, res) => {
           orderBy: { createdAt: 'desc' },
           take: 1
         }
-      }
+      },
+      orderBy: { createdAt: 'desc' }
     });
 
     const ledger = await Promise.all(
@@ -400,7 +422,7 @@ const getAllUsersLedger = async (req, res) => {
           email: u.email,
           role: u.role,
           isActive: u.isActive,
-          fleetSize: u.vehicles.length,           // ← live device count from SaaS DB
+          fleetSize: u.vehicles.length,
           planId: latestSub?.planId || null,
           planName: latestSub?.plan?.name || 'No Plan',
           billingCycle: latestSub?.plan?.billingCycle || null,
@@ -420,7 +442,15 @@ const getAllUsersLedger = async (req, res) => {
       })
     );
 
-    res.json(ledger);
+    res.json({
+      data: ledger,
+      meta: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / take)
+      }
+    });
   } catch (err) {
     console.error('[getAllUsersLedger]', err);
     res.status(500).json({ error: err.message });

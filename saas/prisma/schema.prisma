@@ -57,6 +57,8 @@ model User {
   userServices        UserService[]
 
   @@index([role, isActive])
+  @@index([name])
+  @@index([createdAt])
 }
 
 model RefreshToken {

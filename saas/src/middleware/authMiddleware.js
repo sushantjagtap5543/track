@@ -24,9 +24,20 @@ const authenticateToken = async (req, res, next) => {
     }
 
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId }
-      });
+      const redis = require('../lib/redis');
+      let cachedUser = await redis.get(`user_session:${decoded.userId}`);
+      let user;
+
+      if (cachedUser) {
+        user = JSON.parse(cachedUser);
+      } else {
+        user = await prisma.user.findUnique({
+          where: { id: decoded.userId }
+        });
+        if (user) {
+          await redis.set(`user_session:${decoded.userId}`, JSON.stringify(user), 'EX', 300); // 5 minute cache
+        }
+      }
 
       if (!user || !user.isActive) {
         return res.status(403).json({ error: 'User account is inactive or not found' });
@@ -43,6 +54,7 @@ const authenticateToken = async (req, res, next) => {
           include: { plan: true }
         });
 
+        const redisConnection = require('../lib/redis');
         const now = new Date();
         let effectiveExpiry = latestSub?.expiresAt ? new Date(latestSub.expiresAt) : new Date(user.registrationDate);
         if (user.graceExtensionUntil && new Date(user.graceExtensionUntil) > effectiveExpiry) {

@@ -14,22 +14,7 @@ const geosurepathService = require('./geosurepath');
 const fcmService = require('./fcm');
 const emailService = require('./emailService');
 
-const redisConnection = new IORedis({
-  host: process.env.REDIS_HOST || '127.0.0.1',
-  port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
-  maxRetriesPerRequest: null,
-  lazyConnect: true
-});
-
-redisConnection.on('error', (err) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.warn(
-      '[GeoSurePath] Redis not available. Background jobs will be queued locally but not processed.'
-    );
-  } else {
-    console.error('[GeoSurePath] Redis error:', err.message);
-  }
-});
+const redisConnection = require('../lib/redis');
 
 // ✅ FIX 3: Default job options — auto-clean completed/failed jobs from Redis
 const DEFAULT_JOB_OPTIONS = {
