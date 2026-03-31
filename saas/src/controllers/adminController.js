@@ -1467,6 +1467,8 @@ exports.getAuditLogsExport = async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', 'attachment; filename=audit_logs_export.json');
     res.send(JSON.stringify(exportData, null, 2));
+  } catch (error) {
+    res.status(500).json({ error: 'Export failed: ' + error.message });
   }
 };
 
