@@ -32,4 +32,5 @@ COPY --from=web-build /app/traccar-web/build ./modern
 COPY docker/traccar.xml ./conf/traccar.xml
 
 EXPOSE 8082
-ENTRYPOINT ["java", "-Xms512m", "-Xmx1536m", "-XX:+UseG1GC", "-Djava.net.preferIPv4Stack=true", "-jar", "tracker-server.jar", "conf/traccar.xml"]
+# Use environment variable for Java Options to support performance tuning
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -XX:+UseG1GC -Djava.net.preferIPv4Stack=true -jar tracker-server.jar conf/traccar.xml"]
