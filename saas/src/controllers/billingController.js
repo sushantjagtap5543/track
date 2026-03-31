@@ -15,8 +15,7 @@ const Razorpay = require('razorpay');
 const crypto = require('crypto');
 
 async function getRazorpay() {
-  const settings = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
-  
+  const settings = await getSettings();
   const key_id = settings?.razorpayId || process.env.RAZORPAY_KEY_ID;
   const key_secret = settings?.razorpaySecret || process.env.RAZORPAY_KEY_SECRET;
 
@@ -27,15 +26,25 @@ async function getRazorpay() {
 }
 
 let CACHED_PLANS = [];
+let CACHED_SETTINGS = null;
+let CACHE_EXPIRY = 0;
 
-async function getPlans() {
-  if (CACHED_PLANS.length > 0) return CACHED_PLANS;
+async function getSettings(bypassCache = false) {
+  const now = Date.now();
+  if (!bypassCache && CACHED_SETTINGS && now < CACHE_EXPIRY) return CACHED_SETTINGS;
+  
+  const settings = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
+  CACHED_SETTINGS = settings || { taxRate: 18, taxInclusive: false };
+  CACHE_EXPIRY = now + (5 * 60 * 1000); // 5 minute cache
+  return CACHED_SETTINGS;
+}
+
+async function getPlans(bypassCache = false) {
+  if (!bypassCache && CACHED_PLANS.length > 0) return CACHED_PLANS;
   const dbPlans = await prisma.plan.findMany();
-  // ✅ FIX 4: Only cache if plans actually exist in the database.
   if (dbPlans.length === 0) return [];
   CACHED_PLANS = dbPlans.map((p) => {
     let days = p.billingCycle === 'MONTHLY' ? 30 : 365;
-    // Handle intermediate plans based on ID or Name
     if (p.id.includes('half') || p.name.includes('6 Month') || p.name.includes('Half') || p.name.includes('Safe Shield')) {
       days = 180;
     }
@@ -51,8 +60,10 @@ async function getPlans() {
   return CACHED_PLANS;
 }
 
-const refreshPlans = () => {
+const refreshCache = () => {
   CACHED_PLANS = [];
+  CACHED_SETTINGS = null;
+  CACHE_EXPIRY = 0;
 };
 
 // ✅ FIX 3: Generate a meaningful invoice number using current timestamp and random suffix.
@@ -156,8 +167,8 @@ const getGracePeriod = (days) => {
   return 7;                       // Yearly/Others: 7 days
 };
 
-const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputedSubCount = null, shouldSync = false, injectedTaxRate = null, selectedPlanId = null) => {
-  const settings = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
+const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputedSubCount = null, shouldSync = false, injectedTaxRate = null, selectedPlanId = null, preloadedSettings = null) => {
+  const settings = preloadedSettings || await getSettings();
   const taxRate = injectedTaxRate !== null ? injectedTaxRate : settings?.taxRate || 18;
   const taxInclusive = settings?.taxInclusive || false;
   if (shouldSync) {
@@ -379,7 +390,7 @@ const getAllUsersLedger = async (req, res) => {
 
     const ledger = await Promise.all(
       users.map(async (u) => {
-        const bill = await calculateBillForAnyUser(u.id, u, null, false, taxRate);
+        const bill = await calculateBillForAnyUser(u.id, u, null, false, taxRate, null, settings);
         const latestSub = u.subscriptions?.[0];
         const latestPayment = u.payments?.[0];
 
@@ -458,6 +469,7 @@ const updateGatewayConfig = async (req, res) => {
         updatedBy: req.user.userId 
       }
     });
+    refreshCache();
     res.json({ message: 'System Configuration Updated', config });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -638,7 +650,7 @@ const updatePlan = async (req, res) => {
       where: { id: planId },
       data: { name, pricePerDevice, billingCycle }
     });
-    refreshPlans();
+    refreshCache();
     res.json({ message: 'Plan Harmonization Complete. Propagated globally.' });
   } catch (err) {
     res.status(500).json({ error: err.message });

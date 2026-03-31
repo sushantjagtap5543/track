@@ -8,6 +8,7 @@ const { emailQueue } = require('../services/queue');
 const { logAction, AUDIT_ACTIONS } = require('../services/auditService');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
+const emailService = require('../services/emailService');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -137,46 +138,10 @@ exports.register = async (req, res) => {
     });
 
     // ✅ FIX: Send welcome email with login details
-    emailQueue.add('welcome-email', {
-      to: user.email,
-      subject: 'Welcome to GeoSurePath - Your Fleet is Secure',
-      html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-          <div style="background-color: #3b82f6; padding: 24px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">Welcome to GeoSurePath</h1>
-          </div>
-          <div style="padding: 24px; color: #1e293b; line-height: 1.6;">
-            <p>Hello <strong>${user.name}</strong>,</p>
-            <p>We're excited to have you on board! Your account has been successfully created, and your <strong>30-day trial</strong> is now active.</p>
-            
-            <div style="background-color: #f8fafc; border-radius: 8px; padding: 20px; margin: 24px 0; border: 1px solid #cbd5e1;">
-              <h3 style="margin-top: 0; color: #3b82f6; font-size: 18px;">Your Login Details</h3>
-              <p style="margin-bottom: 8px;"><strong>Login ID:</strong> ${user.email}</p>
-              <p style="margin-top: 0;"><strong>Password:</strong> ${password}</p>
-              <p style="font-size: 0.85rem; color: #64748b; margin-top: 12px;"><em>Note: For security, we recommend changing your password after your first login.</em></p>
-            </div>
-
-            <p><strong>Next Steps:</strong></p>
-            <ul style="padding-left: 20px;">
-              <li>Login to your dashboard to add your vehicles.</li>
-              <li>Configure your alert preferences for maximum security.</li>
-              <li>Install our mobile app for real-time tracking on the go.</li>
-            </ul>
-
-            <div style="text-align: center; margin-top: 32px;">
-              <a href="${process.env.FRONTEND_URL || '#'}/login" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Get Started</a>
-            </div>
-          </div>
-          <div style="background-color: #f1f5f9; padding: 16px; text-align: center; color: #64748b; font-size: 0.85rem;">
-            <p style="margin: 0;">Need help? Reply to this email or visit our support portal.</p>
-            <p style="margin: 4px 0 0 0;">&copy; ${new Date().getFullYear()} GeoSurePath. All rights reserved.</p>
-          </div>
-        </div>
-      `
-    }).then(() => {
+    emailService.sendWelcomeEmail(user).then(() => {
       console.log(`[Register] Welcome email queued for ${user.email}`);
     }).catch((err) => {
-      console.error(`[Register] Failed to queue welcome email for ${user.email}:`, err.message);
+      console.error(`[Register] Failed to send welcome email for ${user.email}:`, err.message);
     });
 
     res.status(201).json({ message: 'Registration successful!', userId: user.id });

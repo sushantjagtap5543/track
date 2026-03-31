@@ -12,7 +12,7 @@ const IORedis = require('ioredis');
 const prisma = require('../lib/prisma');
 const geosurepathService = require('./geosurepath');
 const fcmService = require('./fcm');
-const emailService = require('./email');
+const emailService = require('./emailService');
 
 const redisConnection = new IORedis({
   host: process.env.REDIS_HOST || '127.0.0.1',
