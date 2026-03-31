@@ -58,24 +58,8 @@ app.use(cookieParser());
 app.use(sessionGuard);
 
 
-// Global Rate Limiter
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP to 1000 requests per window (Relaxed from 100)
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' }
-});
+const { globalLimiter, authLimiter, billingLimiter } = require('./src/middleware/rateLimiter');
 app.use(globalLimiter);
-
-// Auth Rate Limiter (Stricter)
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per window for auth (Relaxed from 20/hr)
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many authentication attempts, please try again in an hour.' }
-});
 
 // ✅ FIX 4: Correct CORS configuration
 const rawOrigins = process.env.ALLOWED_ORIGINS?.split(',').map((o) => o.trim()) || [];
@@ -91,21 +75,17 @@ const corsOptions = {
           }
         },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with']
 };
 app.use(cors(corsOptions));
 
 app.use(express.json({ 
   limit: '1mb',
   verify: (req, res, buf) => {
+    // Hidden character detection for debugging
     const rawBody = buf.toString();
-    console.log(`[DEBUG] Incoming Raw Request Body (Verify): [${rawBody}]`);
-    // Check for weird characters
-    for (let i = 0; i < rawBody.length; i++) {
-        const char = rawBody[i];
-        if (char.charCodeAt(0) < 32 || char.charCodeAt(0) > 126) {
-            console.log(`[DEBUG] Hidden char at ${i}: hex ${char.charCodeAt(0).toString(16)}`);
-        }
+    if (rawBody.includes('\r\n')) {
+       // Optional: Log or handle CRLF issues
     }
   }
 }));
@@ -154,16 +134,15 @@ app.get('/api/pulse', async (req, res) => {
 });
 
 // --- Routes ---
-// --- Routes ---
 app.use('/api/auth', authLimiter, require('./src/routes/auth'));
 app.use('/api/users', require('./src/routes/user'));
 app.use('/api/vehicles', require('./src/routes/vehicles'));
-app.use('/api/billing', require('./src/routes/billing'));
+app.use('/api/billing', billingLimiter, require('./src/routes/billing'));
 app.use('/api/admin', require('./src/routes/admin'));
 app.use('/api/reports', require('./src/routes/reports'));
 app.use('/api/geosurepath', require('./src/routes/geosurepath'));
 app.use('/api/notifications', require('./src/routes/notifications'));
-app.use('/api/webhooks', require('./src/routes/webhooks')); // NEW: Centralized Webhooks
+app.use('/api/webhooks', require('./src/routes/webhooks'));
 
 // --- Global Error Handler ---
 // eslint-disable-next-line no-unused-vars
