@@ -69,6 +69,9 @@ router.post('/provision-service', adminController.provisionService);
 router.post('/deprovision-service', adminController.deprovisionService);
 router.get('/users/:userId/services', adminController.getUserServicesForAdmin);
 
+// Synchronization Tools
+router.post('/sync/mass', adminController.massSyncUsers);
+
 // Impersonation
 router.post('/impersonate', adminController.impersonateUser);
 router.post('/exit-impersonation', adminController.exitImpersonation);

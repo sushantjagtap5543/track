@@ -1550,3 +1550,63 @@ exports.configureAIS140Forwarding = async (req, res) => {
         res.status(500).json({ error: 'Failed to configure data forwarding.' });
     }
 };
+
+// NEW: Mass Re-Sync All Users to Tracking Engine
+exports.massSyncUsers = async (req, res) => {
+    try {
+        const users = await prisma.user.findMany({
+            where: { deletedAt: null, role: { in: ['CLIENT', 'MANAGER'] } },
+            select: { id: true, email: true, name: true, isActive: true, geosurepathUserId: true }
+        });
+
+        const results = {
+            total: users.length,
+            synced: 0,
+            failed: 0,
+            errors: []
+        };
+
+        for (const user of users) {
+            try {
+                let gUserId = user.geosurepathUserId;
+                
+                // 1. If missing engine ID, search by email
+                if (!gUserId) {
+                    const engineUser = await geosurepathService.getUserByEmail(user.email);
+                    if (engineUser) {
+                        gUserId = engineUser.id;
+                        await prisma.user.update({ where: { id: user.id }, data: { geosurepathUserId: gUserId } });
+                    }
+                }
+
+                if (gUserId) {
+                    // 2. Update existing user (Sync status)
+                    await geosurepathService.updateUser(gUserId, { name: user.name, disabled: !user.isActive });
+                } else {
+                    // 3. Re-create missing user (Use a temporary password or reset later)
+                    // Note: Since we don't have the plaintext password here, we create with a placeholder 
+                    // and rely on the next login's "Self-Healing" to fix it.
+                    const newGUser = await geosurepathService.createUser(user.name, user.email, 'GSP_RECOVERY_123');
+                    await prisma.user.update({ where: { id: user.id }, data: { geosurepathUserId: newGUser.id } });
+                }
+                
+                results.synced++;
+            } catch (err) {
+                results.failed++;
+                results.errors.push({ email: user.email, error: err.message });
+            }
+        }
+
+        logAction({
+            adminId: req.user.userId,
+            action: AUDIT_ACTIONS.MASS_SYNC_PERFORMED,
+            details: { synced: results.synced, failed: results.failed },
+            ipAddress: req.ip
+        });
+
+        res.json({ message: 'Mass synchronization complete.', results });
+    } catch (error) {
+        console.error('[MassSync] Fatal:', error);
+        res.status(500).json({ error: 'Mass synchronization process failed.' });
+    }
+};

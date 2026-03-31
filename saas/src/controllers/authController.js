@@ -115,9 +115,17 @@ exports.register = async (req, res) => {
         }
       });
     } catch (prismaError) {
-      // ✅ FIX: Only delete if we actually created it in this session (don't delete if we adopted it)
-      // await geosurepathService.deleteUser(gUser.id).catch(() => {}); 
       throw prismaError;
+    }
+
+    // ✅ FORCE SYNC: Ensure Traccar password matches the SaaS password even if adopted
+    try {
+      if (gUser && gUser.id) {
+        await geosurepathService.updateUser(gUser.id, { password });
+        console.log(`[Registration] Synchronized password for Traccar user ${gUser.id}`);
+      }
+    } catch (syncErr) {
+      console.warn(`[Registration] Background password sync failed: ${syncErr.message}`);
     }
 
     // ✅ FIX: Audit Log for User Registration
@@ -371,11 +379,11 @@ exports.login = async (req, res) => {
     res.cookie('token', accessToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 15 * 60 * 1000 });
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: REFRESH_TOKEN_EXPIRATION });
 
-    // ✅ NEW: Silent Traccar Login and Cookie Relay
+    // ✅ PENTA CENTURION (S462): Self-Healing Authentication
+    // If Traccar login fails but SaaS succeeded, force-sync the password and retry once.
     try {
       const traccarSession = await geosurepathService.loginUser(identifier, password);
       if (traccarSession.cookie) {
-        // Robust parsing for JSESSIONID
         const match = traccarSession.cookie.match(/JSESSIONID=([^;]+)/);
         if (match && match[1]) {
             res.cookie('JSESSIONID', match[1], { 
@@ -388,7 +396,26 @@ exports.login = async (req, res) => {
         }
       }
     } catch (traccarError) {
-      console.warn(`[Login] Traccar silent login failed for ${identifier}. This may cause map access issues. Error: ${traccarError.message}`);
+      if (traccarError.message.includes('401')) {
+        console.warn(`[Login] Password mismatch detected for ${identifier}. Initiating Self-Healing Sync...`);
+        try {
+          if (user.geosurepathUserId) {
+            await geosurepathService.updateUser(user.geosurepathUserId, { password });
+            console.log(`[Login] Force-synced password for ${identifier}. Retrying session relay...`);
+            
+            // Retry login once after sync
+            const retrySession = await geosurepathService.loginUser(identifier, password);
+            const match = retrySession.cookie?.match(/JSESSIONID=([^;]+)/);
+            if (match && match[1]) {
+              res.cookie('JSESSIONID', match[1], { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/' });
+            }
+          }
+        } catch (syncErr) {
+          console.error(`[Login] Self-Healing failed for ${identifier}: ${syncErr.message}`);
+        }
+      } else {
+        console.warn(`[Login] Traccar silent login failed for ${identifier}: ${traccarError.message}`);
+      }
     }
 
     // ✅ FIX: Audit Log for Admin Login
