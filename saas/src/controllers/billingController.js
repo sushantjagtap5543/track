@@ -70,16 +70,19 @@ const GST_RATE_DEFAULT = 0.18;
 const SERVER_CHARGE_RATE = 0.15;
 const CLOUD_CHARGE_RATE = 0.10;
 
-const calculateBreakdown = (amount, taxRate) => {
-  const taxAmount = amount * (taxRate / 100);
-  const total = amount + taxAmount;
-  return {
-    basic: parseFloat(basicAccess.toFixed(2)),
-    server: parseFloat(serverCharge.toFixed(2)),
-    cloud: parseFloat(cloudCharge.toFixed(2)),
-    gst: parseFloat(gstValue.toFixed(2)),
-    total: parseFloat(total.toFixed(2))
-  };
+const calculateBreakdown = (amount, taxRate, taxInclusive = false) => {
+  let base, tax, total;
+  if (taxInclusive) {
+    // Amount already includes tax
+    total = amount;
+    base = parseFloat((amount / (1 + taxRate / 100)).toFixed(2));
+    tax = parseFloat((total - base).toFixed(2));
+  } else {
+    base = parseFloat(amount.toFixed(2));
+    tax = parseFloat((amount * (taxRate / 100)).toFixed(2));
+    total = parseFloat((base + tax).toFixed(2));
+  }
+  return { base, tax, total };
 };
 
 /**
@@ -230,7 +233,7 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
     return {
       imei: v.imei,
       name: v.name,
-      unpaidDays: totalUnpaidDays,
+      unpaidDays: billingDays,
       billableDebtDays: BILLABLE_DAYS_DEBT,
       amount: breakdown.total,
       breakdown,
@@ -932,7 +935,6 @@ const verifyPayment = async (req, res) => {
     try {
       const user = await prisma.user.findUnique({ where: { id: payment.userId } });
       if (user?.geosurepathUserId) {
-        const { syncUserDevices } = require('./billingController');
         await syncUserDevices(user.id, user.geosurepathUserId);
       }
     } catch (syncErr) {
