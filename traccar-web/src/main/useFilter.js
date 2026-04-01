@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
@@ -14,7 +14,7 @@ export default (
   const groups = useSelector((state) => state.groups.items);
   const devices = useSelector((state) => state.devices.items);
 
-  useMemo(() => {
+  useEffect(() => {
     const deviceGroups = (device) => {
       const groupIds = [];
       let { groupId } = device;

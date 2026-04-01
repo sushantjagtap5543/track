@@ -72,6 +72,27 @@ The Client interface is designed for high-fidelity asset protection and real-tim
 
 ---
 
+## 🔌 Hardware Integration & Wiring Guide
+To enable advanced features, follow this standard wiring map for industrial GPS trackers (Teltonika, Coban, Concox).
+
+### 🎨 Standard Wire Color Mapping
+| Wire Color | Function | Connection Point |
+| :--- | :--- | :--- |
+| **🔴 Red** | Power (+) | Vehicle Battery (12V/24V) |
+| **⚫ Black** | Ground (-) | Vehicle Chassis (Common Ground) |
+| **🟠 Orange** | Ignition (ACC) | Ignition Switch / Key Position |
+| **🟡 Yellow** | Digital Output | Fuel Pump Relay (85 pin) |
+| **🟢 Green** | Analog Input 1 | Fuel Level Sensor / Temperature Probe |
+| **⚪ White** | Digital Input 1 | Door / Panic Button |
+
+### 🛠️ Feature Attachment Logic
+- **Remote Engine Lock**: Connect the **Yellow** wire to Pin 85 of a 4-pin Relay. Wire the Relay in-series with the vehicle's Fuel Pump or Starter motor.
+- **Safe Parking / Ignition**: The **Orange** wire must be connected to a switched 12V source (ACC) for the AI-Guardian to detect engine pulses.
+- **Fuel Monitoring**: Connect the **Green** wire to the signal line of a capacitive fuel sensor. Calibrate the voltage in the dashboard under *Sensors*.
+- **Panic/SOS Alert**: Connect a momentary push-button between the **White** wire and **Ground**.
+
+---
+
 ## 💾 System Maintenance (AI-Guardian)
 - **Database Optimization**: AI-Guardian manages indices and record retention (180 days).
 - **Automated Backups**: 7-day rolling SQL dumps and Google Drive position archiving.
