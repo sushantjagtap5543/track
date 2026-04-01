@@ -813,7 +813,7 @@ const LoginPage = () => {
                   className={classes.secondaryButton}
                   startIcon={<PaymentIcon />}
                 >
-                  BILLING & SUBSCRIPTION
+                  BILLING
                 </Button>
               </motion.div>
 
