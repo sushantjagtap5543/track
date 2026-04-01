@@ -460,8 +460,8 @@ const LoginPage = () => {
   const [hardlocked, setHardlocked] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' });
 
-  // Registration disabled as per user request to force billing workflow
-  const registrationEnabled = false;
+  // Registration explicitly enabled as per user request to restore functionality
+  const registrationEnabled = true;
 
   const languageEnabled = useSelector((state) => {
     const attributes = state.session.server.attributes;
@@ -530,7 +530,7 @@ const LoginPage = () => {
         const defaultTarget = target || (saasData.user?.role === 'ADMIN' ? '/billing' : '/');
         const finalTarget = window.sessionStorage.getItem('postLogin') || defaultTarget;
         window.sessionStorage.removeItem('postLogin');
-        navigate(finalTarget, { replace: true });
+        window.location.href = finalTarget;
       } else {
         const data = await response.json().catch(() => ({}));
         setErrorText(data.error || 'Invalid username or password');
@@ -578,7 +578,8 @@ const LoginPage = () => {
           dispatch(sessionActions.updateUser(user));
         }
 
-        navigate(saasData.user?.role === 'ADMIN' ? '/billing' : '/', { replace: true });
+        const finalTarget = saasData.user?.role === 'ADMIN' ? '/billing' : '/';
+        window.location.href = finalTarget;
       } else {
         const data = await response.json().catch(() => ({}));
         setErrorText(data.error || 'Invalid MFA token');

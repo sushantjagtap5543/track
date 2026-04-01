@@ -103,8 +103,11 @@ exports.register = async (req, res) => {
   username = username?.toLowerCase().trim();
 
   try {
+    const orConditions = [{ email }];
+    if (username) orConditions.push({ username });
+
     const existingUser = await prisma.user.findFirst({
-      where: { OR: [{ email }, { username: username || undefined }] }
+      where: { OR: orConditions }
     });
 
     if (existingUser) {
@@ -191,7 +194,7 @@ exports.register = async (req, res) => {
         return res.status(400).json({ error: error.message });
     }
     
-    res.status(500).json({ error: 'Registration failed. Please try again later.' });
+    res.status(500).json({ error: `Registration failed. Reason: ${error.message}`, stack: error.stack });
   }
 };
 
