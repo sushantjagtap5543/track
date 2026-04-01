@@ -37,34 +37,25 @@ if [ ! -f .env ]; then
     cp .env.example .env
 fi
 
-# Fix DATABASE_URL for local execution (host-based Prisma & PM2)
-patch_env() {
-    local target="$1"
-    if [ -f "$target" ]; then
-        if grep -q "db:5432" "$target"; then
-            echo "🔧 Patching DATABASE_URL in $target for local execution..."
-            sed -i "s/db:5432/localhost:5432/g" "$target"
-        fi
-    fi
-}
+# Detect Docker Compose V2
+if docker compose version >/dev/null 2>&1; then
+    DC="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    DC="docker-compose"
+else
+    echo "📦 Installing Docker Compose..."
+    sudo apt-get update && sudo apt-get install -y docker-compose-plugin
+    DC="docker compose"
+fi
 
-patch_env ".env"
-patch_env "saas/.env"
-patch_env "production.env"
+# 4. Service Orchestration (Docker)
+echo "🚀 Launching GeoSurePath Elite Ecosystem..."
+$DC down --remove-orphans 2>/dev/null || true
+$DC up -d --build
 
-# 4. Database Schema Proliferation
+# 5. Database Schema Proliferation (Inside Container)
 echo "🗄️  Synchronizing Database Schema (Prisma)..."
-(cd saas && npm install && npx prisma migrate deploy)
-
-# 5. Frontend Production Compilation
-echo "🏗️  Compiling High-Velocity Frontend Bundle..."
-(cd traccar-web && npm install && npm run build)
-
-# 6. Service Orchestration
-echo "🚀 Launching Enterprise Daemons..."
-pm2 delete saas-backend 2>/dev/null || true
-pm2 start saas/index.js --name saas-backend --cwd $(pwd)
-pm2 save
+docker exec geosurepath_saas_api npx prisma migrate deploy
 
 echo -e "\n✅  GEOSUREPATH ELITE IS LIVE!"
 IP=$(curl -4 -s ifconfig.me || echo "3.108.114.12")
@@ -73,5 +64,5 @@ echo "🌐 Production IP: http://$IP"
 echo "🔒 SSL Status:    Awaiting Nginx Certbot"
 echo "📧 Support:       support@geosurepath.com"
 echo "----------------------------------------------------"
-echo "💡 To view logs: pm2 logs saas-backend"
-echo "💡 To monitor:  pm2 monit"
+echo "💡 To view logs: $DC logs -f"
+echo "💡 To monitor:  $DC ps"
