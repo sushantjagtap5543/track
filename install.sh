@@ -8,6 +8,13 @@ set -e
 
 echo "🛰️  Initializing GeoSurePath Elite Command Center..."
 
+# 0. Clean Orchestration (Optional)
+if [ "$1" == "clean" ]; then
+    echo "🧹 Cleaning GeoSurePath Ecosystem (Removing Volumes & Orphans)..."
+    docker compose down -v --remove-orphans 2>/dev/null || docker-compose down -v --remove-orphans 2>/dev/null || true
+    echo "✅ Cleaned."
+fi
+
 # 1. Infrastructure Hardening: Swap Allocation (Critical for Builds)
 if [ ! -f /swapfile_geo ]; then
     echo "💾 Allocating 2GB Enterprise Swap for Build Resilience..."
