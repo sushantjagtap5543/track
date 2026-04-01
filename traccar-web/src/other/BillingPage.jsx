@@ -314,7 +314,6 @@ const BillingPage = () => {
 
   // ── Dialog State ──
   const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [ledgerMeta, setLedgerMeta] = useState({ page: 1, totalPages: 1 });
   const [editingUser, setEditingUser] = useState(null);
   const [mirroringUser, setMirroringUser] = useState(null);
   const [editForm, setEditForm] = useState({ planId: '', status: '', expiresAt: '', isActive: true, hardlockBypass: false });
@@ -450,17 +449,6 @@ const BillingPage = () => {
   }, [fetchBill, fetchAdminData, admin, searchQuery, statusFilter, ledgerPage]); 
 
   // ── Admin Actions ──
-  const handleImpersonate = async (userId) => {
-    const res = await API('/api/admin/impersonate', { method: 'POST', body: JSON.stringify({ userId }) });
-    const data = await res.json();
-    if (res.ok) {
-      localStorage.setItem('saas_token', data.accessToken);
-      localStorage.setItem('saas_user', JSON.stringify(data.user));
-      localStorage.setItem('saas_role', data.user.role);
-      showFeedback(`Viewing as ${data.user.email}`, 'info');
-      setTimeout(() => window.location.href = '/', 1200);
-    } else showFeedback(data.error || 'Failed', 'error');
-  };
 
   const handleToggleStatus = async (u) => {
     const res = await API('/api/admin/client-status', { method: 'POST', body: JSON.stringify({ clientId: u.id, isActive: !u.isActive }) });
@@ -996,7 +984,8 @@ const BillingPage = () => {
                               </TableCell>
                             </TableRow>
                           );
-                        })}
+                        })
+                        )}
                         {filteredLedger.length === 0 && (
                           <TableRow><TableCell colSpan={8} sx={{ textAlign: 'center', py: 5, opacity: 0.4 }}>No clients found</TableCell></TableRow>
                         )}
@@ -1688,6 +1677,7 @@ const BillingPage = () => {
           </>
         )}
       </Box>
+    )}
 
       {/* ─── Dialogs ─── */}
       {/* Edit User Dialog */}
