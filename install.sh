@@ -37,18 +37,24 @@ if [ ! -f .env ]; then
     cp .env.example .env
 fi
 
+# Fix DATABASE_URL for local execution (if it uses 'db' hostname from docker)
+if grep -q "db:5432" .env; then
+    echo "🔧 Patching DATABASE_URL for local host execution..."
+    sed -i "s/db:5432/localhost:5432/g" .env
+fi
+
 # 4. Database Schema Proliferation
 echo "🗄️  Synchronizing Database Schema (Prisma)..."
-cd saas && npm install && npx prisma migrate deploy && cd ..
+(cd saas && npm install && npx prisma migrate deploy)
 
 # 5. Frontend Production Compilation
 echo "🏗️  Compiling High-Velocity Frontend Bundle..."
-cd traccar-web && npm install && npm run build && cd ..
+(cd traccar-web && npm install && npm run build)
 
 # 6. Service Orchestration
 echo "🚀 Launching Enterprise Daemons..."
 pm2 delete saas-backend 2>/dev/null || true
-pm2 start saas/index.js --name saas-backend
+pm2 start saas/index.js --name saas-backend --cwd $(pwd)
 pm2 save
 
 echo -e "\n✅  GEOSUREPATH ELITE IS LIVE!"
