@@ -494,8 +494,9 @@ const UserPage = () => {
               </Box>
             </AccordionDetails>
           </Accordion>
+            </AccordionDetails>
+          </Accordion>
           <EditAttributesAccordion
-            attribute={attribute}
             attributes={item.attributes}
             setAttributes={(attributes) => setItem({ ...item, attributes })}
             definitions={{ ...commonUserAttributes, ...userAttributes }}
@@ -528,8 +529,6 @@ const UserPage = () => {
               </AccordionDetails>
             </Accordion>
           )}
-        </>
-      )}
       <Dialog open={revokeDialogOpen} onClose={closeRevokeDialog} fullWidth maxWidth="xs">
         <DialogContent className={classes.details}>
           <TextField
