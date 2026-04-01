@@ -37,11 +37,20 @@ if [ ! -f .env ]; then
     cp .env.example .env
 fi
 
-# Fix DATABASE_URL for local execution (if it uses 'db' hostname from docker)
-if grep -q "db:5432" .env; then
-    echo "🔧 Patching DATABASE_URL for local host execution..."
-    sed -i "s/db:5432/localhost:5432/g" .env
-fi
+# Fix DATABASE_URL for local execution (host-based Prisma & PM2)
+patch_env() {
+    local target="$1"
+    if [ -f "$target" ]; then
+        if grep -q "db:5432" "$target"; then
+            echo "🔧 Patching DATABASE_URL in $target for local execution..."
+            sed -i "s/db:5432/localhost:5432/g" "$target"
+        fi
+    fi
+}
+
+patch_env ".env"
+patch_env "saas/.env"
+patch_env "production.env"
 
 # 4. Database Schema Proliferation
 echo "🗄️  Synchronizing Database Schema (Prisma)..."
