@@ -48,7 +48,7 @@ cd traccar-web && npm install && npm run build && cd ..
 # 6. Service Orchestration
 echo "🚀 Launching Enterprise Daemons..."
 pm2 delete saas-backend 2>/dev/null || true
-pm2 start saas/src/index.js --name saas-backend
+pm2 start saas/index.js --name saas-backend
 pm2 save
 
 echo -e "\n✅  GEOSUREPATH ELITE IS LIVE!"
