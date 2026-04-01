@@ -94,6 +94,7 @@ const App = () => {
                 if (saasData.isHardlocked) {
                     navigate('/login', { replace: true, state: { hardlocked: true, reason: 'Subscription Expired' } });
                     return null;
+                }
   
                 // ✅ FIX: Instead of looping on window.location.reload() when Traccar API fails 
                 // but SaaS API succeeds, we force a clean session clear so they can login freshly.
