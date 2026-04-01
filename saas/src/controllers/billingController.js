@@ -586,6 +586,7 @@ const settleCash = async (req, res) => {
       }
     });
 
+    refreshCache(); // ✅ FIX: Invalidate plan/settings cache after a cash settlement
     res.json({ message: 'Manual payment processed. User re-activated.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1021,6 +1022,383 @@ const getAllPayments = async (req, res) => {
   }
 };
 
+/**
+ * ✅ NEW: Paginated payment list with filters (replaces the raw 100-row dump).
+ * Query params: page, limit, status, userId, dateFrom, dateTo
+ */
+const getAllPaymentsAdmin = async (req, res) => {
+  const { page = 1, limit = 20, status, userId, dateFrom, dateTo } = req.query;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const take = parseInt(limit);
+
+  try {
+    const where = {};
+    if (status) where.status = status;
+    if (userId) where.userId = userId;
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+      if (dateTo) where.createdAt.lte = new Date(dateTo);
+    }
+
+    const [payments, total] = await Promise.all([
+      prisma.payment.findMany({
+        where,
+        skip,
+        take,
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.payment.count({ where })
+    ]);
+
+    res.json({
+      data: payments,
+      meta: { total, page: parseInt(page), limit: take, totalPages: Math.ceil(total / take) }
+    });
+  } catch (err) {
+    console.error('[getAllPaymentsAdmin]', err);
+    res.status(500).json({ error: 'Failed to fetch payment records.' });
+  }
+};
+
+/**
+ * ✅ NEW: Paginated payment history for a specific user.
+ */
+const getPaymentsByUser = async (req, res) => {
+  const { userId } = req.params;
+  const { page = 1, limit = 20 } = req.query;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const take = parseInt(limit);
+
+  try {
+    if (!userId) return res.status(400).json({ error: 'userId is required.' });
+
+    const [payments, total] = await Promise.all([
+      prisma.payment.findMany({
+        where: { userId },
+        skip,
+        take,
+        include: {
+          user: { select: { name: true, email: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.payment.count({ where: { userId } })
+    ]);
+
+    res.json({
+      data: payments,
+      meta: { total, page: parseInt(page), limit: take, totalPages: Math.ceil(total / take) }
+    });
+  } catch (err) {
+    console.error('[getPaymentsByUser]', err);
+    res.status(500).json({ error: 'Failed to fetch user payment history.' });
+  }
+};
+
+/**
+ * ✅ NEW: Admin refund endpoint.
+ * Body: { paymentId, refundAmount, refundNote }
+ */
+const refundPayment = async (req, res) => {
+  const { paymentId, refundAmount, refundNote } = req.body;
+
+  if (!paymentId) return res.status(400).json({ error: 'paymentId is required.' });
+
+  try {
+    const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+    if (!payment) return res.status(404).json({ error: 'Payment not found.' });
+    if (payment.status === 'REFUNDED') return res.status(400).json({ error: 'Payment already refunded.' });
+    if (!['CAPTURED'].includes(payment.status)) {
+      return res.status(400).json({ error: `Cannot refund a payment with status: ${payment.status}` });
+    }
+
+    const amount = parseFloat(refundAmount) || payment.amount;
+    if (amount > payment.amount) {
+      return res.status(400).json({ error: 'Refund amount cannot exceed original payment amount.' });
+    }
+
+    const updated = await prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: 'REFUNDED',
+        refundedAt: new Date(),
+        refundAmount: amount,
+        refundNote: refundNote || null
+      }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        adminId: req.user?.userId,
+        userId: payment.userId,
+        action: 'PAYMENT_REFUNDED',
+        details: `Refunded ₹${amount} for payment ${paymentId}. Note: ${refundNote || 'None'}`,
+        ipAddress: req.ip
+      }
+    });
+
+    res.json({ message: 'Payment refunded successfully.', payment: updated });
+  } catch (err) {
+    console.error('[refundPayment]', err);
+    res.status(500).json({ error: 'Failed to process refund.' });
+  }
+};
+
+/**
+ * ✅ NEW: Revenue report — breakdown by plan, billing cycle, and month.
+ * Query params: dateFrom, dateTo
+ */
+const getRevenueReport = async (req, res) => {
+  const { dateFrom, dateTo } = req.query;
+
+  try {
+    const where = { status: 'CAPTURED' };
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+      if (dateTo) where.createdAt.lte = new Date(dateTo);
+    }
+
+    // Total collected
+    const totalAgg = await prisma.payment.aggregate({
+      _sum: { amount: true },
+      _count: { id: true },
+      where
+    });
+
+    // Breakdown by plan
+    const subscriptions = await prisma.subscription.findMany({
+      where: {
+        status: 'ACTIVE',
+        ...(dateFrom || dateTo ? {
+          createdAt: {
+            ...(dateFrom && { gte: new Date(dateFrom) }),
+            ...(dateTo && { lte: new Date(dateTo) })
+          }
+        } : {})
+      },
+      include: { plan: { select: { name: true, billingCycle: true, pricePerDevice: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const planBreakdown = {};
+    for (const sub of subscriptions) {
+      const key = sub.planId || 'UNKNOWN';
+      if (!planBreakdown[key]) {
+        planBreakdown[key] = {
+          planId: key,
+          planName: sub.plan?.name || 'Unknown Plan',
+          billingCycle: sub.plan?.billingCycle || 'MONTHLY',
+          pricePerDevice: sub.plan?.pricePerDevice || 0,
+          count: 0,
+          totalRevenue: 0
+        };
+      }
+      planBreakdown[key].count++;
+      planBreakdown[key].totalRevenue += sub.price;
+    }
+
+    // Monthly payment totals (last 12 months)
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+    const recentPayments = await prisma.payment.findMany({
+      where: { status: 'CAPTURED', createdAt: { gte: twelveMonthsAgo } },
+      orderBy: { createdAt: 'asc' },
+      select: { amount: true, createdAt: true }
+    });
+
+    const monthlyMap = {};
+    for (const p of recentPayments) {
+      const key = p.createdAt.toISOString().slice(0, 7); // YYYY-MM
+      if (!monthlyMap[key]) monthlyMap[key] = { month: key, revenue: 0, count: 0 };
+      monthlyMap[key].revenue += p.amount;
+      monthlyMap[key].count++;
+    }
+
+    res.json({
+      totalCollected: totalAgg._sum.amount || 0,
+      totalTransactions: totalAgg._count.id || 0,
+      planBreakdown: Object.values(planBreakdown),
+      monthlyBreakdown: Object.values(monthlyMap)
+    });
+  } catch (err) {
+    console.error('[getRevenueReport]', err);
+    res.status(500).json({ error: 'Failed to generate revenue report.' });
+  }
+};
+
+/**
+ * ✅ NEW: Bulk cash settlement.
+ * Body: { settlements: [{ targetUserId, planId, amount, notes? }] }
+ */
+const bulkSettleCash = async (req, res) => {
+  const { settlements } = req.body;
+
+  if (!Array.isArray(settlements) || settlements.length === 0) {
+    return res.status(400).json({ error: 'settlements must be a non-empty array.' });
+  }
+
+  const results = [];
+  const plans = await getPlans();
+
+  for (const entry of settlements) {
+    const { targetUserId, planId, amount, notes } = entry;
+    try {
+      if (!targetUserId || !planId || !amount) {
+        results.push({ targetUserId, status: 'error', error: 'Missing required fields: targetUserId, planId, amount' });
+        continue;
+      }
+
+      const plan = plans.find(p => p.id === planId);
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + (plan?.days || 30) * 24 * 60 * 60 * 1000);
+
+      const user = await prisma.user.findUnique({
+        where: { id: targetUserId },
+        include: { vehicles: { where: { deletedAt: null } } }
+      });
+      if (!user) {
+        results.push({ targetUserId, status: 'error', error: 'User not found.' });
+        continue;
+      }
+
+      const amountNum = parseFloat(amount);
+      const payment = await prisma.payment.create({
+        data: {
+          userId: targetUserId,
+          amount: amountNum,
+          status: 'CAPTURED',
+          paymentMethod: 'CASH',
+          notes: notes || null,
+          transactionId: `CASH_BULK_${Date.now()}_${targetUserId.slice(0, 6)}`
+        }
+      });
+
+      const invoiceId = generateInvoiceNumber();
+      const subscription = await prisma.subscription.create({
+        data: {
+          userId: targetUserId,
+          planId,
+          price: amountNum,
+          status: 'ACTIVE',
+          deviceCount: user.vehicles.length,
+          expiresAt,
+          invoiceId
+        }
+      });
+
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { subscriptionId: subscription.id }
+      });
+
+      await prisma.user.update({ where: { id: targetUserId }, data: { isActive: true } });
+      await prisma.vehicle.updateMany({
+        where: { userId: targetUserId, deletedAt: null },
+        data: { registrationDate: now }
+      });
+
+      if (user.geosurepathUserId) {
+        geosurepathService.updateUser(user.geosurepathUserId, { disabled: false })
+          .catch(e => console.error(`[BulkSettle] Sync failed for ${user.email}:`, e.message));
+      }
+
+      results.push({ targetUserId, status: 'success', invoiceId, expiresAt });
+    } catch (err) {
+      results.push({ targetUserId, status: 'error', error: err.message });
+    }
+  }
+
+  refreshCache();
+
+  await prisma.auditLog.create({
+    data: {
+      adminId: req.user?.userId,
+      action: 'BULK_SETTLE_CASH',
+      details: `Bulk settled ${results.filter(r => r.status === 'success').length}/${settlements.length} accounts.`,
+      ipAddress: req.ip
+    }
+  });
+
+  res.json({
+    message: `Bulk settlement complete. ${results.filter(r => r.status === 'success').length} succeeded, ${results.filter(r => r.status === 'error').length} failed.`,
+    results
+  });
+};
+
+/**
+ * ✅ NEW: Combined dashboard overview — one call for admin dashboard.
+ * Returns: system health, summary stats, expiry alerts, recent payments, MRR.
+ */
+const getDashboardOverview = async (req, res) => {
+  try {
+    const now = new Date();
+    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const [
+      totalUsers,
+      activeUsers,
+      totalDevices,
+      overdueCount,
+      nearlyExpiredCount,
+      revenueThisMonth,
+      recentPayments
+    ] = await Promise.all([
+      prisma.user.count({ where: { deletedAt: null } }),
+      prisma.user.count({ where: { deletedAt: null, isActive: true } }),
+      prisma.vehicle.count({ where: { deletedAt: null } }),
+      // ✅ FIX: Use status field, not isActive (doesn't exist on Subscription)
+      prisma.subscription.count({
+        where: { status: { not: 'ACTIVE' }, expiresAt: { lt: now } }
+      }),
+      prisma.subscription.count({
+        where: { status: 'ACTIVE', expiresAt: { gte: now, lte: threeDaysFromNow } }
+      }),
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: { status: 'CAPTURED', createdAt: { gte: thirtyDaysAgo } }
+      }),
+      prisma.payment.findMany({
+        where: { status: 'CAPTURED' },
+        include: { user: { select: { name: true, email: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 10
+      })
+    ]);
+
+    let dbStatus = 'Connected';
+    try { await prisma.$queryRaw`SELECT 1`; } catch { dbStatus = 'Disconnected'; }
+
+    const os = require('os');
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+
+    res.json({
+      system: {
+        db: dbStatus,
+        cpu: os.loadavg(),
+        memoryUsedPct: (((totalMem - freeMem) / totalMem) * 100).toFixed(1),
+        uptime: os.uptime()
+      },
+      users: { total: totalUsers, active: activeUsers, inactive: totalUsers - activeUsers },
+      devices: { total: totalDevices },
+      billing: {
+        overdueAccounts: overdueCount,
+        nearlyExpiredAccounts: nearlyExpiredCount,
+        revenueThisMonth: revenueThisMonth._sum.amount || 0,
+        recentPayments
+      }
+    });
+  } catch (err) {
+    console.error('[getDashboardOverview]', err);
+    res.status(500).json({ error: 'Failed to load dashboard overview.' });
+  }
+};
+
 module.exports = {
   getMyBill,
   adminUpdateRegistration,
@@ -1035,5 +1413,15 @@ module.exports = {
   createOrder,
   handleWebhook,
   verifyPayment,
-  getAllPayments
+  getAllPayments,
+  // ✅ FIX: Export missing functions used by adminController
+  calculateBillForAnyUser,
+  syncUserDevices,
+  // ✅ NEW: Admin billing endpoints
+  getAllPaymentsAdmin,
+  getPaymentsByUser,
+  refundPayment,
+  getRevenueReport,
+  bulkSettleCash,
+  getDashboardOverview
 };

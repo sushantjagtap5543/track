@@ -60,47 +60,54 @@ const App = () => {
           const user = await response.json();
           dispatch(sessionActions.updateUser(user));
         } else {
-          // Fallback: If session check fails (404, 500, etc), try SaaS sync or show login
-          const saasSync = await fetch('/api/auth/sync').catch(() => ({ ok: false }));
-          if (saasSync.ok && saasSync.headers.get('content-type')?.includes('application/json')) {
-            const saasData = await saasSync.json();
-            if (saasData.token) {
-              window.localStorage.setItem('saas_token', saasData.token);
-              window.localStorage.setItem('saas_user', JSON.stringify(saasData.user));
-              window.localStorage.setItem('saas_role', saasData.user.role);
-              window.location.reload();
-              return null;
+          // Fallback: Check SaaS synchronization state
+          try {
+            const saasSync = await fetch('/api/auth/sync');
+            if (saasSync.ok && saasSync.headers.get('content-type')?.includes('application/json')) {
+              const saasData = await saasSync.json();
+              if (saasData.token) {
+                window.localStorage.setItem('saas_token', saasData.token);
+                window.localStorage.setItem('saas_user', JSON.stringify(saasData.user));
+                window.localStorage.setItem('saas_role', saasData.user.role);
+                
+                if (saasData.isHardlocked) {
+                    navigate('/login', { replace: true, state: { hardlocked: true, reason: 'Subscription Expired' } });
+                    return null;
+                }
+  
+                window.location.reload();
+                return null;
+              }
             }
+          } catch (syncErr) {
+            console.error('[Sync] SaaS Authentication Synchronization Failed:', syncErr);
           }
           window.sessionStorage.setItem('postLogin', pathname + search);
-          // ✅ FIX: Only redirect to register if it's truly a fresh server AND no SaaS token exist
-          const hasSaasToken = !!window.localStorage.getItem('saas_token');
-          if (newServer && !hasSaasToken) {
-            navigate('/register', { replace: true });
-          } else {
-            navigate('/login', { replace: true });
-          }
+          navigate('/login', { replace: true });
         }
       } catch (err) {
-        // Network error or crash - redirect to login
         navigate('/login', { replace: true });
       }
     } else {
-      // ✅ NEW: If user exists in Traccar, but saas_token is missing, try a background sync
-      const token = window.localStorage.getItem('saas_token');
-      if (!token) {
-        fetch('/api/auth/sync').then(res => res.json()).then(data => {
-            if (data.token) {
-                window.localStorage.setItem('saas_token', data.token);
-                window.localStorage.setItem('saas_user', JSON.stringify(data.user));
-                window.localStorage.setItem('saas_role', data.user.role);
-                console.log('[App] SaaS session synchronized in background');
-            }
-        }).catch(() => {});
-      }
+      // Periodic hardlock check for active sessions
+      const checkHardlock = async () => {
+          const res = await fetch('/api/auth/sync').catch(() => ({ ok: false }));
+          if (res.ok) {
+              const data = await res.json();
+              if (data.isHardlocked) {
+                  dispatch(sessionActions.updateUser(null));
+                  localStorage.removeItem('saas_token');
+                  navigate('/login', { replace: true, state: { hardlocked: true } });
+              }
+          }
+      };
+      
+      const interval = setInterval(checkHardlock, 60000); // Check every minute
+      checkHardlock(); 
+      return () => clearInterval(interval);
     }
     return null;
-  }, [user]);
+  }, [user, navigate, dispatch]);
 
   if (user == null) {
     return <Loader />;

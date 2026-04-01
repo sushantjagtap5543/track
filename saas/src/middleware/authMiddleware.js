@@ -54,7 +54,7 @@ const authenticateToken = async (req, res, next) => {
           include: { plan: true }
         });
 
-        const redisConnection = require('../lib/redis');
+        const redisConn = require('../lib/redis');
         const now = new Date();
         let effectiveExpiry = latestSub?.expiresAt ? new Date(latestSub.expiresAt) : new Date(user.registrationDate);
         if (user.graceExtensionUntil && new Date(user.graceExtensionUntil) > effectiveExpiry) {
@@ -112,7 +112,21 @@ const requireRole = (role) => {
   };
 };
 
+/**
+ * ✅ NEW: requireAnyRole — Allow multiple roles to access a route.
+ * Usage: requireAnyRole('ADMIN', 'MANAGER')
+ */
+const requireAnyRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: `Requires one of: ${roles.join(', ')}` });
+    }
+    next();
+  };
+};
+
 module.exports = {
   authenticateToken,
-  requireRole
+  requireRole,
+  requireAnyRole
 };

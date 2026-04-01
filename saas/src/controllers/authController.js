@@ -17,6 +17,43 @@ if (!JWT_SECRET) {
 const JWT_EXPIRATION = '15m'; // Short-lived access token
 const REFRESH_TOKEN_EXPIRATION = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+/**
+ * ✅ SHARED HELPER: Calculates hardlock status to avoid code triplication
+ * across login, verifyMFA, and authMiddleware.
+ * @param {object} user - User record from DB
+ * @param {object|null} latestSub - Latest subscription record (with plan included)
+ * @returns {{ isHardlocked: boolean, gracePeriod: number, gracePeriodEnd: Date }}
+ */
+const calculateHardlock = (user, latestSub) => {
+  const now = new Date();
+  let effectiveExpiry = latestSub?.expiresAt ? new Date(latestSub.expiresAt) : new Date(user.registrationDate || user.createdAt);
+  if (user.graceExtensionUntil && new Date(user.graceExtensionUntil) > effectiveExpiry) {
+    effectiveExpiry = new Date(user.graceExtensionUntil);
+  }
+
+  let planDays = 30;
+  if (latestSub?.plan) {
+    planDays = latestSub.plan.billingCycle === 'MONTHLY' ? 30 : 365;
+    if (latestSub.planId?.toLowerCase().includes('half') || latestSub.plan.name?.toLowerCase().includes('6 month')) {
+      planDays = 180;
+    }
+  }
+
+  let gracePeriod = 7;
+  if (planDays <= 31) gracePeriod = 3;
+  else if (planDays <= 186) gracePeriod = 5;
+
+  const gracePeriodEnd = new Date(effectiveExpiry);
+  gracePeriodEnd.setDate(gracePeriodEnd.getDate() + gracePeriod);
+
+  const isBypassed = user.hardlockBypass || false;
+  const isHardlocked = now > gracePeriodEnd && !isBypassed;
+
+  return { isHardlocked, gracePeriod, gracePeriodEnd };
+};
+
+exports.calculateHardlock = calculateHardlock;
+
 // Helper: Generate Tokens
 const generateTokens = async (userId, role, geosurepathUserId, uaHash = null) => {
   const accessToken = jwt.sign(
@@ -272,10 +309,11 @@ exports.login = async (req, res) => {
         ipAddress: req.ip
     });
 
+    // ✅ FIX: Check isActive BEFORE issuing tokens to prevent token leak to suspended users
     if (!user.isActive) return res.status(403).json({ error: 'Account is suspended.' });
-    
+
     let isHardlocked = false;
-    // ✅ HARDLOCK CHECK: Identify if subscription is OVERDUE
+    // ✅ HARDLOCK CHECK: Use shared helper
     if (user.role === 'CLIENT') {
       const latestSub = await prisma.subscription.findFirst({
         where: { userId: user.id },
@@ -283,40 +321,17 @@ exports.login = async (req, res) => {
         include: { plan: true }
       });
 
-      const now = new Date();
-      let effectiveExpiry = latestSub?.expiresAt ? new Date(latestSub.expiresAt) : new Date(user.registrationDate);
-      if (user.graceExtensionUntil && new Date(user.graceExtensionUntil) > effectiveExpiry) {
-        effectiveExpiry = new Date(user.graceExtensionUntil);
-      }
-
-      // Dynamic Grace Period (3/5/7 days)
-      let planDays = 30; // Default
-      if (latestSub?.plan) {
-        planDays = latestSub.plan.billingCycle === 'MONTHLY' ? 30 : 365;
-        if (latestSub.planId?.toLowerCase().includes('half') || latestSub.plan.name?.toLowerCase().includes('6 month')) {
-          planDays = 180;
-        }
-      }
-
-      let gracePeriod = 7;
-      if (planDays <= 31) gracePeriod = 3;
-      else if (planDays <= 186) gracePeriod = 5;
-      else gracePeriod = 7;
-
-      const gracePeriodEnd = new Date(effectiveExpiry);
-      gracePeriodEnd.setDate(gracePeriodEnd.getDate() + gracePeriod);
-
-      const isBypassed = user.hardlockBypass || false;
-      isHardlocked = now > gracePeriodEnd && !isBypassed;
+      const hardlock = calculateHardlock(user, latestSub);
+      isHardlocked = hardlock.isHardlocked;
 
       if (isHardlocked) {
         // ✅ SECURE REVOKE: Kill all other active sessions to prevent bypass
         await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
-        
+
         logAction({
           userId: user.id,
           action: AUDIT_ACTIONS.HARDLOCK_BLOCK,
-          details: { email: user.email, reason: `Subscription Overdue (Hardlock - Grace: ${gracePeriod} days)`, lastExpiry: effectiveExpiry },
+          details: { email: user.email, reason: `Subscription Overdue (Hardlock - Grace: ${hardlock.gracePeriod} days)`, lastExpiry: hardlock.gracePeriodEnd },
           ipAddress: req.ip
         });
       }
@@ -396,7 +411,7 @@ exports.login = async (req, res) => {
     res.json({
       message: 'Login successful',
       accessToken, // ✅ FIX: Return token for localStorage persistence
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, username: user.username || null },
       isHardlocked
     });
   } catch (error) {
@@ -507,10 +522,10 @@ exports.resetPassword = async (req, res) => {
       data: { password: hashedPassword, resetToken: null, resetTokenExpires: null }
     });
 
-    // ✅ FIX: Sync password change to GeoSurePath
+    // ✅ FIX: Sync password change to GeoSurePath using correct geosurepathUserId
     try {
       if (user.geosurepathUserId) {
-        await geosurepathService.updateUser(user.id, { password: newPassword });
+        await geosurepathService.updateUser(user.geosurepathUserId, { password: newPassword });
         console.log(`[ResetPassword] Synchronized password for GeoSurePath user ${user.geosurepathUserId}`);
       }
     } catch (gsErr) {
@@ -706,33 +721,9 @@ exports.verifyMFA = async (req, res) => {
             orderBy: { createdAt: 'desc' },
             include: { plan: true }
           });
-
-          const now = new Date();
-          let effectiveExpiry = latestSub?.expiresAt ? new Date(latestSub.expiresAt) : new Date(user.registrationDate);
-          if (user.graceExtensionUntil && new Date(user.graceExtensionUntil) > effectiveExpiry) {
-            effectiveExpiry = new Date(user.graceExtensionUntil);
-          }
-
-          // Dynamic Grace Period
-          let planDays = 30;
-          if (latestSub?.plan) {
-            planDays = latestSub.plan.billingCycle === 'MONTHLY' ? 30 : 365;
-            if (latestSub.planId?.toLowerCase().includes('half') || latestSub.plan.name?.toLowerCase().includes('6 month')) {
-              planDays = 180;
-            }
-          }
-
-          let gracePeriod = 7;
-          if (planDays <= 31) gracePeriod = 3;
-          else if (planDays <= 186) gracePeriod = 5;
-          else gracePeriod = 7;
-
-          const gracePeriodEnd = new Date(effectiveExpiry);
-          gracePeriodEnd.setDate(gracePeriodEnd.getDate() + gracePeriod);
-
-          if (now > gracePeriodEnd) {
-            isHardlocked = true;
-          }
+          // ✅ FIX: Use shared helper instead of duplicated logic
+          const hardlock = calculateHardlock(user, latestSub);
+          isHardlocked = hardlock.isHardlocked;
         }
 
         const uaHash = crypto.createHash('md5').update(req.headers['user-agent'] || '').digest('hex');

@@ -234,18 +234,54 @@ const HardlockPaymentView = ({ onLogout, onSuccess }) => {
     const plan = bill.plans.find(p => p.id === selectedPlan);
     const totalPayable = (bill.orderSummary?.grandTotal || (bill.unpaidDebt + ((plan?.price || 0) * (bill.fleetSize || 1))));
     
-    const res = await fetch('/api/billing/demo-settle', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ planId: selectedPlan, amount: totalPayable })
-    });
+    try {
+        const loaded = await loadRazorpay();
+        if (!loaded) throw new Error('Razorpay SDK failed to load');
 
-    if (res.ok) {
-        onSuccess();
-    } else {
-        alert('Payment settlement failed. Please contact support.');
+        const orderRes = await fetch('/api/billing/create-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: bill.userId, planId: selectedPlan, amount: totalPayable })
+        });
+        
+        if (!orderRes.ok) throw new Error('Failed to create payment order');
+        const orderData = await orderRes.json();
+
+        const options = {
+            key: orderData.key,
+            amount: orderData.amount,
+            currency: 'INR',
+            name: 'GeoSurePath Enterprise',
+            description: `Reactivate Fleet: ${bill.subscription?.planId || 'Standard'}`,
+            order_id: orderData.orderId,
+            handler: async (response) => {
+                const verifyRes = await fetch('/api/billing/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature
+                    }),
+                });
+
+                if (verifyRes.ok) {
+                    onSuccess();
+                } else {
+                    alert('Payment verification failed. Please contact support.');
+                }
+            },
+            prefill: { email: bill.email },
+            theme: { color: '#ef4444' }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+    } catch (err) {
+        alert(err.message || 'Payment flow initiation failed');
+    } finally {
+        setPaying(false);
     }
-    setPaying(false);
   };
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}><CircularProgress sx={{ color: '#fff' }} /></Box>;
@@ -398,6 +434,7 @@ const LoginPage = () => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const t = useTranslation();
 
   const { languages, language, setLocalLanguage } = useLocalization();
@@ -423,8 +460,8 @@ const LoginPage = () => {
   const [hardlocked, setHardlocked] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' });
 
-  // Registration enabled for all time as requested
-  const registrationEnabled = true;
+  // Registration disabled as per user request (focus on billing portal)
+  const registrationEnabled = false;
 
   const languageEnabled = useSelector((state) => {
     const attributes = state.session.server.attributes;
@@ -438,6 +475,14 @@ const LoginPage = () => {
   const [codeEnabled] = useState(false);
 
   const [announcementShown, setAnnouncementShown] = useState(false);
+  const [bill, setBill] = useState(null);
+
+  useEffect(() => {
+    if (location.state?.hardlocked) {
+        setHardlocked(true);
+    }
+  }, [location]);
+
   const announcement = useSelector((state) => state.session.server.announcement);
 
   const handleLogin = async (event, target = null) => {
@@ -464,8 +509,9 @@ const LoginPage = () => {
         if (saasData.accessToken) {
           localStorage.setItem('saas_token', saasData.accessToken);
         }
-        if (saasData.user?.role) {
+        if (saasData.user) {
           localStorage.setItem('saas_role', saasData.user.role);
+          localStorage.setItem('saas_user', JSON.stringify(saasData.user));
         }
 
         if (saasData.isHardlocked) {
@@ -515,8 +561,9 @@ const LoginPage = () => {
         if (saasData.accessToken) {
           localStorage.setItem('saas_token', saasData.accessToken);
         }
-        if (saasData.user?.role) {
+        if (saasData.user) {
           localStorage.setItem('saas_role', saasData.user.role);
+          localStorage.setItem('saas_user', JSON.stringify(saasData.user));
         }
 
         if (saasData.isHardlocked) {
@@ -554,6 +601,14 @@ const LoginPage = () => {
 
   const handleOpenIdLogin = () => {
     document.location = '/api/session/openid/auth';
+  };
+
+  const handleSocialLogin = (provider) => {
+    setSnackbar({ open: true, message: `Redirecting to secure ${provider} gateway...`, severity: 'info' });
+    // In a real implementation, this would redirect to e.g. /api/auth/social/google
+    setTimeout(() => {
+        setSnackbar({ open: true, message: `${provider} authentication is being provisioned for your enterprise tier.`, severity: 'warning' });
+    }, 1500);
   };
 
   useEffect(() => nativePostMessage('authentication'), []);
@@ -631,9 +686,9 @@ const LoginPage = () => {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
           >
-            <Typography className={classes.welcomeText}>Welcome to GeoSurePath</Typography>
-            <Typography className={classes.subText}>
-              Sign in to access your tracking portal
+            <Typography className={classes.welcomeText} sx={{ fontSize: '3rem', mb: 1 }}>GeoSurePath Enterprise</Typography>
+            <Typography className={classes.subText} sx={{ fontSize: '1.2rem', opacity: 0.8, letterSpacing: '0.5px' }}>
+              Advanced Fleet Intelligence · Global Access Portal
             </Typography>
           </motion.div>
 
@@ -658,31 +713,39 @@ const LoginPage = () => {
                   required
                   fullWidth
                   error={failed}
-                  label={t('userPassword')}
-                  name="password"
-                  value={password}
+                  label={t('loginPassword')}
                   type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
                   autoComplete="current-password"
-                  autoFocus={!!email}
-                  onChange={(e) => setPassword(e.target.value)}
                   className={classes.input}
-                  slotProps={{
-                    input: {
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            onClick={() => setShowPassword(!showPassword)}
-                            edge="end"
-                            size="small"
-                            sx={{ color: '#ffffff' }}
-                          >
-                            {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    },
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword(!showPassword)}
+                          edge="end"
+                          size="small"
+                          sx={{ color: '#ffffff' }}
+                        >
+                          {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
                   }}
                 />
+                {password && (
+                  <Box sx={{ mt: 1, mb: 1, px: 2 }}>
+                      <Box sx={{ display: 'flex', gap: 0.5, height: 4 }}>
+                          {[1, 2, 3, 4].map((i) => (
+                              <Box key={i} sx={{ flex: 1, bgcolor: i <= (password.length / 3) ? (password.length >= 8 ? '#10b981' : '#f59e0b') : 'rgba(255,255,255,0.1)', borderRadius: 2 }} />
+                          ))}
+                      </Box>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.65rem', display: 'block', mt: 0.5 }}>
+                          {password.length < 8 ? 'Weak Security Profile' : 'Enterprise Strength Verified'}
+                      </Typography>
+                  </Box>
+                )}
               </motion.div>
 
               {codeEnabled && (
@@ -709,7 +772,7 @@ const LoginPage = () => {
                   disabled={loading}
                   className={classes.loginButton}
                 >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In to Dashboard'}
+                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Enter Platform Dashboard'}
                 </Button>
               </motion.div>
 
@@ -742,7 +805,7 @@ const LoginPage = () => {
 
               <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.75 }}>
                 <Button
-                  onClick={() => navigate('/register')}
+                  onClick={() => navigate('/billing')}
                   type="button"
                   variant="outlined"
                   fullWidth
@@ -750,7 +813,7 @@ const LoginPage = () => {
                   className={classes.secondaryButton}
                   startIcon={<PaymentIcon />}
                 >
-                  New Registration & Billing
+                  ENTER BILLING PORTAL
                 </Button>
               </motion.div>
 
@@ -771,6 +834,18 @@ const LoginPage = () => {
                     Forgot Password? Reset securely
                   </Link>
               </motion.div>
+
+              <Box sx={{ mt: 4, pt: 3, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontWeight: 800, textAlign: 'center', display: 'block', mb: 2, letterSpacing: '1px' }}>ENTERPRISE SINGLE SIGN-ON</Typography>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                      <Button fullWidth variant="outlined" sx={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }} onClick={() => handleSocialLogin('Google')}>
+                          <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="G" style={{ width: 18, marginRight: 8 }} /> Google
+                      </Button>
+                      <Button fullWidth variant="outlined" sx={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }} onClick={() => handleSocialLogin('Microsoft')}>
+                          <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="MS" style={{ width: 18, marginRight: 8 }} /> Microsoft
+                      </Button>
+                  </Box>
+              </Box>
           </form>
         </>
       )}

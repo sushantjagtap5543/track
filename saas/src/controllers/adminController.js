@@ -258,57 +258,9 @@ exports.getAuditLogs = async (req, res) => {
   }
 };
 
-// Adjust Expiry / Extend Grace (VIP Override)
-exports.adjustExpiry = async (req, res) => {
-  const { userId, extensionDays } = req.body;
-  
-  if (!extensionDays || extensionDays < 1) {
-    return res.status(400).json({ error: 'Extension days must be a positive number.' });
-  }
-
-  try {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    const newGraceDate = new Date();
-    newGraceDate.setDate(newGraceDate.getDate() + parseInt(extensionDays));
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { graceExtensionUntil: newGraceDate, isActive: true }
-    });
-
-    // Automatically re-activate Traccar engine
-    if (user.geosurepathUserId) {
-        await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false });
-    }
-
-    // Also sync the latest subscription expiresAt if it exists to keep calendars clean
-    const latestSub = await prisma.subscription.findFirst({
-        where: { userId: userId },
-        orderBy: { createdAt: 'desc' }
-    });
-    if (latestSub && new Date(latestSub.expiresAt) < newGraceDate) {
-        await prisma.subscription.update({
-            where: { id: latestSub.id },
-            data: { expiresAt: newGraceDate }
-        });
-    }
-
-    // Log the override
-    logAction({
-      adminId: req.user.userId,
-      userId: userId,
-      action: AUDIT_ACTIONS.EXTEND_GRACE,
-      details: { extensionDays, newExpiry: newGraceDate },
-      ipAddress: req.ip
-    });
-
-    res.json({ message: `Access granted. Account active for another ${extensionDays} days.` });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to adjust expiry.' });
-  }
-};
+// NOTE: adjustExpiry is defined below (around line 816+) as the authoritative version.
+// The earlier definition was a duplicate and has been removed to prevent Node.js from
+// silently discarding the more complete logic below.
 
 // ─── ADMIN SETTINGS (Consolidated) ───
 exports.getSettings = async (req, res) => {
@@ -421,103 +373,12 @@ exports.updateUserSubscription = async (req, res) => {
   }
 };
 
-// NEW: Enhanced System Status
-exports.getFullStatus = async (req, res) => {
-  try {
-    // Check DB Status
-    const dbStatus = await prisma.$queryRaw`SELECT 1`.then(() => 'online').catch(() => 'offline');
-    
-    // Check Traccar API
-    const traccarStatus = await geosurepathService.getAllDevices().then(() => 'online').catch(() => 'offline');
+// NOTE: getFullStatus is defined below (around line 770+) as the authoritative version.
+// The earlier definition was a duplicate and has been removed.
 
-    // System stats (Host-level view from container)
-    const stats = {
-      cpu: os.loadavg(),
-      memory: {
-        total: (os.totalmem() / 1e9).toFixed(2) + ' GB',
-        free: (os.freemem() / 1e9).toFixed(2) + ' GB',
-      },
-      uptime: os.uptime(),
-      db: dbStatus,
-      traccar: traccarStatus,
-      node: process.version,
-      platform: os.platform()
-    };
-
-    res.json(stats);
-  } catch (error) {
-    res.status(500).json({ error: 'System monitoring failed' });
-  }
-};
-
-// Manage Billing Plans
-exports.getPlans = async (req, res) => {
-  try {
-    const plans = await prisma.plan.findMany({ orderBy: { pricePerDevice: 'asc' } });
-    res.json(plans);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch plans' });
-  }
-};
-
-exports.updatePlan = async (req, res) => {
-  const { id, name, description, pricePerDevice, billingCycle } = req.body;
-  try {
-    const plan = await prisma.plan.update({
-      where: { id },
-      data: { name, description, pricePerDevice, billingCycle }
-    });
-    res.json(plan);
-
-    // Audit Log
-    logAction({
-        adminId: req.user.userId,
-        action: AUDIT_ACTIONS.UPDATE_BILLING_PLAN,
-        details: { id, name, pricePerDevice, billingCycle },
-        ipAddress: req.ip
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update plan' });
-  }
-};
-
-exports.createPlan = async (req, res) => {
-  const { name, description, pricePerDevice, billingCycle } = req.body;
-  try {
-    const plan = await prisma.plan.create({
-      data: { name, description, pricePerDevice, billingCycle }
-    });
-    res.json(plan);
-
-    // Audit Log
-    logAction({
-        adminId: req.user.userId,
-        action: AUDIT_ACTIONS.CREATE_BILLING_PLAN,
-        details: { name, pricePerDevice, billingCycle },
-        ipAddress: req.ip
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to create plan' });
-  }
-};
-
-exports.deletePlan = async (req, res) => {
-  const { id } = req.params;
-  try {
-    await prisma.plan.delete({ where: { id } });
-    res.json({ message: 'Plan deleted successfully' });
-
-    // Audit Log
-    logAction({
-        adminId: req.user.userId,
-        action: AUDIT_ACTIONS.DELETE_BILLING_PLAN,
-        details: { planId: id },
-        ipAddress: req.ip
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to delete plan' });
-  }
-};
+// NOTE: getPlans, createPlan, updatePlan, deletePlan are defined below (line ~928+)
+// as the authoritative versions with full audit logging and features support.
+// These earlier duplicates have been removed to prevent Node.js silently overriding them.
 
 // NEW: Administrative Session Proxy (View as User)
 exports.impersonateUser = async (req, res) => {
@@ -981,7 +842,8 @@ exports.getAdvancedStats = async (req, res) => {
     const [totalUsers, activeUsers, overdueUsers, totalPayments, recentPayments] = await Promise.all([
       prisma.user.count({ where: { deletedAt: null } }),
       prisma.user.count({ where: { deletedAt: null, isActive: true } }),
-      prisma.subscription.count({ where: { isActive: false, expiresAt: { lt: new Date() } } }),
+      // ✅ FIX: Subscription model has no `isActive` field. Use `status` instead.
+      prisma.subscription.count({ where: { status: { not: 'ACTIVE' }, expiresAt: { lt: new Date() } } }),
       prisma.payment.aggregate({ _sum: { amount: true }, where: { status: 'CAPTURED' } }),
       prisma.payment.findMany({ take: 10, orderBy: { createdAt: 'desc' }, include: { user: { select: { name: true, email: true } } } }),
     ]);
@@ -1119,7 +981,7 @@ exports.syncAllDevices = async (req, res) => {
 
     for (const user of users) {
       try {
-        const uaHash = crypto.createHash('md5').update(req.headers['user-agent'] || '').digest('hex');
+        // ✅ FIX: Removed dead uaHash computation (it was computed but never used)
         await syncUserDevices(user.id, user.geosurepathUserId);
         totalProcessedUsers++;
       } catch (err) {
@@ -1609,4 +1471,78 @@ exports.massSyncUsers = async (req, res) => {
         console.error('[MassSync] Fatal:', error);
         res.status(500).json({ error: 'Mass synchronization process failed.' });
     }
+};
+
+// ✅ NEW: Get Pending Upgrades — users requiring manual admin attention
+// Returns expired subscriptions, overdue accounts, and users without subscriptions.
+exports.getPendingUpgrades = async (req, res) => {
+  try {
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const users = await prisma.user.findMany({
+      where: { deletedAt: null, role: 'CLIENT' },
+      include: {
+        subscriptions: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: { plan: true }
+        },
+        vehicles: { where: { deletedAt: null }, select: { id: true } },
+        payments: {
+          where: { status: 'CAPTURED' },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
+      }
+    });
+
+    const noSubscription = [];
+    const expired = [];
+    const nearlyExpired = [];
+
+    for (const user of users) {
+      const sub = user.subscriptions[0];
+      const vehicleCount = user.vehicles.length;
+      const lastPayment = user.payments[0];
+
+      const base = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        isActive: user.isActive,
+        vehicleCount,
+        lastPaymentDate: lastPayment?.createdAt || null,
+        lastPaymentAmount: lastPayment?.amount || 0
+      };
+
+      if (!sub) {
+        noSubscription.push({ ...base, status: 'NO_SUBSCRIPTION' });
+        continue;
+      }
+
+      const expiryDate = new Date(sub.expiresAt);
+
+      if (expiryDate < now) {
+        expired.push({ ...base, expiryDate, planName: sub.plan?.name || 'Unknown', daysOverdue: Math.ceil((now - expiryDate) / (1000 * 60 * 60 * 24)), status: 'EXPIRED' });
+      } else if (expiryDate < sevenDaysFromNow) {
+        nearlyExpired.push({ ...base, expiryDate, planName: sub.plan?.name || 'Unknown', daysUntilExpiry: Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24)), status: 'NEARLY_EXPIRED' });
+      }
+    }
+
+    res.json({
+      summary: {
+        noSubscription: noSubscription.length,
+        expired: expired.length,
+        nearlyExpired: nearlyExpired.length,
+        total: noSubscription.length + expired.length + nearlyExpired.length
+      },
+      noSubscription,
+      expired,
+      nearlyExpired
+    });
+  } catch (error) {
+    console.error('[getPendingUpgrades]', error);
+    res.status(500).json({ error: 'Failed to fetch pending upgrades.' });
+  }
 };
