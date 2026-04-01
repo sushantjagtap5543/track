@@ -23,4 +23,7 @@ router.get('/sessions', authenticateToken, authController.getSessions);
 router.post('/revoke-session', authenticateToken, authController.revokeSession);
 router.get('/login-history', authenticateToken, authController.getLoginHistory);
 
+router.post('/google-login', authController.googleLogin);
+router.get('/google-auth-url', authController.getGoogleAuthUrl);
+
 module.exports = router;

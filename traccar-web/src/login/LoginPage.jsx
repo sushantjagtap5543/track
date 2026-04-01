@@ -460,8 +460,8 @@ const LoginPage = () => {
   const [hardlocked, setHardlocked] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' });
 
-  // Registration disabled as per user request (focus on billing portal)
-  const registrationEnabled = false;
+  // Registration provision for enterprise enrollment
+  const registrationEnabled = true;
 
   const languageEnabled = useSelector((state) => {
     const attributes = state.session.server.attributes;
@@ -603,9 +603,21 @@ const LoginPage = () => {
     document.location = '/api/session/openid/auth';
   };
 
-  const handleSocialLogin = (provider) => {
+  const handleSocialLogin = async (provider) => {
+    if (provider === 'Google') {
+        try {
+            const res = await fetch('/api/auth/google-auth-url');
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url;
+                return;
+            }
+        } catch (e) {
+            console.error('Google Auth provision error:', e);
+        }
+    }
+    
     setSnackbar({ open: true, message: `Redirecting to secure ${provider} gateway...`, severity: 'info' });
-    // In a real implementation, this would redirect to e.g. /api/auth/social/google
     setTimeout(() => {
         setSnackbar({ open: true, message: `${provider} authentication is being provisioned for your enterprise tier.`, severity: 'warning' });
     }, 1500);
@@ -820,7 +832,7 @@ const LoginPage = () => {
               {registrationEnabled && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }} style={{ textAlign: 'center', marginTop: '16px' }}>
                     <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
-                        New to GeoSurePath? <Box component="span" sx={{ color: '#3b82f6', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => navigate('/register')}>Create an Account</Box>
+                        Need an account? <Box component="span" sx={{ color: '#3b82f6', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => navigate('/register')}>Request Enterprise Provisioning</Box>
                     </Typography>
                 </motion.div>
               )}

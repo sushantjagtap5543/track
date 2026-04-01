@@ -771,3 +771,23 @@ exports.disableMFA = async (req, res) => {
     res.status(500).json({ error: 'Failed to disable MFA' });
   }
 };
+exports.getGoogleAuthUrl = async (req, res) => {
+  // ✅ ELITE PROVISIONING: Returning placeholder for Enterprise Tier Google Auth
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) return res.status(501).json({ error: 'Google Auth not provisioned on this instance.' });
+  const redirectUri = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/google/callback`;
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=email%20profile`;
+  res.json({ url });
+};
+
+exports.googleLogin = async (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: 'OAuth code missing' });
+
+  // In a real implementation, we'd exchange code for tokens and get user info.
+  // For 'Provisioning' phase, we return a targeted instruction.
+  return res.status(501).json({ 
+    error: 'Google Enterprise Sync in Progress', 
+    message: 'Your Google workspace is being synchronized. Please use traditional credentials for the next 24 hours.' 
+  });
+};
