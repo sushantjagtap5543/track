@@ -1688,7 +1688,6 @@ const BillingPage = () => {
           </>
         )}
       </Box>
-    )}
 
       {/* ─── Dialogs ─── */}
       {/* Edit User Dialog */}
