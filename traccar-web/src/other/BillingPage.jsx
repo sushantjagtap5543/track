@@ -60,13 +60,13 @@ import MfaSetup from '../billing/MfaSetup';
 import { useDispatch } from 'react-redux';
 import { sessionActions } from '../store';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+//  Helpers 
 const API = (path, opts = {}) => {
   const token = localStorage.getItem('saas_token');
   return fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...opts.headers } });
 };
-const fmtCurrency = (n, symbol = '₹') => `${symbol}${Number(n || 0).toFixed(2)}`;
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN') : '—';
+const fmtCurrency = (n, symbol = '') => `${symbol}${Number(n || 0).toFixed(2)}`;
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN') : '';
 const STATUS_COLOR = { PAID: '#10b981', GRACE: '#f59e0b', OVERDUE: '#ef4444', ACTIVE: '#10b981', SUSPENDED: '#ef4444' };
 
 const loadRazorpay = () => {
@@ -80,7 +80,7 @@ const loadRazorpay = () => {
   });
 };
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
+//  Stat Card 
 const StatCard = ({ title, value, sub, icon, color = '#3b82f6' }) => (
   <motion.div whileHover={{ scale: 1.02, translateY: -5 }} transition={{ type: 'spring', stiffness: 300 }}>
     <Paper sx={{ 
@@ -103,13 +103,13 @@ const StatCard = ({ title, value, sub, icon, color = '#3b82f6' }) => (
   </motion.div>
 );
 
-// ─── Invoice Dialog ───────────────────────────────────────────────────────────
+//  Invoice Dialog 
 const InvoiceDialog = ({ open, onClose, invoice, settings = {} }) => {
   if (!invoice) return null;
   const taxRate = settings.taxRate || 18;
   const subtotal = Number(invoice.price || 0) / (1 + (taxRate / 100));
   const taxAmount = Number(invoice.price || 0) - subtotal;
-  const currency = settings.currencySymbol || '₹';
+  const currency = settings.currencySymbol || '';
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: '24px' } }}>
@@ -178,7 +178,7 @@ const InvoiceDialog = ({ open, onClose, invoice, settings = {} }) => {
           </Box>
         </Box>
         <Box sx={{ mt: 3, p: 2, textAlign: 'center', bgcolor: '#f0fdf4', borderRadius: '12px', border: '1px dashed #10b981', color: '#10b981' }}>
-          <Typography variant="subtitle2" fontWeight={900}>✓ TRANSACTION SECURE — FULLY RECONCILED</Typography>
+          <Typography variant="subtitle2" fontWeight={900}> TRANSACTION SECURE  FULLY RECONCILED</Typography>
           <Typography variant="caption">Auth ID: {invoice.transactionId || invoice.razorpayPaymentId || 'N/A'}</Typography>
         </Box>
       </DialogContent>
@@ -186,7 +186,7 @@ const InvoiceDialog = ({ open, onClose, invoice, settings = {} }) => {
   );
 };
 
-// ─── Hardlock Banner (Client) ──────────────────────────────────────────
+//  Hardlock Banner (Client) 
 const HardlockBanner = ({ bill }) => {
   if (!bill || (bill.status === 'ACTIVE' && bill.daysRemaining > 0)) return null;
   const isGrace = bill.status === 'GRACE';
@@ -220,7 +220,7 @@ const HardlockBanner = ({ bill }) => {
   );
 };
 
-// ─── Plan Upgrade Dialog (Client) ──────────────────────────────────────────
+//  Plan Upgrade Dialog (Client) 
 const PlanUpgradeDialog = ({ open, onClose, plans = [], currentFleetSize = 1, currentPlan, daysRemaining, onUpgrade }) => {
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const newPlan = plans.find(p => p.id === selectedPlanId);
@@ -247,7 +247,7 @@ const PlanUpgradeDialog = ({ open, onClose, plans = [], currentFleetSize = 1, cu
             <Select value={selectedPlanId} label="Destination Plan" onChange={(e) => setSelectedPlanId(e.target.value)}>
               {plans.map((p) => (
                 <MenuItem key={p.id} value={p.id} disabled={p.id === currentPlan}>
-                  {p.name} (₹{p.pricePerDevice}/{p.billingCycle})
+                  {p.name} ({p.pricePerDevice}/{p.billingCycle})
                 </MenuItem>
               ))}
             </Select>
@@ -268,7 +268,7 @@ const PlanUpgradeDialog = ({ open, onClose, plans = [], currentFleetSize = 1, cu
   );
 };
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+//  Main Component 
 
 const BillingPage = () => {
   const isTraccarAdmin = useAdministrator();
@@ -278,7 +278,7 @@ const BillingPage = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem('saas_token');
 
-  // ── Core State ──
+  //  Core State 
   const [tab, setTab] = useState(0);
   const [bill, setBill] = useState(null);
   const [autoRenew, setAutoRenew] = useState(true);
@@ -288,7 +288,7 @@ const BillingPage = () => {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [supportMessage, setSupportMessage] = useState('');
 
-  // ── Admin State ──
+  //  Admin State 
   const [analytics, setAnalytics] = useState(null);
   const [ledger, setLedger] = useState([]);
   const [payments, setPayments] = useState([]);
@@ -315,7 +315,7 @@ const BillingPage = () => {
   const [couponCode, setCouponCode] = useState('');
   const [dashboardOverview, setDashboardOverview] = useState(null);
 
-  // ── Dialog State ──
+  //  Dialog State 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [mirroringUser, setMirroringUser] = useState(null);
@@ -337,7 +337,7 @@ const BillingPage = () => {
 
   const showFeedback = useCallback((message, severity = 'success') => setSnackbar({ open: true, message, severity }), []);
 
-  // ── Data Fetchers ──
+  //  Data Fetchers 
   const fetchBill = useCallback(async () => {
     if (!token) return;
     try {
@@ -451,7 +451,7 @@ const BillingPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchBill, fetchAdminData, admin, searchQuery, statusFilter, ledgerPage]); 
 
-  // ── Admin Actions ──
+  //  Admin Actions 
 
   const handleToggleStatus = async (u) => {
     const res = await API('/api/admin/client-status', { method: 'POST', body: JSON.stringify({ clientId: u.id, isActive: !u.isActive }) });
@@ -609,7 +609,7 @@ const BillingPage = () => {
             showFeedback('Your subscription is now ACTIVE!', 'success');
             setUpgradeDialog(false);
             
-            // ✅ MASTER SYNC: Instantly update global session state to unlock map
+            //  MASTER SYNC: Instantly update global session state to unlock map
             if (syncData.user) {
                 dispatch(sessionActions.updateUser({
                     ...syncData.user,
@@ -651,7 +651,7 @@ const BillingPage = () => {
     return matchesAction;
   });
 
-  // ── Admin Tabs ──
+  //  Admin Tabs 
   const ADMIN_TABS = [
     { label: 'Overview', icon: <DashboardIcon /> },
     { label: 'Subscription Ledger', icon: <PeopleIcon /> },
@@ -669,13 +669,13 @@ const BillingPage = () => {
   if (loading) return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 2, bgcolor: '#0f172a' }}>
       <CircularProgress size={56} sx={{ color: '#3b82f6' }} />
-      <Typography variant="h6" sx={{ color: 'white', opacity: 0.6, fontWeight: 700 }}>Loading Dashboard…</Typography>
+      <Typography variant="h6" sx={{ color: 'white', opacity: 0.6, fontWeight: 700 }}>Loading Dashboard</Typography>
     </Box>
   );
 
   return (
     <Box sx={{ bgcolor: '#f1f5f9', minHeight: '100vh' }}>
-      {/* ─── Top Nav ─── */}
+      {/*  Top Nav  */}
       <Box sx={{ bgcolor: '#0f172a', color: 'white', px: 4, py: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.3)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box sx={{ p: 1, borderRadius: '10px', bgcolor: '#3b82f6' }}><DirectionsCarIcon /></Box>
@@ -713,7 +713,7 @@ const BillingPage = () => {
 
         {admin && !mirroringUser ? (
           <>
-            {/* ─── Admin Tab Bar ─── */}
+            {/*  Admin Tab Bar  */}
             <Paper sx={{ borderRadius: '20px', mb: 4, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
               <Tabs value={tab} onChange={(_, v) => { setTab(v); fetchAdminData(v); }} variant="scrollable" scrollButtons="auto"
                 sx={{ '& .MuiTabs-indicator': { height: 3, borderRadius: '3px', bgcolor: '#3b82f6' }, '& .MuiTab-root': { fontWeight: 700, py: 2, minHeight: 60 }, '& .Mui-selected': { color: '#3b82f6 !important' } }}>
@@ -763,7 +763,7 @@ const BillingPage = () => {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
                                 <TrendingUpIcon sx={{ color: '#10b981', fontSize: 40 }} />
                                 <Box>
-                                    <Typography variant="h4" fontWeight={900}>+₹12.4k</Typography>
+                                    <Typography variant="h4" fontWeight={900}>+12.4k</Typography>
                                     <Typography variant="caption" sx={{ opacity: 0.5 }}>Estimated Monthly Delta</Typography>
                                 </Box>
                             </Box>
@@ -780,7 +780,7 @@ const BillingPage = () => {
                 </Box>
               )}
 
-            {/* ─── TAB 0: Overview ─── */}
+            {/*  TAB 0: Overview  */}
             {tab === 0 && (
               <Box>
                 <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -808,7 +808,7 @@ const BillingPage = () => {
                         <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', py: 1.5, borderBottom: '1px solid #f1f5f9' }}>
                           <Box>
                             <Typography variant="body2" fontWeight={700}>{p.userEmail || p.userId}</Typography>
-                            <Typography variant="caption" sx={{ opacity: 0.5 }}>{fmtDate(p.createdAt)} · {p.paymentMethod}</Typography>
+                            <Typography variant="caption" sx={{ opacity: 0.5 }}>{fmtDate(p.createdAt)}  {p.paymentMethod}</Typography>
                           </Box>
                           <Box sx={{ textAlign: 'right' }}>
                             <Typography fontWeight={900} color="success.main">{fmtCurrency(p.amount)}</Typography>
@@ -833,7 +833,7 @@ const BillingPage = () => {
                           </Box>
                           <Button size="small" variant="contained" color="error" sx={{ borderRadius: '8px', fontWeight: 900 }}
                             onClick={() => handleSettleCash(u.id, u.planId || 'monthly', u.totalDue)}>
-                            Settle ₹{u.totalDue?.toFixed(0)}
+                            Settle {u.totalDue?.toFixed(0)}
                           </Button>
                         </Box>
                       ))}
@@ -878,7 +878,7 @@ const BillingPage = () => {
             {tab === 1 && (
               <>
                 <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <TextField size="small" placeholder="Search by name or email…" value={searchQuery}
+                  <TextField size="small" placeholder="Search by name or email" value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     InputProps={{ 
                         startAdornment: <InputAdornment position="start"><SearchIcon sx={{ opacity: 0.5 }} /></InputAdornment>,
@@ -961,12 +961,12 @@ const BillingPage = () => {
                                 </Box>
                               </TableCell>
                               <TableCell>
-                                <Typography variant="body2" fontWeight={700}>{u.planName || '—'}</Typography>
+                                <Typography variant="body2" fontWeight={700}>{u.planName || ''}</Typography>
                                 <Typography variant="caption" sx={{ opacity: 0.5 }}>{u.billingCycle || ''}</Typography>
                               </TableCell>
                               <TableCell>
                                 <Typography variant="body2" fontWeight={700} color={isExpired ? 'error' : 'textPrimary'}>
-                                  {u.expiresAt ? fmtDate(u.expiresAt) : '—'}
+                                  {u.expiresAt ? fmtDate(u.expiresAt) : ''}
                                 </Typography>
                                 {u.graceDaysRemaining > 0 && <Typography variant="caption" color="warning.main">{u.graceDaysRemaining}d grace left</Typography>}
                               </TableCell>
@@ -1047,11 +1047,11 @@ const BillingPage = () => {
               </>
             )}
 
-            {/* ─── TAB 2: Payments ─── */}
+            {/*  TAB 2: Payments  */}
             {tab === 2 && (
               <Box>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-                  <TextField size="small" placeholder="Find transaction ID or client…" value={paymentSearch} onChange={e => setPaymentSearch(e.target.value)}
+                  <TextField size="small" placeholder="Find transaction ID or client" value={paymentSearch} onChange={e => setPaymentSearch(e.target.value)}
                     InputProps={{ 
                         startAdornment: <InputAdornment position="start"><SearchIcon sx={{ opacity: 0.5 }} /></InputAdornment>,
                         endAdornment: paymentSearch && (
@@ -1087,9 +1087,9 @@ const BillingPage = () => {
                         {filteredPayments.map((p, i) => (
                           <TableRow key={i} hover>
                             <TableCell sx={{ fontSize: '0.8rem' }}>{new Date(p.createdAt).toLocaleString('en-IN')}</TableCell>
-                            <TableCell sx={{ fontWeight: 700 }}>{p.user?.email || p.userEmail || '—'}</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>{p.user?.email || p.userEmail || ''}</TableCell>
                             <TableCell><Chip label={p.paymentMethod || 'RAZORPAY'} size="small" sx={{ fontWeight: 700, height: 20, fontSize: '0.65rem' }} /></TableCell>
-                            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem', opacity: 0.6 }}>{p.transactionId || p.razorpayPaymentId || '—'}</TableCell>
+                            <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.7rem', opacity: 0.6 }}>{p.transactionId || p.razorpayPaymentId || ''}</TableCell>
                             <TableCell sx={{ fontWeight: 900, color: p.status === 'REFUNDED' ? '#94a3b8' : '#10b981' }}>
                               {p.status === 'REFUNDED' && '-'}{fmtCurrency(p.amount)}
                             </TableCell>
@@ -1132,7 +1132,7 @@ const BillingPage = () => {
               </Box>
             )}
 
-            {/* ─── TAB 3: Pending Upgrades ─── */}
+            {/*  TAB 3: Pending Upgrades  */}
             {tab === 3 && (
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
@@ -1177,7 +1177,7 @@ const BillingPage = () => {
               </Box>
             )}
 
-            {/* ─── TAB 5: Audit Logs ─── */}
+            {/*  TAB 5: Audit Logs  */}
             {tab === 5 && (
               <Paper sx={{ borderRadius: '20px', overflow: 'hidden' }}>
                 <Box sx={{ p: 3, display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
@@ -1214,7 +1214,7 @@ const BillingPage = () => {
                           <TableCell sx={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{new Date(log.createdAt).toLocaleString('en-IN')}</TableCell>
                           <TableCell><Chip label={log.action} size="small" sx={{ bgcolor: '#eff6ff', color: '#3b82f6', fontWeight: 700, fontSize: '0.65rem' }} /></TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>{log.userPreferredName || log.user?.email || log.userId || 'SYSTEM'}</TableCell>
-                          <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem', opacity: 0.6 }}>{log.adminId || '—'}</TableCell>
+                          <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.75rem', opacity: 0.6 }}>{log.adminId || ''}</TableCell>
                           <TableCell sx={{ fontSize: '0.8rem', maxWidth: 400 }}>{log.details}</TableCell>
                         </TableRow>
                       ))}
@@ -1225,7 +1225,7 @@ const BillingPage = () => {
               </Paper>
             )}
 
-            {/* ─── TAB 4: Revenue & Growth ─── */}
+            {/*  TAB 4: Revenue & Growth  */}
             {tab === 4 && (
               <Box>
                 <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -1264,7 +1264,7 @@ const BillingPage = () => {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
                               <TrendingUpIcon sx={{ color: '#10b981', fontSize: 40 }} />
                               <Box>
-                                  <Typography variant="h4" fontWeight={900}>+₹12.4k</Typography>
+                                  <Typography variant="h4" fontWeight={900}>+12.4k</Typography>
                                   <Typography variant="caption" sx={{ opacity: 0.5 }}>Estimated Monthly Delta</Typography>
                               </Box>
                           </Box>
@@ -1273,7 +1273,7 @@ const BillingPage = () => {
                 </Grid>
               </Box>
             )}
-            {/* ─── TAB 6: System Status ─── */}
+            {/*  TAB 6: System Status  */}
             {tab === 6 && (
               <Grid container spacing={3}>
                 <Grid item xs={12}>
@@ -1320,10 +1320,10 @@ const BillingPage = () => {
                             <FormControl fullWidth>
                                 <InputLabel>Primary Currency</InputLabel>
                                 <Select value={adminSettings.currency || 'INR'} label="Primary Currency" onChange={e => setAdminSettings({ ...adminSettings, currency: e.target.value })}>
-                                    <MenuItem value="INR">INR (₹)</MenuItem>
+                                    <MenuItem value="INR">INR ()</MenuItem>
                                     <MenuItem value="USD">USD ($)</MenuItem>
-                                    <MenuItem value="EUR">EUR (€)</MenuItem>
-                                    <MenuItem value="GBP">GBP (£)</MenuItem>
+                                    <MenuItem value="EUR">EUR ()</MenuItem>
+                                    <MenuItem value="GBP">GBP ()</MenuItem>
                                 </Select>
                             </FormControl>
                         </Box>
@@ -1378,7 +1378,7 @@ const BillingPage = () => {
                                 }
                             }} color="error" />
                         </Box>
-                        {maintenanceMode && <Typography variant="caption" color="error" sx={{ fontWeight: 800, mt: 1, display: 'block' }}>✓ ALL CLIENT ACCESS IS CURRENTLY SUSPENDED UNTIL RE-ENABLED.</Typography>}
+                        {maintenanceMode && <Typography variant="caption" color="error" sx={{ fontWeight: 800, mt: 1, display: 'block' }}> ALL CLIENT ACCESS IS CURRENTLY SUSPENDED UNTIL RE-ENABLED.</Typography>}
                     </Box>
 
                     <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid #e2e8f0' }}>
@@ -1394,7 +1394,7 @@ const BillingPage = () => {
               </Grid>
             )}
 
-            {/* ─── TAB 9: Plan Manager ─── */}
+            {/*  TAB 9: Plan Manager  */}
             {tab === 9 && (
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
@@ -1428,7 +1428,7 @@ const BillingPage = () => {
               </Box>
             )}
 
-            {/* ─── TAB 7: Secrets Manager ─── */}
+            {/*  TAB 7: Secrets Manager  */}
             {tab === 7 && (
               <Box>
                 <Paper sx={{ p: 4, borderRadius: '24px' }}>
@@ -1440,8 +1440,8 @@ const BillingPage = () => {
                   </Alert>
                   <Grid container spacing={3}>
                     {[
-                      { label: 'SaaS Gateway Key', value: '••••••••••••••••' },
-                      { label: 'Traccar Admin Token', value: '••••••••••••••••' },
+                      { label: 'SaaS Gateway Key', value: '' },
+                      { label: 'Traccar Admin Token', value: '' },
                       { label: 'Cloud Database URI', value: 'postgresql://***:***@***.***.***.***:5432/track' },
                       { label: 'SMTP Infrastructure', value: 'smtp.geosurepath.com:587 (Active)' },
                     ].map((s, i) => (
@@ -1454,7 +1454,7 @@ const BillingPage = () => {
               </Box>
             )}
 
-            {/* ─── TAB 8: Security / MFA ─── */}
+            {/*  TAB 8: Security / MFA  */}
             {tab === 8 && (
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}><MfaSetup onEnabled={fetchAdminData} /></Grid>
@@ -1521,7 +1521,7 @@ const BillingPage = () => {
               </Grid>
             )}
 
-            {/* ─── TAB 10: Support Messaging Hub ─── */}
+            {/*  TAB 10: Support Messaging Hub  */}
             {tab === 10 && (
               <Box>
                 <Paper sx={{ p: 4, borderRadius: '24px', height: '100%', minHeight: 500, display: 'flex', flexDirection: 'column', boxShadow: '0 10px 40px rgba(0,0,0,0.05)' }}>
@@ -1553,7 +1553,7 @@ const BillingPage = () => {
             </Box>
           </>
         ) : (
-          /* ─── User View / Mirror View ─── */
+          /*  User View / Mirror View  */
           <Box>
             {(maintenanceMode && !admin) ? (
               <Box sx={{ py: 12, textAlign: 'center' }}>
@@ -1704,7 +1704,7 @@ const BillingPage = () => {
       </Box>
     )}
 
-      {/* ─── Dialogs ─── */}
+      {/*  Dialogs  */}
       {/* Edit User Dialog */}
       <Dialog open={Boolean(editingUser)} onClose={() => setEditingUser(null)} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: '24px' } }}>
         <DialogTitle sx={{ fontWeight: 900 }}>Manage: {editingUser?.email}</DialogTitle>
@@ -1721,7 +1721,7 @@ const BillingPage = () => {
               <InputLabel>Subscription Plan</InputLabel>
               <Select value={editForm.planId} label="Subscription Plan" onChange={e => setEditForm({ ...editForm, planId: e.target.value })}>
                 {plans.map(p => (
-                    <MenuItem key={p.id} value={p.id}>{p.name} (₹{p.pricePerDevice}/{p.billingCycle})</MenuItem>
+                    <MenuItem key={p.id} value={p.id}>{p.name} ({p.pricePerDevice}/{p.billingCycle})</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -1897,7 +1897,7 @@ const BillingPage = () => {
                     </Select>
                 </FormControl>
                 <TextField fullWidth multiline rows={4} label="Announcement Message" placeholder="Enter system-wide notice here..." value={broadcastData.message} onChange={e => setBroadcastData({ ...broadcastData, message: e.target.value })} />
-                <Typography variant="caption" sx={{ opacity: 0.5 }}>✓ This will appear as a high-priority banner for targeted users.</Typography>
+                <Typography variant="caption" sx={{ opacity: 0.5 }}> This will appear as a high-priority banner for targeted users.</Typography>
             </Box>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
@@ -1930,7 +1930,7 @@ const BillingPage = () => {
 
 export default BillingPage;
 
-// ─── Print Styles ─────────────────────────────────────────────────────────────
+//  Print Styles 
 const style = document.createElement('style');
 style.textContent = `
   @media print {

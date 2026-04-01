@@ -25,7 +25,7 @@ export const formatNumber = (value, precision = 1) => Number(value.toFixed(preci
 
 export const formatPercentage = (value) => `${value}%`;
 
-export const formatTemperature = (value) => `${value.toFixed(1)}°C`;
+export const formatTemperature = (value) => `${value.toFixed(1)}C`;
 
 export const formatVoltage = (value, t) => `${value.toFixed(2)} ${t('sharedVoltAbbreviation')}`;
 
@@ -117,15 +117,15 @@ export const formatCoordinate = (key, value, unit) => {
       value = Math.abs(value);
       degrees = Math.floor(value);
       minutes = (value - degrees) * 60;
-      return `${degrees}° ${minutes.toFixed(3)}' ${hemisphere}`;
+      return `${degrees} ${minutes.toFixed(3)}' ${hemisphere}`;
     case 'dms':
       value = Math.abs(value);
       degrees = Math.floor(value);
       minutes = Math.floor((value - degrees) * 60);
       seconds = Math.round((value - degrees - minutes / 60) * 3600);
-      return `${degrees}° ${minutes}' ${seconds}" ${hemisphere}`;
+      return `${degrees} ${minutes}' ${seconds}" ${hemisphere}`;
     default:
-      return `${value.toFixed(5)}°`;
+      return `${value.toFixed(5)}`;
   }
 };
 

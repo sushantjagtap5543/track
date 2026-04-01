@@ -120,7 +120,7 @@ const AIS140Page = () => {
               <TableCell>{item.certNumber || '-'}</TableCell>
               <TableCell>{item.ais140Expiry ? new Date(item.ais140Expiry).toLocaleDateString() : '-'}</TableCell>
               <TableCell>
-                 {item.forwardingEnabled ? '✅ Active' : '❌ Disabled'} <br />
+                 {item.forwardingEnabled ? ' Active' : ' Disabled'} <br />
                  <small>{item.governmentEndpoint || 'No Endpoint'}</small>
               </TableCell>
               <TableCell className={classes.columnAction}>

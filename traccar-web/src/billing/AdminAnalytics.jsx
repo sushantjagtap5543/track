@@ -34,7 +34,7 @@ const StatCard = ({ title, value, icon, color = '#3b82f6', subtitle, badge }) =>
         {React.cloneElement(icon, { fontSize: 'small' })}
       </Box>
       {badge !== undefined && (
-        <Chip label={`▲ ${badge}`} size="small" sx={{ bgcolor: `${color}15`, color, fontWeight: 700, fontSize: '0.7rem' }} />
+        <Chip label={` ${badge}`} size="small" sx={{ bgcolor: `${color}15`, color, fontWeight: 700, fontSize: '0.7rem' }} />
       )}
     </Box>
     <Typography variant="h3" fontWeight={900} sx={{ color, lineHeight: 1, mb: 0.5 }}>{value}</Typography>
@@ -47,7 +47,7 @@ const AdminAnalytics = ({ stats, loading }) => {
   if (loading) return (
     <Box sx={{ p: 5, textAlign: 'center' }}>
       <CircularProgress size={40} sx={{ color: '#3b82f6' }} />
-      <Typography variant="body2" sx={{ mt: 2, opacity: 0.5 }}>Loading platform insights…</Typography>
+      <Typography variant="body2" sx={{ mt: 2, opacity: 0.5 }}>Loading platform insights</Typography>
     </Box>
   );
 
@@ -69,7 +69,7 @@ const AdminAnalytics = ({ stats, loading }) => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Revenue"
-            value={`₹${Number(totalRevenue).toLocaleString('en-IN')}`}
+            value={`${Number(totalRevenue).toLocaleString('en-IN')}`}
             icon={<RevenueIcon />}
             color="#10b981"
             subtitle="All time collected"
@@ -78,7 +78,7 @@ const AdminAnalytics = ({ stats, loading }) => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Projected MRR"
-            value={`₹${Number(projected).toLocaleString('en-IN')}`}
+            value={`${Number(projected).toLocaleString('en-IN')}`}
             icon={<MrrIcon />}
             color="#3b82f6"
             subtitle="This billing cycle"

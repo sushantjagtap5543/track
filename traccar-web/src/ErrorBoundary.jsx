@@ -1,4 +1,4 @@
-// saas/src/components/ErrorBoundary.jsx  — NEW FILE
+// saas/src/components/ErrorBoundary.jsx   NEW FILE
 //
 // FIX: Instead of a blank/crashed page, show a user-friendly error UI
 //      with a Reload button and error details in development mode.
@@ -44,7 +44,7 @@ class ErrorBoundary extends React.Component {
     return (
       <div style={styles.overlay}>
         <div style={styles.card}>
-          <div style={styles.icon}>⚠️</div>
+          <div style={styles.icon}></div>
           <h2 style={styles.title}>Something went wrong</h2>
           <p style={styles.message}>
             The application encountered an unexpected error. Please reload the page.
@@ -63,7 +63,7 @@ class ErrorBoundary extends React.Component {
 
           <div style={styles.actions}>
             <button style={styles.primaryBtn} onClick={this.handleReload}>
-              🔄 Reload Page
+               Reload Page
             </button>
             <button
               style={styles.secondaryBtn}

@@ -96,7 +96,7 @@ const NativeInterface = () => {
               },
               body: JSON.stringify({ token: notificationToken, platform: 'native' }),
             });
-            console.log('✅ SaaS Push Token Synchronized');
+            console.log(' SaaS Push Token Synchronized');
           }
         } catch (e) {
           console.warn('SaaS Token Sync Failed:', e.message);

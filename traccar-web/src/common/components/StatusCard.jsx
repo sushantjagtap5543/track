@@ -173,6 +173,10 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
     toggleSafeParking();
   }, [toggleSafeParking]);
 
+  const handleGeofence = () => {
+    setAnchorEl(null);
+    navigate(`/settings/geofence?deviceId=${deviceId}`);
+  };
 
   return (
     <>
@@ -239,7 +243,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
               )}
               {position && (
                 <CardContent className={classes.content}>
-                  {/* ✅ QUICK INFO BAR */}
+                  {/*  QUICK INFO BAR */}
                   <Box sx={{ display: 'flex', justifyContent: 'space-around', mb: 2, p: 1, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: '12px' }}>
                      <Box sx={{ textAlign: 'center' }}>
                         <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }}>Ignition</Typography>
@@ -304,7 +308,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                   </IconButton>
                 </Tooltip>
                 
-                {/* ✅ QUICK IGNITION CONTROL */}
+                {/*  QUICK IGNITION CONTROL */}
                 {position && (
                    <Tooltip title={position.attributes.blocked ? 'Unblock Engine' : 'Block Engine'}>
                       <IconButton

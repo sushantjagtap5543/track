@@ -327,7 +327,7 @@ const ReplayPage = () => {
                 </Typography>
               </div>
 
-              {/* ✅ SPEED CONTROLS */}
+              {/*  SPEED CONTROLS */}
               <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, gap: 1 }}>
                 {[1, 2, 5, 10].map((s) => (
                     <Button

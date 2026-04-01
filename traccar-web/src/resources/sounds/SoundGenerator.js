@@ -62,10 +62,10 @@ const playTone = (ctx, destination, freq, startTime, duration, type = 'sine', ga
   osc.stop(startTime + duration);
 };
 
-// ─── Sound Definitions ───
+//  Sound Definitions 
 
 /**
- * 🔔 Notification — gentle two-note chime (C5 → E5)
+ *  Notification  gentle two-note chime (C5  E5)
  * For: deviceMoving, deviceStopped, deviceOnline, deviceOffline,
  *      geofenceEnter, geofenceExit, ignitionOn, ignitionOff, etc.
  */
@@ -77,8 +77,8 @@ export const playNotification = () => {
 };
 
 /**
- * 🚨 Alert — urgent triple-pulse (A5 x3, fast staccato)
- * For: alarm type events — SOS, overspeed, vibration, accident, tow, etc.
+ *  Alert  urgent triple-pulse (A5 x3, fast staccato)
+ * For: alarm type events  SOS, overspeed, vibration, accident, tow, etc.
  */
 export const playAlert = () => {
   const ctx = getAudioContext();
@@ -91,7 +91,7 @@ export const playAlert = () => {
 };
 
 /**
- * ⚠️ Warning — descending two-note (E5 → C5)
+ *  Warning  descending two-note (E5  C5)
  * For: lowBattery, lowPower, fault, powerOff, etc.
  */
 export const playWarning = () => {
@@ -102,7 +102,7 @@ export const playWarning = () => {
 };
 
 /**
- * ✅ Success — ascending major-third (C5 → E5 → G5)
+ *  Success  ascending major-third (C5  E5  G5)
  * For: deviceOnline, commandResult, maintenance, etc.
  */
 export const playSuccess = () => {
@@ -114,7 +114,7 @@ export const playSuccess = () => {
 };
 
 /**
- * ℹ️ Info — single soft ping (G5, sine with fast decay)
+ *  Info  single soft ping (G5, sine with fast decay)
  * For: textMessage, driverChanged, media, etc.
  */
 export const playInfo = () => {
@@ -123,7 +123,7 @@ export const playInfo = () => {
   playTone(ctx, ctx.destination, 783.99, now, 0.25, 'sine', 0.18); // G5
 };
 
-// ─── Event-to-Sound Mapping ───
+//  Event-to-Sound Mapping 
 
 const ALERT_EVENTS = new Set(['alarm']);
 
@@ -135,7 +135,7 @@ const INFO_EVENTS = new Set(['textMessage', 'driverChanged', 'media']);
 
 /**
  * Maps alarm sub-types to their sound.
- * Critical alarms → alert, degradation alarms → warning.
+ * Critical alarms  alert, degradation alarms  warning.
  */
 
 const DEGRADATION_ALARMS = new Set([
@@ -157,7 +157,7 @@ const DEGRADATION_ALARMS = new Set([
 ]);
 
 /**
- * 🚨 Security Siren — Intense alternating high-frequency pulses
+ *  Security Siren  Intense alternating high-frequency pulses
  * Specifically for Safe Parking breaches or SOS.
  */
 export const playSecuritySiren = () => {
@@ -170,7 +170,7 @@ export const playSecuritySiren = () => {
 };
 
 /**
- * 🔔 Digital Chime — Fast premium double-ping (B5 → B6)
+ *  Digital Chime  Fast premium double-ping (B5  B6)
  */
 export const playDigitalChime = () => {
   const ctx = getAudioContext();

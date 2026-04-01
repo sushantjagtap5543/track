@@ -1,15 +1,15 @@
-// saas/src/store/devicesSlice.js  — FIXED
+// saas/src/store/devicesSlice.js   FIXED
 //
 // BUG: initialState had `items: undefined` (or missing), causing:
 //   TypeError: Cannot read properties of undefined (reading 'push')
-//   at s1 → Immer draft .push() on undefined array
+//   at s1  Immer draft .push() on undefined array
 //
 // FIX: All array and object fields explicitly initialized.
 //      All reducers guard against null/undefined API responses.
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-// ── Async thunks ─────────────────────────────────────────────────────────────
+//  Async thunks 
 
 export const fetchDevices = createAsyncThunk('devices/fetchAll', async (_, { rejectWithValue }) => {
   try {
@@ -69,11 +69,11 @@ export const removeDevice = createAsyncThunk('devices/remove', async (id, { reje
   }
 });
 
-// ── Slice ─────────────────────────────────────────────────────────────────────
+//  Slice 
 
 const devicesSlice = createSlice({
   name: 'devices',
-  // ✅ FIX: Every field explicitly initialized — no undefined arrays
+  //  FIX: Every field explicitly initialized  no undefined arrays
   initialState: {
     items: {}, // keyed by id for compatibility and performance
     selectedId: null,
@@ -87,7 +87,7 @@ const devicesSlice = createSlice({
     clearError(state) {
       state.error = null;
     },
-    // WebSocket / SSE real-time update handler — guards against bad data
+    // WebSocket / SSE real-time update handler  guards against bad data
     updateDeviceStatus(state, action) {
       const update = action.payload;
       if (!update || typeof update.id === 'undefined') return;
@@ -162,7 +162,7 @@ export const devicesActions = devicesSlice.actions;
 export const devicesReducer = devicesSlice.reducer;
 export default devicesSlice.reducer;
 
-// ── Selectors ─────────────────────────────────────────────────────────────────
+//  Selectors 
 // FIX: all selectors default to [] / null to prevent undefined in components
 
 export const selectAllDevices = (state) => Object.values(state.devices?.items ?? {});

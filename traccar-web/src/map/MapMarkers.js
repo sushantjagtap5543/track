@@ -21,7 +21,7 @@ const MapMarkers = ({ markers, showTitles }) => {
       },
     });
 
-    // ✅ PERFECT ZOOM (S201): Dynamic icon scaling based on zoom level.
+    //  PERFECT ZOOM (S201): Dynamic icon scaling based on zoom level.
     // Icons become smaller when zoomed out (zoom 5) and larger when zoomed in (zoom 18).
     const zoomIconScale = [
       'interpolate', ['linear'], ['zoom'],

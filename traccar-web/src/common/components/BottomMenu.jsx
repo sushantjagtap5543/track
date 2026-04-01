@@ -86,7 +86,7 @@ const BottomMenu = () => {
 
     await fetch('/api/session', { method: 'DELETE' });
 
-    // ✅ REFINEMENT: Clear SaaS specific session data
+    //  REFINEMENT: Clear SaaS specific session data
     window.localStorage.removeItem('saas_token');
     window.localStorage.removeItem('saas_role');
 

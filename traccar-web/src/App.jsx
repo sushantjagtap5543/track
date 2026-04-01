@@ -96,7 +96,7 @@ const App = () => {
                     return null;
                 }
   
-                // ✅ RECOVERY: Use SaaS data to hydrate the session if Traccar sync failed but SaaS is alive.
+                //  RECOVERY: Use SaaS data to hydrate the session if Traccar sync failed but SaaS is alive.
                 // This prevents the redirect loop for billing and dashboard access.
                 dispatch(sessionActions.updateUser({
                     ...saasData.user,

@@ -1,8 +1,8 @@
-// saas/src/store/positionsSlice.js  — FIXED
+// saas/src/store/positionsSlice.js   FIXED
 //
-// BUG: Same pattern as devicesSlice — positions array undefined in initialState.
+// BUG: Same pattern as devicesSlice  positions array undefined in initialState.
 //      The Array.map in the error stack iterates API positions then pushes each
-//      into state.items — which was undefined → crash.
+//      into state.items  which was undefined  crash.
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
@@ -26,7 +26,7 @@ export const fetchPositions = createAsyncThunk(
 
 const positionsSlice = createSlice({
   name: 'positions',
-  // ✅ FIX: items initialized as {} not undefined
+  //  FIX: items initialized as {} not undefined
   initialState: {
     items: {}, // keyed by deviceId for O(1) lookups
     loading: false,

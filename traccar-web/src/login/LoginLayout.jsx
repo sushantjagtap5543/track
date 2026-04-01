@@ -121,7 +121,7 @@ const LoginLayout = ({ children }) => {
 
   return (
     <Box component="main" className={classes.root} sx={{ overflow: 'hidden' }}>
-      {/* ─── Premium Glass Blobs ─── */}
+      {/*  Premium Glass Blobs  */}
       <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, opacity: 0.7 }}>
         <Box sx={{
           position: 'absolute', top: '10%', left: '15%', width: '400px', height: '400px',

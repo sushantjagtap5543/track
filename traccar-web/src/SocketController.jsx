@@ -109,13 +109,13 @@ const SocketController = () => {
                   : 'Vehicle exited a restricted zone.';
                 severity = event.attributes.name?.startsWith('Safe Parking') ? 'error' : 'info';
                 title = event.attributes.name?.startsWith('Safe Parking')
-                  ? '🚨 SECURITY BREACH'
+                  ? ' SECURITY BREACH'
                   : 'Geofence Exit';
                 break;
               case 'alarm':
                 const alarmType = event.attributes.alarm;
                 severity = 'error';
-                title = '🚨 URGENT ALERT';
+                title = ' URGENT ALERT';
                 switch (alarmType) {
                   case 'sos': message = 'EMERGENCY: SOS Button Pressed!'; break;
                   case 'overspeed': message = 'ALERT: Vehicle is exceeding speed limits.'; break;

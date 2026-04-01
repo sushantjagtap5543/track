@@ -19,8 +19,8 @@ import {
 } from '@mui/icons-material';
 import { exportToCsv } from '../common/util/export';
 
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN') : '—';
-const fmtCurrency = (n) => `₹${Number(n || 0).toFixed(2)}`;
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN') : '';
+const fmtCurrency = (n) => `${Number(n || 0).toFixed(2)}`;
 
 const FinanceCenter = ({ payments = [], settings, onUpdateSettings, onDownloadInvoice }) => {
   const [subTab, setSubTab] = useState(0);
@@ -62,8 +62,8 @@ const FinanceCenter = ({ payments = [], settings, onUpdateSettings, onDownloadIn
   const handleExport = () => {
     const headers = ['ID', 'User', 'Amount', 'Status', 'Method', 'Tx ID', 'Date'];
     const rows = payments.map(p => [
-      p.id, p.user?.email || '—', p.amount, p.status,
-      p.paymentMethod || 'RAZORPAY', p.transactionId || p.razorpayPaymentId || '—',
+      p.id, p.user?.email || '', p.amount, p.status,
+      p.paymentMethod || 'RAZORPAY', p.transactionId || p.razorpayPaymentId || '',
       fmtDate(p.createdAt),
     ]);
     exportToCsv('payment_history', rows, headers);
@@ -80,7 +80,7 @@ const FinanceCenter = ({ payments = [], settings, onUpdateSettings, onDownloadIn
         <Tab label="Finance Settings" icon={<SettingsIcon />} iconPosition="start" />
       </Tabs>
 
-      {/* ── Payment History ── */}
+      {/*  Payment History  */}
       {subTab === 0 && (
         <Box>
           {/* Summary */}
@@ -117,13 +117,13 @@ const FinanceCenter = ({ payments = [], settings, onUpdateSettings, onDownloadIn
                   <TableRow key={i} hover>
                     <TableCell sx={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{fmtDate(p.createdAt)}</TableCell>
                     <TableCell>
-                      <Typography variant="body2" fontWeight={700}>{p.user?.name || p.user?.email || '—'}</Typography>
+                      <Typography variant="body2" fontWeight={700}>{p.user?.name || p.user?.email || ''}</Typography>
                       <Typography variant="caption" sx={{ opacity: 0.5 }}>{p.user?.email}</Typography>
                     </TableCell>
                     <TableCell>
                       <Chip label={p.paymentMethod || 'RAZORPAY'} size="small" sx={{ bgcolor: '#eff6ff', color: '#3b82f6', fontWeight: 700, fontSize: '0.65rem' }} />
                     </TableCell>
-                    <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.72rem', opacity: 0.7 }}>{(p.transactionId || p.razorpayPaymentId || '—').slice(0, 18)}</TableCell>
+                    <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.72rem', opacity: 0.7 }}>{(p.transactionId || p.razorpayPaymentId || '').slice(0, 18)}</TableCell>
                     <TableCell sx={{ fontWeight: 900, color: '#10b981' }}>{fmtCurrency(p.amount)}</TableCell>
                     <TableCell>
                       <Chip label={p.status} size="small" color={p.status === 'CAPTURED' ? 'success' : 'default'} sx={{ fontSize: '0.65rem' }} />
@@ -148,7 +148,7 @@ const FinanceCenter = ({ payments = [], settings, onUpdateSettings, onDownloadIn
         </Box>
       )}
 
-      {/* ── Finance Settings ── */}
+      {/*  Finance Settings  */}
       {subTab === 1 && (
         <Grid container spacing={3}>
           {/* Tax & Billing */}
@@ -236,7 +236,7 @@ const FinanceCenter = ({ payments = [], settings, onUpdateSettings, onDownloadIn
                 disabled={isUpdating}
                 sx={{ borderRadius: '12px', fontWeight: 700, px: 4, py: 1.5 }}
               >
-                {isUpdating ? 'Saving…' : 'Save Configuration'}
+                {isUpdating ? 'Saving' : 'Save Configuration'}
               </Button>
               {saved && <Alert severity="success" sx={{ py: 0.5, borderRadius: '10px' }}>Configuration saved!</Alert>}
             </Box>

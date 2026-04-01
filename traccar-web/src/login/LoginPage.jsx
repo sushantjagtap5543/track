@@ -52,6 +52,17 @@ import { useCatch } from '../reactHelper';
 import QrCodeDialog from '../common/components/QrCodeDialog';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 
+const loadRazorpay = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 const useStyles = makeStyles()((theme) => ({
   options: {
     display: 'flex',
@@ -210,7 +221,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-// ─── Hardlock Payment View ───────────────────────────────────────────────
+//  Hardlock Payment View 
 const HardlockPaymentView = ({ onLogout, onSuccess }) => {
   const [bill, setBill] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -356,7 +367,7 @@ const HardlockPaymentView = ({ onLogout, onSuccess }) => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '16px', mb: 3, border: '1px dashed rgba(255,255,255,0.1)' }}>
             <ReceiptLongIcon sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '1.1rem' }} />
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-              Last payment of <b>₹{lastPayment.price}</b> processed on <b>{new Date(lastPayment.createdAt).toLocaleDateString()}</b> ({lastPayment.invoiceId})
+              Last payment of <b>{lastPayment.price}</b> processed on <b>{new Date(lastPayment.createdAt).toLocaleDateString()}</b> ({lastPayment.invoiceId})
             </Typography>
           </Box>
         )}
@@ -370,7 +381,7 @@ const HardlockPaymentView = ({ onLogout, onSuccess }) => {
            
            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Outstanding Debt ({summary?.debt?.unpaidDays || bill?.unpaidDebtDays} days)</Typography>
-             <Typography variant="body2" sx={{ color: '#fff', fontWeight: 700 }}>₹{summary?.debt?.total || bill?.unpaidDebt}</Typography>
+             <Typography variant="body2" sx={{ color: '#fff', fontWeight: 700 }}>{summary?.debt?.total || bill?.unpaidDebt}</Typography>
            </Box>
 
            <Box sx={{ mb: 2.5 }}>
@@ -382,7 +393,7 @@ const HardlockPaymentView = ({ onLogout, onSuccess }) => {
                 <InputLabel>Renew Subscription Plan</InputLabel>
                 <Select value={selectedPlan} label="Renew Subscription Plan" onChange={e => setSelectedPlan(e.target.value)}>
                   {bill?.plans?.map(p => (
-                    <MenuItem key={p.id} value={p.id}>{p.name} (₹{p.price}/{p.billingCycle})</MenuItem>
+                    <MenuItem key={p.id} value={p.id}>{p.name} ({p.price}/{p.billingCycle})</MenuItem>
                   ))}
                 </Select>
              </FormControl>
@@ -392,19 +403,19 @@ const HardlockPaymentView = ({ onLogout, onSuccess }) => {
 
            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Plan Base Price ({bill?.fleetSize} Units)</Typography>
-             <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600 }}>₹{summary?.subscription?.base || (activePlan?.price * bill?.fleetSize)}</Typography>
+             <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600 }}>{summary?.subscription?.base || (activePlan?.price * bill?.fleetSize)}</Typography>
            </Box>
 
            {summary?.subscription?.tax > 0 && (
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)' }}>GST / Charges</Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>₹{summary.subscription.tax}</Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>{summary.subscription.tax}</Typography>
             </Box>
            )}
 
            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2, pt: 1.5, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
              <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: '1.2rem' }}>Grand Total</Typography>
-             <Typography sx={{ color: '#10b981', fontWeight: 900, fontSize: '1.4rem' }}>₹{summary?.grandTotal || totalPayable}</Typography>
+             <Typography sx={{ color: '#10b981', fontWeight: 900, fontSize: '1.4rem' }}>{summary?.grandTotal || totalPayable}</Typography>
            </Box>
         </Box>
 
@@ -701,7 +712,7 @@ const LoginPage = () => {
           >
             <Typography className={classes.welcomeText} sx={{ fontSize: '3rem', mb: 1 }}>GeoSurePath Enterprise</Typography>
             <Typography className={classes.subText} sx={{ fontSize: '1.2rem', opacity: 0.8, letterSpacing: '0.5px' }}>
-              Advanced Fleet Intelligence · Global Access Portal
+              Advanced Fleet Intelligence  Global Access Portal
             </Typography>
           </motion.div>
 
