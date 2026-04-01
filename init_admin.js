@@ -8,7 +8,7 @@ async function initAdmin() {
     body: JSON.stringify({
       name: 'System Admin',
       email: 'admin@geosurepath.com',
-      password: 'admin123'
+      password: 'AdminTestPassword123!'
     })
   });
 
