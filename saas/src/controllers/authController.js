@@ -9,6 +9,8 @@ const { logAction, AUDIT_ACTIONS } = require('../services/auditService');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const emailService = require('../services/emailService');
+// ✅ UNIFIED (S98): Import billing service to prevent synchronization drift between login and cron
+const { getAccountHardlockState } = require('../services/billingService');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -18,38 +20,15 @@ const JWT_EXPIRATION = '15m'; // Short-lived access token
 const REFRESH_TOKEN_EXPIRATION = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
- * ✅ SHARED HELPER: Calculates hardlock status to avoid code triplication
- * across login, verifyMFA, and authMiddleware.
- * @param {object} user - User record from DB
- * @param {object|null} latestSub - Latest subscription record (with plan included)
- * @returns {{ isHardlocked: boolean, gracePeriod: number, gracePeriodEnd: Date }}
+ * ✅ REFINED (S98): Proxies to the unified billing service shared with the cron.
  */
 const calculateHardlock = (user, latestSub) => {
-  const now = new Date();
-  let effectiveExpiry = latestSub?.expiresAt ? new Date(latestSub.expiresAt) : new Date(user.registrationDate || user.createdAt);
-  if (user.graceExtensionUntil && new Date(user.graceExtensionUntil) > effectiveExpiry) {
-    effectiveExpiry = new Date(user.graceExtensionUntil);
-  }
-
-  let planDays = 30;
-  if (latestSub?.plan) {
-    planDays = latestSub.plan.billingCycle === 'MONTHLY' ? 30 : 365;
-    if (latestSub.planId?.toLowerCase().includes('half') || latestSub.plan.name?.toLowerCase().includes('6 month')) {
-      planDays = 180;
-    }
-  }
-
-  let gracePeriod = 7;
-  if (planDays <= 31) gracePeriod = 3;
-  else if (planDays <= 186) gracePeriod = 5;
-
-  const gracePeriodEnd = new Date(effectiveExpiry);
-  gracePeriodEnd.setDate(gracePeriodEnd.getDate() + gracePeriod);
-
-  const isBypassed = user.hardlockBypass || false;
-  const isHardlocked = now > gracePeriodEnd && !isBypassed;
-
-  return { isHardlocked, gracePeriod, gracePeriodEnd };
+  const result = getAccountHardlockState(user, latestSub);
+  return {
+      isHardlocked: result.isHardlocked,
+      gracePeriod: result.graceDays,
+      gracePeriodEnd: result.graceEnd
+  };
 };
 
 exports.calculateHardlock = calculateHardlock;
@@ -81,153 +60,182 @@ exports.register = async (req, res) => {
     return res.status(400).json({ error: 'Name, Email, and Password are required.' });
   }
 
-  // Validations
-  if (name.length > 50) return res.status(400).json({ error: 'Name must be less than 50 characters' });
-  if (username && username.length > 50) return res.status(400).json({ error: 'Username must be less than 50 characters' });
-
+  // ✅ SCENARIO HARDENING: Input Validation
+  if (name.trim().length < 2 || name.length > 100) return res.status(400).json({ error: 'Invalid name length' });
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) return res.status(400).json({ error: 'Invalid email format' });
-
-  // Password complexity: Min 8 chars, at least 1 number. Special chars allowed but not strictly part of regex to avoid exclusion.
-  const passwordRegex = /^(?=.*[0-9]).{8,}$/;
-  if (!passwordRegex.test(password)) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters and include at least one number.' });
-  }
-
-  if (phone && !/^\+?[1-9]\d{1,14}$/.test(phone)) {
-    return res.status(400).json({ error: 'Invalid phone number format' });
-  }
+  if (!emailRegex.test(email.toLowerCase())) return res.status(400).json({ error: 'Invalid email format' });
+  if (password.length < 8 || !/\d/.test(password)) return res.status(400).json({ error: 'Password must be at least 8 chars with a number' });
 
   email = email.toLowerCase().trim();
   name = name.trim();
   username = username?.toLowerCase().trim();
 
   try {
-    const orConditions = [{ email }];
-    if (username) orConditions.push({ username });
-
-    const existingUser = await prisma.user.findFirst({
-      where: { OR: orConditions }
+    // 1. Check SaaS Multi-Collision (Email/Username)
+    const existing = await prisma.user.findFirst({
+        where: { OR: [{ email }, { ...(username && { username }) }] }
     });
-
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email or Username already exists.' });
-    }
+    if (existing) return res.status(400).json({ error: 'User with this email or username already exists in our system.' });
 
     const hashedPassword = await bcrypt.hash(password, 12);
+    const requireVerify = process.env.REQUIRE_VERIFICATION === 'true';
+    const verificationToken = requireVerify ? crypto.randomBytes(32).toString('hex') : null;
 
+    // 2. Cross-System Provisioning: Traccar (S6 Resilient)
     let gUser;
     try {
-      gUser = await geosurepathService.createUser(name, email, password, { 
-        phone, 
-        login: username || email // ✅ REFINEMENT: Prefer username as login for Traccar if provided
-      });
+        gUser = await geosurepathService.createUser(name, email, password, { 
+            phone, 
+            login: username || email,
+            disabled: requireVerify 
+        });
+        console.log(`[Register] Created Traccar user: ${email} (ID: ${gUser.id})`);
     } catch (createErr) {
-      // ✅ ATOMIC ADOPTION: If user already exists in Traccar (e.g. from a previous failed SaaS attempt), adopt them.
-      if (createErr.message.includes('already exists')) {
-        gUser = await geosurepathService.getUserByEmail(email);
-        if (!gUser) throw createErr; // If we still can't find them, something is truly wrong.
-        console.log(`[Registration] Adopting existing Traccar user: ${email}`);
-      } else {
-        throw createErr;
-      }
-    }
-
-    let user;
-    try {
-      user = await prisma.user.create({
-        data: {
-          name,
-          username,
-          email,
-          phone,
-          password: hashedPassword,
-          geosurepathUserId: gUser.id,
-          role: 'CLIENT',
-          isActive: true,
-          subscriptions: {
-            create: {
-              price: 0,
-              deviceCount: 5, // ✅ FIX: Default trial gives coverage for up to 5 units
-              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30-day trial
-              status: 'ACTIVE'
+        if (createErr.message.includes('already exists')) {
+            gUser = await geosurepathService.getUserByEmail(email);
+            if (gUser) {
+              await geosurepathService.updateUser(gUser.id, { disabled: requireVerify, password }).catch(() => {});
             }
-          }
+        } else {
+            console.error(`[Register] Traccar Provisioning Delay for ${email}: ${createErr.message}`);
+            // We allow SaaS registration to proceed without Traccar ID. 
+            // The self-healing login flow will catch this later.
         }
-      });
-    } catch (prismaError) {
-      throw prismaError;
     }
 
-    // ✅ FORCE SYNC: Ensure Traccar password matches the SaaS password even if adopted
-    try {
-      if (gUser && gUser.id) {
-        await geosurepathService.updateUser(gUser.id, { password });
-        console.log(`[Registration] Synchronized password for Traccar user ${gUser.id}`);
-      }
-    } catch (syncErr) {
-      console.warn(`[Registration] Background password sync failed: ${syncErr.message}`);
+    // 3. SaaS Provisioning: Database & Trial Subscription
+    const user = await prisma.user.create({
+        data: {
+            name, username, email, phone,
+            password: hashedPassword,
+            geosurepathUserId: gUser?.id || null, // ✅ NEW: Allow null for deferred provisioning
+            role: 'CLIENT',
+            isActive: true,
+            isVerified: !requireVerify,
+            // Use existing permissions field to store verification metadata to avoid migrations
+            permissions: requireVerify ? { verification: { token: verificationToken, expires: Date.now() + 24 * 3600000 } } : {},
+            subscriptions: {
+                create: {
+                    price: 0,
+                    deviceCount: 10,
+                    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30-day Free Trial
+                    status: 'ACTIVE'
+                }
+            }
+        }
+    });
+
+    // 4. Communication: Verification or Welcome
+    if (requireVerify) {
+        const verifyUrl = `${process.env.FRONTEND_URL || 'http://3.108.114.12'}/verify-email?token=${verificationToken}&email=${email}`;
+        emailService.sendEmail(email, 'Verify Your GeoSurePath Account', `
+            <div style="font-family: sans-serif; max-width: 600px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                <h2 style="color: #3b82f6;">Welcome! Please Verify Your Email</h2>
+                <p>Hello ${name}, thank you for joining GeoSurePath.</p>
+                <p>Please click the button below to verify your email and activate your tracking account:</p>
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="${verifyUrl}" style="background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Verify Email Address</a>
+                </div>
+                <p style="color: #64748b; font-size: 0.875rem;">This link will expire in 24 hours.</p>
+            </div>
+        `).catch(e => console.error('[Register] Verification email failed:', e.message));
+    } else {
+        emailService.sendWelcomeEmail(user).catch(e => console.error('[Register] Welcome email failed:', e.message));
     }
 
-    // ✅ FIX: Audit Log for User Registration
+    // 5. Auditing
     logAction({
         userId: user.id,
         action: AUDIT_ACTIONS.USER_REGISTRATION,
-        details: { email: user.email, name: user.name },
+        details: { email, requireVerify },
         ipAddress: req.ip
     });
 
-    // ✅ FIX: Send welcome email with login details
-    emailService.sendWelcomeEmail(user).then(() => {
-      console.log(`[Register] Welcome email queued for ${user.email}`);
-    }).catch((err) => {
-      console.error(`[Register] Failed to send welcome email for ${user.email}:`, err.message);
+    res.status(201).json({ 
+        message: requireVerify ? 'Registration successful. Please check your email to verify your account.' : 'Registration successful!', 
+        userId: user.id,
+        requireVerify
     });
 
-    res.status(201).json({ message: 'Registration successful!', userId: user.id });
   } catch (error) {
-    // SECURITY: Do not log the full error or req.body to avoid sensitive data exposure
-    console.error('[Register] Error occurred during user creation:', error.message); 
-    
-    // ✅ NEW: Relay specific business logic errors to the frontend
-    if (error.message.includes('already exists') || error.message.includes('rejected the password')) {
-        return res.status(400).json({ error: error.message });
-    }
-    
-    res.status(500).json({ error: `Registration failed. Reason: ${error.message}`, stack: error.stack });
+    console.error('[Register] Fatal Error:', error.message);
+    res.status(500).json({ error: `Registration failed. ${error.message}` });
   }
 };
 
-exports.welcomeEmail = async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email is required' });
+exports.verifyEmail = async (req, res) => {
+    const { email, token } = req.body;
+    if (!email || !token) return res.status(400).json({ error: 'Email and token are required for verification.' });
 
-  try {
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    try {
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) return res.status(404).json({ error: 'User not found.' });
+        if (user.isVerified) return res.json({ message: 'Account is already verified. You can log in.' });
 
-    // The welcome email is already sent during registration,
-    // but we'll provide this endpoint as a fallback or for manual triggering.
-    await emailQueue.add('welcome-email', {
-      to: user.email,
-      subject: 'Welcome to GeoSurePath - Get Started Now',
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
-          <h2 style="color: #3b82f6;">Welcome to GeoSurePath</h2>
-          <p>Hi ${user.name}, thanks for joining us!</p>
-          <p>Your account is ready. You can log in to start tracking your vehicles.</p>
-          <div style="text-align: center; margin-top: 32px;">
-            <a href="${process.env.FRONTEND_URL || 'http://3.108.114.12'}/login" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Login to Dashboard</a>
-          </div>
-        </div>
-      `
-    });
+        const metadata = user.permissions || {};
+        if (!metadata.verification || metadata.verification.token !== token || metadata.verification.expires < Date.now()) {
+            return res.status(400).json({ error: 'Invalid or expired verification token.' });
+        }
 
-    res.json({ message: 'Welcome email queued successfully' });
-  } catch (error) {
-    console.error('[WelcomeEmail] Error:', error.message);
-    res.status(500).json({ error: 'Failed to send welcome email' });
-  }
+        // Activate in SaaS
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { 
+                isVerified: true, 
+                permissions: { ...metadata, verification: null } 
+            }
+        });
+
+        // Activate in Traccar
+        if (user.geosurepathUserId) {
+            await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false })
+                .then(() => console.log(`[Verification] Traccar user enabled for ${email}`))
+                .catch(e => console.warn(`[Verification] Traccar sync failed for ${email}:`, e.message));
+        }
+
+        logAction({ userId: user.id, action: 'EMAIL_VERIFIED', ipAddress: req.ip });
+        res.json({ message: 'Email verified successfully. You can now log in and access your dashboard.' });
+
+    } catch (error) {
+        console.error('[VerifyEmail]', error.message);
+        res.status(500).json({ error: 'Failed to verify email.' });
+    }
+};
+
+exports.resendVerification = async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+    try {
+        const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+        if (!user) return res.status(200).json({ message: 'If this email exists in our records, a link was sent.' }); // Obfuscation
+        if (user.isVerified) return res.status(400).json({ error: 'Account is already verified.' });
+
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+        const metadata = user.permissions || {};
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                permissions: { ...metadata, verification: { token: verificationToken, expires: Date.now() + 24 * 3600000 } }
+            }
+        });
+
+        const verifyUrl = `${process.env.FRONTEND_URL || 'http://3.108.114.12'}/verify-email?token=${verificationToken}&email=${email}`;
+        await emailService.sendEmail(email, 'Verify Your GeoSurePath Account (Resend)', `
+             <div style="font-family: sans-serif; max-width: 600px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                <h2 style="color: #3b82f6;">Verify Your Email</h2>
+                <p>Hello ${user.name}, please click the button below to verify your email:</p>
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="${verifyUrl}" style="background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Verify Email Address</a>
+                </div>
+            </div>
+        `);
+
+        res.json({ message: 'Verification email resent successfully. Please check your inbox.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to resend verification.' });
+    }
 };
 
 exports.login = async (req, res) => {
@@ -242,7 +250,10 @@ exports.login = async (req, res) => {
       where: { OR: [{ email: identifier }, { username: identifier }] }
     });
 
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!user) {
+      logAction({ action: AUDIT_ACTIONS.LOGIN_FAILURE, details: { identifier, reason: 'Unknown user' }, ipAddress: req.ip });
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
     // Check account lock
     if (user.lockUntil && user.lockUntil > new Date()) {
@@ -284,6 +295,7 @@ exports.login = async (req, res) => {
           ipAddress: req.ip
       });
 
+      logAction({ userId: user.id, action: AUDIT_ACTIONS.LOGIN_FAILURE, details: { identifier, reason: 'Incorrect password' }, ipAddress: req.ip });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -314,6 +326,14 @@ exports.login = async (req, res) => {
         ipAddress: req.ip
     });
 
+    // ✅ FIX: Check isVerified BEFORE login if REQUIRED_VERIFICATION is enabled
+    if (process.env.REQUIRE_VERIFICATION === 'true' && !user.isVerified) {
+        return res.status(403).json({ 
+            error: 'Email not verified. Please check your inbox for the verification link.',
+            requireVerify: true 
+        });
+    }
+
     // ✅ FIX: Check isActive BEFORE issuing tokens to prevent token leak to suspended users
     if (!user.isActive) return res.status(403).json({ error: 'Account is suspended.' });
 
@@ -340,31 +360,18 @@ exports.login = async (req, res) => {
           ipAddress: req.ip
         });
       }
+
+      // ✅ LIMIT SYNC: Ensure Traccar deviceLimit matches SaaS subscription deviceCount
+      if (latestSub && user.geosurepathUserId) {
+        user.deviceLimit = latestSub.deviceCount; // Temporary property for later use or just update now
+      }
     }
 
-    // Check if verified (Fix 7)
-    if (!user.isVerified && process.env.REQUIRE_VERIFICATION === 'true') {
-      return res.status(403).json({ error: 'Please verify your email address before logging in.' });
-    }
 
     const isSecure = process.env.SECURE_COOKIES === 'true';
 
-    // ✅ MFA CHECK
-    if (user.mfaEnabled) {
-      return res.json({
-        message: 'MFA required',
-        mfaRequired: true,
-        userId: user.id
-      });
-    }
-
-    const { accessToken, refreshToken } = await generateTokens(user.id, user.role, user.geosurepathUserId, uaHash);
-
-    res.cookie('token', accessToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 15 * 60 * 1000 });
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: REFRESH_TOKEN_EXPIRATION });
-
     // ✅ PENTA CENTURION (S462): Self-Healing Authentication & Auto-Provisioning
-    // If Traccar login fails but SaaS succeeded, force-sync the password and auto-create if missing.
+    // We establish the Traccar session BEFORE the MFA check so the cookie is set early.
     try {
       const traccarSession = await geosurepathService.loginUser(identifier, password);
       if (traccarSession.cookie) {
@@ -379,16 +386,43 @@ exports.login = async (req, res) => {
             console.log(`[Login] Relayed Traccar session cookie (JSESSIONID=${match[1]}) for ${identifier}`);
         }
       }
+
+      // ✅ SYNC (S463): Ensure Traccar state matches SaaS role/limits
+      // Synchronize Admin bit, deviceLimit, and disabled status (e.g. for hardlock/verification)
+      const isAdminInSaaS = user.role === 'ADMIN';
+      const isAdminInTraccar = traccarSession.data?.administrator || false;
+      const deviceLimitInTraccar = traccarSession.data?.deviceLimit || 0;
+      const currentDeviceLimit = user.deviceLimit || 10;
+      const isDisabledInTraccar = traccarSession.data?.disabled || false;
+      const targetDisabled = isHardlocked || !user.isVerified || !user.isActive;
+
+      if (isAdminInSaaS !== isAdminInTraccar || deviceLimitInTraccar !== currentDeviceLimit || isDisabledInTraccar !== targetDisabled) {
+          console.log(`[Login] State Mismatch for ${identifier}. Syncing Traccar Admin=${isAdminInSaaS}, Limit=${currentDeviceLimit}, Disabled=${targetDisabled}`);
+          await geosurepathService.updateUser(user.geosurepathUserId, { 
+              administrator: isAdminInSaaS,
+              deviceLimit: currentDeviceLimit,
+              disabled: targetDisabled
+          }).catch(e => console.warn(`[Login] Failed to sync Traccar state: ${e.message}`));
+      }
     } catch (traccarError) {
       if (traccarError.message.includes('401')) {
         console.warn(`[Login] Traccar Auth failed for ${identifier}. Initiating Self-Healing Sync/Provision...`);
         try {
           if (user.geosurepathUserId) {
-            await geosurepathService.updateUser(user.geosurepathUserId, { password });
-            console.log(`[Login] Force-synced password for ${identifier}. Retrying session relay...`);
+            await geosurepathService.updateUser(user.geosurepathUserId, { 
+                password, 
+                administrator: user.role === 'ADMIN', 
+                deviceLimit: user.deviceLimit || 10,
+                disabled: isHardlocked || !user.isVerified || !user.isActive
+            });
+            console.log(`[Login] Force-synced credentials & limits for ${identifier}. Retrying session relay...`);
           } else {
             console.warn(`[Login] Missing Traccar Link for ${identifier}. Auto-provisioning...`);
-            const newTUser = await geosurepathService.createUser(user.name, user.email, password, { administrator: user.role === 'ADMIN' });
+            const newTUser = await geosurepathService.createUser(user.name, user.email, password, { 
+                administrator: user.role === 'ADMIN',
+                deviceLimit: user.deviceLimit || 10,
+                disabled: isHardlocked || !user.isVerified || !user.isActive
+            });
             await prisma.user.update({
               where: { id: user.id },
               data: { geosurepathUserId: newTUser.id }
@@ -396,7 +430,6 @@ exports.login = async (req, res) => {
             console.log(`[Login] Auto-provisioned Traccar user (ID: ${newTUser.id}) for ${identifier}.`);
           }
           
-          // Retry login once after sync/provision
           const retrySession = await geosurepathService.loginUser(identifier, password);
           const match = retrySession.cookie?.match(/JSESSIONID=([^;]+)/);
           if (match && match[1]) {
@@ -410,6 +443,21 @@ exports.login = async (req, res) => {
         console.warn(`[Login] Traccar silent login failed for ${identifier}: ${traccarError.message}`);
       }
     }
+
+    // ✅ MFA CHECK
+    if (user.mfaEnabled) {
+      return res.json({
+        message: 'MFA required',
+        mfaRequired: true,
+        userId: user.id,
+        isHardlocked // Included for UI consistency
+      });
+    }
+
+    const { accessToken, refreshToken } = await generateTokens(user.id, user.role, user.geosurepathUserId, uaHash);
+
+    res.cookie('token', accessToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 15 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: REFRESH_TOKEN_EXPIRATION });
 
     // ✅ FIX: Audit Log for Admin Login
     if (user.role === 'ADMIN') {
@@ -470,6 +518,7 @@ exports.logout = async (req, res) => {
   }
   res.clearCookie('token');
   res.clearCookie('refreshToken');
+  res.clearCookie('JSESSIONID', { path: '/' }); // ✅ FIX: Clear Traccar session cookie too
   res.json({ message: 'Logged out successfully' });
 };
 
@@ -489,17 +538,31 @@ exports.forgotPassword = async (req, res) => {
       data: { resetToken: token, resetTokenExpires: expires }
     });
 
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://3.108.114.12'}/reset-password?passwordReset=${token}`;
+    
     emailQueue.add('reset-password', {
       to: user.email,
-      subject: 'Reset Your GeoSurePath Password',
+      subject: 'Secure Recovery: Reset Your GeoSurePath Password',
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;">
-          <h2 style="color: #3b82f6;">Password Reset Request</h2>
-          <p>You requested a password reset for your GeoSurePath account. Please use the token below to complete the process:</p>
-          <div style="background: #f1f5f9; padding: 16px; text-align: center; border-radius: 8px; margin: 24px 0;">
-            <span style="font-size: 1.5rem; font-weight: bold; letter-spacing: 2px;">${token}</span>
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background: #fafafa;">
+          <h2 style="color: #3b82f6; text-align: center;">Identity Recovery Protocol</h2>
+          <p>Hello ${user.name},</p>
+          <p>A password reset has been requested for your GeoSurePath Enterprise account. Please click the button below to establish your new encrypted credentials:</p>
+          
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${resetUrl}" style="background: #3b82f6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1rem; display: inline-block; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">Reset My Password</a>
           </div>
-          <p style="color: #64748b; font-size: 0.85rem;">This token will expire in 1 hour. If you did not request this, you can safely ignore this email.</p>
+
+          <p style="color: #64748b; font-size: 0.85rem; text-align: center;">
+            If the button doesn't work, copy and paste this link into your browser:<br/>
+            <a href="${resetUrl}" style="color: #3b82f6;">${resetUrl}</a>
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;" />
+          <p style="color: #94a3b8; font-size: 0.75rem; text-align: center;">
+            This recovery link will expire in 1 hour.<br/>
+            If you did not request this recovery, please contact your workspace administrator immediately.
+          </p>
         </div>
       `
     });
@@ -536,19 +599,18 @@ exports.resetPassword = async (req, res) => {
     });
 
     // ✅ FIX: Sync password change to GeoSurePath using correct geosurepathUserId
-    try {
       if (user.geosurepathUserId) {
-        await geosurepathService.updateUser(user.geosurepathUserId, { password: newPassword });
-        console.log(`[ResetPassword] Synchronized password for GeoSurePath user ${user.geosurepathUserId}`);
+        await geosurepathService.updateUser(user.geosurepathUserId, { password: newPassword })
+          .catch(gsErr => console.error('[ResetPassword] GeoSurePath sync failed:', gsErr.message));
       }
-    } catch (gsErr) {
-      console.error('[ResetPassword] GeoSurePath sync failed:', gsErr.message);
-    }
 
-    res.json({ message: 'Password reset successful' });
-  } catch (error) {
-    res.status(500).json({ error: 'Error resetting password' });
-  }
+      // 3. SECURE SYNC (S35): Revoke all active sessions on other devices
+      await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+
+      res.json({ message: 'Password reset successful' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error resetting password' });
+    }
 };
 
 exports.changePassword = async (req, res) => {
@@ -571,12 +633,15 @@ exports.changePassword = async (req, res) => {
     // ✅ FIX: Sync password change to GeoSurePath 
     try {
       if (user.geosurepathUserId) {
-        await geosurepathService.updateUser(userId, { password: newPassword });
+        await geosurepathService.updateUser(user.geosurepathUserId, { password: newPassword });
         console.log(`[ChangePassword] Synchronized password for GeoSurePath user ${user.geosurepathUserId}`);
       }
     } catch (gsErr) {
       console.error('[ChangePassword] GeoSurePath sync failed:', gsErr.message);
     }
+
+    // ✅ SECURE SYNC (S35): Revoke all sessions, forcing a global re-login with the new password.
+    await prisma.refreshToken.deleteMany({ where: { userId } });
 
     // Audit Log
     logAction({
@@ -593,6 +658,11 @@ exports.changePassword = async (req, res) => {
 
 exports.syncSession = async (req, res) => {
   try {
+    // ✅ MAINTENANCE: Purge expired refresh tokens for this user
+    await prisma.refreshToken.deleteMany({
+        where: { userId: req.user.userId, expiresAt: { lt: new Date() } }
+    }).catch(e => console.warn(`[SyncSession] Cleanup failed: ${e.message}`));
+
     const user = await prisma.user.findUnique({
       where: { id: req.user.userId },
       select: {
@@ -608,6 +678,35 @@ exports.syncSession = async (req, res) => {
     });
 
     if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // ✅ HARDLOCK CHECK: Use shared helper
+    let isHardlocked = false;
+    if (user.role === 'CLIENT') {
+      const latestSub = await prisma.subscription.findFirst({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        include: { plan: true }
+      });
+
+      if (latestSub) {
+        const hardlock = calculateHardlock(user, latestSub);
+        isHardlocked = hardlock.isHardlocked;
+      }
+    }
+
+    // ✅ TRACCAR SESSION RECOVERY: If JSESSIONID is missing from cookies, 
+    // try to re-establish it silently using stored credentials or sync.
+    const isSecure = process.env.SECURE_COOKIES === 'true';
+    if (!req.cookies.JSESSIONID) {
+        try {
+            // We don't have the password here, but we can try a sync or use a service account 
+            // if we really need to, but the best way is to trigger a re-sync if possible.
+            // For now, we'll just log and let the frontend handle the retry if needed.
+            console.log(`[SyncSession] JSESSIONID missing for ${user.email}.`);
+        } catch (syncErr) {
+            console.error(`[SyncSession] Traccar recovery failed: ${syncErr.message}`);
+        }
+    }
 
     // ✅ FIX: Audit Log for Admin Sync (Optional but good for tracking active sessions)
     if (user.role === 'ADMIN') {
@@ -625,7 +724,8 @@ exports.syncSession = async (req, res) => {
     res.json({
       message: 'Session synchronized',
       user,
-      token // ✅ FIX: Allow frontend to persist token from synced session
+      token, // ✅ FIX: Allow frontend to persist token from synced session
+      isHardlocked
     });
   } catch (error) {
     console.error('[SyncSession] Error:', error);

@@ -11,6 +11,7 @@ const router = express.Router();
 const prisma = require('../lib/prisma');
 const { alertQueue, notificationQueue } = require('../services/queue');
 const { authenticateToken } = require('../middleware/authMiddleware');
+const fetch = require('node-fetch');
 
 /**
  * Register or refresh an FCM device token for push notifications.
@@ -126,6 +127,52 @@ router.post('/events', async (req, res) => {
     console.error('Error processing GeoSurePath event:', error);
     res.sendStatus(500);
   }
+});
+
+/**
+ * ✅ UNIVERSAL PROXY (S99): The Master Gateway to the Tracking Engine.
+ * Intercepts all /api/ requests, applies Just-in-Time Hardlock checks,
+ * and relays authorized traffic to the GeoSurePath Tracking Engine.
+ */
+router.all('/*', authenticateToken, async (req, res) => {
+    // 1. Determine Target URL
+    const targetPath = req.params[0] || req.path.replace('/api/geosurepath', '');
+    const targetUrl = `${process.env.GEOSUREPATH_URL}/api${targetPath}${req.url.includes('?') ? '?' + req.url.split('?')[1] : ''}`;
+
+    // 2. Prepare Headers (Relay Authorization & Cookies)
+    const headers = { ...req.headers };
+    delete headers.host;
+    delete headers.connection;
+    
+    // Ensure the engine sees the correct Content-Type if present
+    if (req.body && Object.keys(req.body).length > 0) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    try {
+        const proxyRes = await fetch(targetUrl, {
+            method: req.method,
+            headers,
+            body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body),
+            redirect: 'manual'
+        });
+
+        // 3. Relay Status & Headers (including JSESSIONID)
+        res.status(proxyRes.status);
+        proxyRes.headers.forEach((val, key) => {
+            if (['content-encoding', 'content-length', 'transfer-encoding'].includes(key.toLowerCase())) return;
+            res.setHeader(key, val);
+        });
+
+        // 4. Relay Body
+        const data = await proxyRes.buffer();
+        res.send(data);
+
+        console.log(`[Universal Proxy] ${req.method} ${targetUrl} -> ${proxyRes.status}`);
+    } catch (error) {
+        console.error(`[Universal Proxy] Failed to relay request to ${targetUrl}:`, error.message);
+        res.status(502).json({ error: 'Tracking Engine Gateway Timeout or Error', details: error.message });
+    }
 });
 
 module.exports = router;

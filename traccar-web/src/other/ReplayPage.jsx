@@ -92,6 +92,14 @@ const ReplayPage = () => {
   const to = searchParams.get('to');
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [playSpeed, setPlaySpeed] = useState(1); // Default 1x
+
+  const [stats, setStats] = useState({
+    distance: 0,
+    maxSpeed: 0,
+    avgSpeed: 0,
+    duration: 0,
+  });
 
   const loaded = Boolean(from && to && !loading && positions.length);
 
@@ -115,13 +123,13 @@ const ReplayPage = () => {
     if (playing && positions.length > 0) {
       timerRef.current = setInterval(() => {
         setIndex((index) => index + 1);
-      }, 500);
+      }, 500 / playSpeed);
     } else {
       clearInterval(timerRef.current);
     }
 
     return () => clearInterval(timerRef.current);
-  }, [playing, positions]);
+  }, [playing, positions, playSpeed]);
 
   useEffect(() => {
     if (index >= positions.length - 1) {
@@ -129,6 +137,40 @@ const ReplayPage = () => {
       setPlaying(false);
     }
   }, [index, positions]);
+
+  const calculateStats = (data) => {
+    if (data.length < 2) return;
+    
+    let totalDistance = 0;
+    let maxS = 0;
+    let sumSpeed = 0;
+    
+    data.forEach((p, i) => {
+      if (p.attributes.totalDistance && p.attributes.totalDistance > totalDistance) {
+        totalDistance = p.attributes.totalDistance;
+      } else if (i > 0 && p.distance) {
+          totalDistance += p.distance;
+      }
+      if (p.speed > maxS) maxS = p.speed;
+      sumSpeed += p.speed;
+    });
+
+    // If we have totalDistance attribute at start and end
+    const startDist = data[0].attributes.totalDistance || 0;
+    const endDist = data[data.length - 1].attributes.totalDistance || 0;
+    const distanceResult = (endDist > startDist) ? (endDist - startDist) : totalDistance;
+
+    const startTime = new Date(data[0].fixTime).getTime();
+    const endTime = new Date(data[data.length - 1].fixTime).getTime();
+    const durationMs = endTime - startTime;
+
+    setStats({
+      distance: distanceResult,
+      maxSpeed: maxS,
+      avgSpeed: sumSpeed / data.length,
+      duration: durationMs / 1000,
+    });
+  };
 
   const onPointClick = useCallback(
     (_, index) => {
@@ -154,7 +196,9 @@ const ReplayPage = () => {
       setIndex(0);
       const positions = await response.json();
       setPositions(positions);
-      if (!positions.length) {
+      if (positions.length) {
+        calculateStats(positions);
+      } else {
         throw Error(t('sharedNoData'));
       }
     } finally {
@@ -211,7 +255,36 @@ const ReplayPage = () => {
         <Paper className={classes.content} square>
           {loaded && (
             <>
-              <Typography variant="subtitle1" align="center">
+              <Box sx={{ mt: 1, mb: 2, p: 1.5, bgcolor: 'rgba(0,0,0,0.04)', borderRadius: 2 }}>
+                <Typography variant="overline" sx={{ fontWeight: 900, opacity: 0.6, fontSize: '0.65rem' }}>Trip Statistics</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="caption" sx={{ display: 'block', opacity: 0.6 }}>Distance</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 800 }}>{(stats.distance / 1000).toFixed(2)} km</Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="caption" sx={{ display: 'block', opacity: 0.6 }}>Max Speed</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 800 }}>{(stats.maxSpeed * 1.852).toFixed(1)} km/h</Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="caption" sx={{ display: 'block', opacity: 0.6 }}>Avg Speed</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 800 }}>{(stats.avgSpeed * 1.852).toFixed(1)} km/h</Typography>
+                  </Box>
+                </Box>
+                <Divider sx={{ my: 1, opacity: 0.1 }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-around' }}>
+                    <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="caption" sx={{ display: 'block', opacity: 0.6, fontSize: '0.6rem' }}>Ignition Cycles</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 800, fontSize: '0.75rem' }}>{positions.filter(p => p.attributes.ignition).length > 0 ? 'Verified' : 'None'}</Typography>
+                    </Box>
+                    <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="caption" sx={{ display: 'block', opacity: 0.6, fontSize: '0.6rem' }}>Data Points</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 800, fontSize: '0.75rem' }}>{positions.length}</Typography>
+                    </Box>
+                </Box>
+              </Box>
+
+              <Typography variant="subtitle1" align="center" sx={{ fontWeight: 600 }}>
                 {deviceName}
               </Typography>
               <Slider
@@ -223,27 +296,56 @@ const ReplayPage = () => {
                 onChange={(_, index) => setIndex(index)}
               />
               <div className={classes.controls}>
-                {`${index + 1}/${positions.length}`}
-                <IconButton
-                  onClick={() => setIndex((index) => index - 1)}
-                  disabled={playing || index <= 0}
-                >
-                  <FastRewindIcon />
-                </IconButton>
-                <IconButton
-                  onClick={() => setPlaying(!playing)}
-                  disabled={index >= positions.length - 1}
-                >
-                  {playing ? <PauseIcon /> : <PlayArrowIcon />}
-                </IconButton>
-                <IconButton
-                  onClick={() => setIndex((index) => index + 1)}
-                  disabled={playing || index >= positions.length - 1}
-                >
-                  <FastForwardIcon />
-                </IconButton>
-                {formatTime(positions[index].fixTime, 'seconds')}
+                <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                    {`${index + 1}/${positions.length}`}
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <IconButton
+                    size="small"
+                    onClick={() => setIndex((index) => index - 1)}
+                    disabled={playing || index <= 0}
+                    >
+                    <FastRewindIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                    onClick={() => setPlaying(!playing)}
+                    disabled={index >= positions.length - 1}
+                    sx={{ bgcolor: playing ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)' }}
+                    >
+                    {playing ? <PauseIcon color="error" /> : <PlayArrowIcon color="success" />}
+                    </IconButton>
+                    <IconButton
+                    size="small"
+                    onClick={() => setIndex((index) => index + 1)}
+                    disabled={playing || index >= positions.length - 1}
+                    >
+                    <FastForwardIcon fontSize="small" />
+                    </IconButton>
+                </Box>
+                <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                    {formatTime(positions[index].fixTime, 'seconds')}
+                </Typography>
               </div>
+
+              {/* ✅ SPEED CONTROLS */}
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, gap: 1 }}>
+                {[1, 2, 5, 10].map((s) => (
+                    <Button
+                        key={s}
+                        size="small"
+                        variant={playSpeed === s ? "contained" : "outlined"}
+                        onClick={() => setPlaySpeed(s)}
+                        sx={{ 
+                            minWidth: '40px', 
+                            fontSize: '0.65rem', 
+                            height: '24px',
+                            borderRadius: '12px'
+                        }}
+                    >
+                        {s}x
+                    </Button>
+                ))}
+              </Box>
             </>
           )}
           <div style={{ display: loaded ? 'none' : 'block' }}>

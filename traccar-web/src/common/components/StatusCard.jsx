@@ -18,6 +18,9 @@ import {
   TableFooter,
   Link,
   Tooltip,
+  Box,
+  Divider,
+  CircularProgress,
 } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import CloseIcon from '@mui/icons-material/Close';
@@ -27,6 +30,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PendingIcon from '@mui/icons-material/Pending';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
+import BlockIcon from '@mui/icons-material/Block';
+import NotificationImportantIcon from '@mui/icons-material/NotificationImportant';
 
 import { useTranslation } from './LocalizationProvider';
 import RemoveDialog from './RemoveDialog';
@@ -101,6 +106,11 @@ const useStyles = makeStyles()((theme, { desktopPadding }) => ({
     },
     transform: 'translateX(-50%)',
   },
+  '@keyframes pulse': {
+    '0%': { boxShadow: '0 0 0 0 rgba(239, 68, 68, 0.4)' },
+    '70%': { boxShadow: '0 0 0 10px rgba(239, 68, 68, 0)' },
+    '100%': { boxShadow: '0 0 0 0 rgba(239, 68, 68, 0)' },
+  },
 }));
 
 const StatusRow = ({ name, content }) => {
@@ -147,6 +157,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
   const [anchorEl, setAnchorEl] = useState(null);
 
   const [removing, setRemoving] = useState(false);
+  const [sendingCommand, setSendingCommand] = useState(false);
 
   const handleRemove = useCatch(async (removed) => {
     if (removed) {
@@ -162,7 +173,6 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
     toggleSafeParking();
   }, [toggleSafeParking]);
 
-  const handleGeofence = () => {};
 
   return (
     <>
@@ -186,9 +196,42 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                 </CardMedia>
               ) : (
                 <div className={`${classes.header} draggable-header`}>
-                  <Typography variant="body2" color="textSecondary">
-                    {device.name}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" color="textSecondary" fontWeight={700}>
+                      {device.name}
+                    </Typography>
+                    {device.attributes?.isAIS140 && (
+                      <Tooltip title={`Government Verified (AIS 140)\nCert: ${device.attributes.certNumber || 'Pending'}\nExpiry: ${device.attributes.ais140Expiry ? new Date(device.attributes.ais140Expiry).toLocaleDateString() : 'Lifetime'}`}>
+                         <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            bgcolor: 'success.main', 
+                            color: 'white', 
+                            px: 0.8, 
+                            borderRadius: '4px', 
+                            fontSize: '10px', 
+                            fontWeight: 'bold',
+                            boxShadow: '0 0 6px #10b981',
+                            cursor: 'help'
+                         }}>
+                            AIS 140
+                         </Box>
+                      </Tooltip>
+                    )}
+                    {position && (
+                      <Tooltip title={`Ignition: ${position.attributes.ignition ? 'ON' : 'OFF'}`}>
+                        <Box
+                          sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            bgcolor: position.attributes.ignition ? 'success.main' : 'error.main',
+                            boxShadow: `0 0 8px ${position.attributes.ignition ? '#10b981' : '#ef4444'}`,
+                          }}
+                        />
+                      </Tooltip>
+                    )}
+                  </Box>
                   <IconButton size="small" onClick={onClose} onTouchStart={onClose}>
                     <CloseIcon fontSize="small" />
                   </IconButton>
@@ -196,13 +239,31 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
               )}
               {position && (
                 <CardContent className={classes.content}>
+                  {/* ✅ QUICK INFO BAR */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-around', mb: 2, p: 1, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: '12px' }}>
+                     <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }}>Ignition</Typography>
+                        <Typography variant="body2" fontWeight={900} color={position.attributes.ignition ? 'success.main' : 'error.main'}>
+                            {position.attributes.ignition ? 'ENGINE ON' : 'ENGINE OFF'}
+                        </Typography>
+                     </Box>
+                     <Divider orientation="vertical" flexItem />
+                     <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }}>Speed</Typography>
+                        <Typography variant="body2" fontWeight={900}>
+                            <PositionValue position={position} property="speed" />
+                        </Typography>
+                     </Box>
+                  </Box>
+
                   <Table size="small" classes={{ root: classes.table }}>
                     <TableBody>
                       {positionItems
                         .split(',')
                         .filter(
                           (key) =>
-                            position.hasOwnProperty(key) || position.attributes.hasOwnProperty(key),
+                            key !== 'ignition' && // Handled in quick bar
+                            (position.hasOwnProperty(key) || position.attributes.hasOwnProperty(key)),
                         )
                         .map((key) => (
                           <StatusRow
@@ -242,28 +303,88 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                     <PendingIcon />
                   </IconButton>
                 </Tooltip>
+                
+                {/* ✅ QUICK IGNITION CONTROL */}
                 {position && (
-                  <Tooltip title={isSafeParkingActive ? 'Disable SafeZone' : 'Enable SafeZone'}>
-                    <IconButton
-                      onClick={handleSafeParking}
-                      sx={{
-                        border: '1px solid',
-                        borderColor: isSafeParkingActive ? '#06b6d4' : 'rgba(255,255,255,0.1)',
-                        background: isSafeParkingActive
-                          ? 'rgba(6, 182, 212, 0.1)'
-                          : 'rgba(59, 130, 246, 0.05)',
-                        color: isSafeParkingActive ? '#06b6d4' : 'primary.main',
-                        '&:hover': {
-                          background: isSafeParkingActive
-                            ? 'rgba(6, 182, 212, 0.2)'
-                            : 'rgba(59, 130, 246, 0.2)',
-                        },
-                      }}
-                    >
-                      <VpnLockIcon />
-                    </IconButton>
-                  </Tooltip>
+                   <Tooltip title={position.attributes.blocked ? 'Unblock Engine' : 'Block Engine'}>
+                      <IconButton
+                        onClick={async () => {
+                           if (window.confirm(`DANGER: Are you sure you want to ${position.attributes.blocked ? 'UNBLOCK' : 'STOP'} the engine of ${device.name}?`)) {
+                              setSendingCommand(true);
+                              try {
+                                  const command = {
+                                     deviceId: device.id,
+                                     type: position.attributes.blocked ? 'engineResume' : 'engineStop',
+                                     attributes: {}
+                                  };
+                                  await fetch('/api/commands/send', {
+                                     method: 'POST',
+                                     headers: { 'Content-Type': 'application/json' },
+                                     body: JSON.stringify(command)
+                                  });
+                              } finally {
+                                  setTimeout(() => setSendingCommand(false), 2000);
+                              }
+                           }
+                        }}
+                        disabled={disableActions || sendingCommand}
+                        color={position.attributes.blocked ? 'success' : 'error'}
+                        sx={{ 
+                            border: '1px solid', 
+                            borderColor: position.attributes.blocked ? 'success.main' : 'error.main',
+                            bgcolor: position.attributes.blocked ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)' 
+                        }}
+                      >
+                         {sendingCommand ? <CircularProgress size={20} color="inherit" /> : (position.attributes.blocked ? <VpnLockIcon /> : <BlockIcon />)}
+                      </IconButton>
+                   </Tooltip>
                 )}
+
+                 {position && (
+                    <Tooltip title={isSafeParkingActive ? 'Disable SafeZone' : 'Enable SafeZone'}>
+                       <IconButton
+                         onClick={handleSafeParking}
+                         sx={{
+                           border: '1px solid',
+                           borderColor: isSafeParkingActive ? '#06b6d4' : 'rgba(0,0,0,0.1)',
+                           background: isSafeParkingActive
+                             ? 'rgba(6, 182, 212, 0.1)'
+                             : 'rgba(0,0,0,0.03)',
+                           color: isSafeParkingActive ? '#06b6d4' : 'primary.main',
+                         }}
+                       >
+                         <VpnLockIcon />
+                       </IconButton>
+                    </Tooltip>
+                 )}
+                 {device.attributes?.isAIS140 && (
+                    <Tooltip title="Trigger Emergency SOS (AIS 140)">
+                       <IconButton
+                         onClick={async () => {
+                            if (window.confirm('EMERGENCY: Are you sure you want to trigger a manual SOS alert for this AIS 140 vehicle?')) {
+                               await fetch('/api/commands/send', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                     deviceId: device.id,
+                                     type: 'sosAlert',
+                                     attributes: {}
+                                  })
+                               });
+                               alert('SOS Alert Sent to Monitoring Station');
+                            }
+                         }}
+                         sx={{ 
+                             border: '1px solid #ef4444', 
+                             bgcolor: 'rgba(239, 68, 68, 0.2)', 
+                             color: '#ef4444',
+                             animation: 'pulse 1.5s infinite' 
+                         }}
+                       >
+                          <NotificationImportantIcon />
+                       </IconButton>
+                    </Tooltip>
+                 )}
                 <Tooltip title={t('reportReplay')}>
                   <IconButton
                     onClick={() => navigate(`/replay?deviceId=${deviceId}`)}

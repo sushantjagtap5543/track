@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
@@ -14,7 +14,7 @@ export default (
   const groups = useSelector((state) => state.groups.items);
   const devices = useSelector((state) => state.devices.items);
 
-  useEffect(() => {
+  useMemo(() => {
     const deviceGroups = (device) => {
       const groupIds = [];
       let { groupId } = device;
@@ -25,32 +25,38 @@ export default (
       return groupIds;
     };
 
-    const filtered = Object.values(devices)
-      .filter((device) => !filter.statuses.length || filter.statuses.includes(device.status))
-      .filter(
-        (device) =>
-          !filter.groups.length || deviceGroups(device).some((id) => filter.groups.includes(id)),
-      )
-      .filter((device) => {
-        const lowerCaseKeyword = keyword.toLowerCase();
-        return [device.name, device.uniqueId, device.phone, device.model, device.contact].some(
-          (s) => s && s.toLowerCase().includes(lowerCaseKeyword),
-        );
+    const deviceList = Object.values(devices);
+    const lowerCaseKeyword = keyword?.trim().toLowerCase();
+
+    const filtered = deviceList.filter((device) => {
+      // 1. Status Filter
+      if (filter.statuses.length && !filter.statuses.includes(device.status)) return false;
+      
+      // 2. Group Filter
+      if (filter.groups.length && !deviceGroups(device).some((id) => filter.groups.includes(id))) return false;
+      
+      // 3. Keyword Search (S99 Optimization: Early exit)
+      if (lowerCaseKeyword) {
+          const matchFound = [device.name, device.uniqueId, device.phone, device.model, device.contact].some(
+            (s) => s && s.toLowerCase().includes(lowerCaseKeyword),
+          );
+          if (!matchFound) return false;
+      }
+      
+      return true;
+    });
+
+    // 4. Optimized Sorting
+    if (filterSort === 'name') {
+      filtered.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (filterSort === 'lastUpdate') {
+      filtered.sort((a, b) => {
+        const t1 = a.lastUpdate ? dayjs(a.lastUpdate).valueOf() : 0;
+        const t2 = b.lastUpdate ? dayjs(b.lastUpdate).valueOf() : 0;
+        return t2 - t1;
       });
-    switch (filterSort) {
-      case 'name':
-        filtered.sort((device1, device2) => device1.name.localeCompare(device2.name));
-        break;
-      case 'lastUpdate':
-        filtered.sort((device1, device2) => {
-          const time1 = device1.lastUpdate ? dayjs(device1.lastUpdate).valueOf() : 0;
-          const time2 = device2.lastUpdate ? dayjs(device2.lastUpdate).valueOf() : 0;
-          return time2 - time1;
-        });
-        break;
-      default:
-        break;
     }
+
     setFilteredDevices(filtered);
     setFilteredPositions(
       filterMap

@@ -67,8 +67,8 @@ const startWorkers = () => {
       'EmailQueue',
       async (job) => {
         console.log(`[EmailWorker] Processing job ${job.id}: Sending email to ${job.data.to}`);
-        const { to, subject, text, html } = job.data;
-        await emailService.sendEmail({ to, subject, text, html });
+        const { to, subject, html } = job.data;
+        await emailService.sendEmail(to, subject, html);
       },
       { connection: redisConnection }
     ),

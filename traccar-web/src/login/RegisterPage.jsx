@@ -188,16 +188,6 @@ const RegisterPage = () => {
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        // Trigger welcome email
-        try {
-          await fetch('/api/auth/welcome-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email }),
-          });
-        } catch (e) {
-          console.warn('Welcome email failed', e);
-        }
         setErrorText('Registration Successful! Redirecting to login...');
         setSnackbarSeverity('success');
         setSnackbarOpen(true);

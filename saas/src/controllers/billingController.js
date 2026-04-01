@@ -169,17 +169,27 @@ const syncUserDevices = async (userId, geosurepathUserId) => {
             imei: td.uniqueId,
             geosurepathDeviceId: td.id,
             registrationDate: new Date(),
-            isActive: true
+            isActive: true,
+            isAIS140: td.attributes?.isAIS140 || false,
+            certNumber: td.attributes?.certNumber || null,
+            ais140Expiry: td.attributes?.ais140Expiry ? new Date(td.attributes.ais140Expiry) : null,
+            forwardingEnabled: td.attributes?.forwardingEnabled || false,
+            governmentEndpoint: td.attributes?.governmentEndpoint || null
           }
         });
-      } else if (!existing.geosurepathDeviceId || existing.userId !== userId || existing.deletedAt !== null) {
+      } else {
         // Update mapping, ownership, or restore if it was previously soft-deleted
         await prisma.vehicle.update({
           where: { id: existing.id },
           data: { 
             geosurepathDeviceId: td.id,
             userId: userId,
-            deletedAt: null // Restore if it was deleted
+            deletedAt: null, // Restore if it was deleted
+            isAIS140: td.attributes?.isAIS140 ?? existing.isAIS140,
+            certNumber: td.attributes?.certNumber ?? existing.certNumber,
+            ais140Expiry: td.attributes?.ais140Expiry ? new Date(td.attributes.ais140Expiry) : existing.ais140Expiry,
+            forwardingEnabled: td.attributes?.forwardingEnabled ?? existing.forwardingEnabled,
+            governmentEndpoint: td.attributes?.governmentEndpoint ?? existing.governmentEndpoint
           }
         });
       }
@@ -393,12 +403,19 @@ const getMyBill = async (req, res) => {
   const userId = req.user.userId;
   const { planId } = req.query; 
   try {
+    // 1. Trigger background sync
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (user?.geosurepathUserId) {
-        // ✅ PERFORMANCE: Background sync. Don't block the UI for a device sync.
         syncUserDevices(userId, user.geosurepathUserId).catch(e => console.error('[getMyBill] Background Sync failed:', e.message));
     }
+
+    // 2. Calculate and return bill
+    const bill = await calculateBillForAnyUser(userId, null, null, false, null, planId);
+    if (!bill) return res.status(404).json({ error: 'Billing profile not found' });
+    
+    res.json(bill);
   } catch (err) {
+    console.error('[getMyBill] Error:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -486,6 +503,7 @@ const getAllUsersLedger = async (req, res) => {
           graceDaysRemaining: bill?.sentry?.graceDaysRemaining || 0,
           isVIP: !!u.graceExtensionUntil && new Date(u.graceExtensionUntil) > new Date(),
           hardlockBypass: u.hardlockBypass || false,
+          isLinkedToEngine: !!u.geosurepathUserId, // ✅ NEW: Track engine link status
           mfaEnabled: u.mfaEnabled || false,
           createdAt: u.createdAt,
         };
@@ -1034,6 +1052,16 @@ const verifyPayment = async (req, res) => {
         await geosurepathService.updateUser(payment.user.geosurepathUserId, { disabled: false })
           .catch(e => console.error('[VerifyPayment] Traccar sync failed:', e.message));
     }
+
+    // ✅ AUDIT: Record successful automated payment (Accounting Sync)
+    await prisma.auditLog.create({
+      data: {
+        userId: payment.userId,
+        action: 'PAYMENT_VERIFIED',
+        details: `Amount: ₹${payment.amount}, Plan: ${plan.id}, Order: ${razorpay_order_id}`,
+        ipAddress: req.ip
+      }
+    });
 
     res.json({ message: 'Payment verified and subscription activated.', subscription });
 

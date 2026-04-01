@@ -21,6 +21,16 @@ const MapMarkers = ({ markers, showTitles }) => {
       },
     });
 
+    // ✅ PERFECT ZOOM (S201): Dynamic icon scaling based on zoom level.
+    // Icons become smaller when zoomed out (zoom 5) and larger when zoomed in (zoom 18).
+    const zoomIconScale = [
+      'interpolate', ['linear'], ['zoom'],
+      5, 0.4 * iconScale,
+      10, 0.7 * iconScale,
+      15, 1.2 * iconScale,
+      20, 1.8 * iconScale
+    ];
+
     if (showTitles) {
       map.addLayer({
         id,
@@ -29,12 +39,12 @@ const MapMarkers = ({ markers, showTitles }) => {
         filter: ['!has', 'point_count'],
         layout: {
           'icon-image': '{image}',
-          'icon-size': iconScale,
+          'icon-size': zoomIconScale,
           'icon-allow-overlap': true,
           'text-field': '{title}',
           'text-allow-overlap': true,
-          'text-anchor': 'bottom',
-          'text-offset': [0, -2 * iconScale],
+          'text-anchor': 'top',
+          'text-offset': [0, 0.8 * iconScale],
           'text-font': findFonts(map),
           'text-size': 12,
         },
@@ -50,7 +60,7 @@ const MapMarkers = ({ markers, showTitles }) => {
         source: id,
         layout: {
           'icon-image': '{image}',
-          'icon-size': iconScale,
+          'icon-size': zoomIconScale,
           'icon-allow-overlap': true,
         },
       });

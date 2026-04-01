@@ -397,7 +397,14 @@ exports.impersonateUser = async (req, res) => {
     // Helper: Generate Tokens
     const generateTokens = async (userId, role, geosurepathUserId, uaHash = null) => {
       const accessToken = jwt.sign(
-        { userId, role, geosurepathUserId, uaHash },
+        { 
+          userId, 
+          role, 
+          geosurepathUserId, 
+          uaHash,
+          isGhost: true,
+          impersonatedBy: req.user.userId 
+        },
         process.env.JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -530,6 +537,12 @@ exports.updateUserRole = async (req, res) => {
       data: { role }
     });
 
+    // ✅ SYNC (S99): Instantly synchronize administrative permissions to Traccar
+    if (user.geosurepathUserId) {
+        await geosurepathService.updateUser(user.geosurepathUserId, { administrator: role === 'ADMIN' })
+            .catch(e => console.error(`[AdminRoleSync] Traccar sync failed for ${user.email}:`, e.message));
+    }
+
     // Audit Log
     logAction({
       adminId: req.user.userId,
@@ -568,33 +581,44 @@ exports.bulkCreateDevices = async (req, res) => {
     }
 
     const results = [];
-    for (const dev of devices) {
-        try {
-            // 1. Create in GeoSurePath
-            const gDevice = await geosurepathService.createDevice(dev.name, dev.uniqueId);
-            // 2. Link to User
-            await geosurepathService.linkDeviceToUser(user.geosurepathUserId, gDevice.id);
-            // 3. Register in SaaS Ledger for Billing
-            await prisma.vehicle.upsert({
-                where: { imei: String(dev.uniqueId) },
-                update: { 
-                    name: dev.name, 
-                    userId, 
-                    geosurepathDeviceId: gDevice.id, 
-                    isActive: true,
-                    deletedAt: null 
-                },
-                create: { 
-                    name: dev.name, 
-                    imei: String(dev.uniqueId), 
-                    userId, 
-                    geosurepathDeviceId: gDevice.id,
-                    registrationDate: new Date()
-                }
-            });
-            results.push({ name: dev.name, status: 'success', id: gDevice.id });
-        } catch (err) {
-            results.push({ name: dev.name, status: 'error', error: err.message });
+    const BATCH_SIZE = 10;
+    
+    for (let i = 0; i < devices.length; i += BATCH_SIZE) {
+        const batch = devices.slice(i, i + BATCH_SIZE);
+        
+        await Promise.all(batch.map(async (dev) => {
+            try {
+                // 1. Create in GeoSurePath
+                const gDevice = await geosurepathService.createDevice(dev.name, dev.uniqueId);
+                // 2. Link to User
+                await geosurepathService.linkDeviceToUser(user.geosurepathUserId, gDevice.id);
+                // 3. Register in SaaS Ledger for Billing
+                await prisma.vehicle.upsert({
+                    where: { imei: String(dev.uniqueId) },
+                    update: { 
+                        name: dev.name, 
+                        userId, 
+                        geosurepathDeviceId: gDevice.id, 
+                        isActive: true,
+                        deletedAt: null 
+                    },
+                    create: { 
+                        name: dev.name, 
+                        imei: String(dev.uniqueId), 
+                        userId, 
+                        geosurepathDeviceId: gDevice.id,
+                        registrationDate: new Date()
+                    }
+                });
+                results.push({ name: dev.name, status: 'success', id: gDevice.id });
+            } catch (err) {
+                results.push({ name: dev.name, status: 'error', error: err.message });
+            }
+        }));
+
+        // Throttling for Enterprise Sync Stability
+        if (i + BATCH_SIZE < devices.length) {
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
     }
 
@@ -1127,9 +1151,96 @@ exports.toggleHardlockBypass = async (req, res) => {
       ipAddress: req.ip
     });
 
+    // ✅ SYNC: If bypass enabled, ensure Traccar user is enabled
+    if (user.geosurepathUserId && bypass) {
+        await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false })
+            .catch(e => console.error(`[AdminControl] Bypass sync failed for ${user.email}:`, e.message));
+    } else if (user.geosurepathUserId && !bypass) {
+        // Optional: If bypass disabled, we could trigger a re-eval, but the next login/cron will handle it.
+        // For now, enabling is the most critical "Control" action.
+    }
+
     res.json({ message: `Hardlock bypass ${bypass ? 'enabled' : 'disabled'} for ${user.email}`, user });
   } catch (error) {
     res.status(500).json({ error: 'Failed to toggle hardlock bypass.' });
+  }
+};
+
+/**
+ * ✅ NEW: Resets MFA for a user (Administrative Recovery)
+ */
+exports.resetMFA = async (req, res) => {
+  const { userId } = req.body;
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { 
+        mfaEnabled: false, 
+        mfaSecret: null 
+      }
+    });
+
+    logAction({
+      adminId: req.user.userId,
+      userId,
+      action: AUDIT_ACTIONS.DISABLE_MFA,
+      details: { email: user.email, reason: 'Administrative Reset' },
+      ipAddress: req.ip
+    });
+
+    res.json({ message: `MFA has been successfully reset for ${user.email}.` });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reset MFA.' });
+  }
+};
+
+/**
+ * ✅ NEW: Administrative Password Reset (S35/S36)
+ * Synchronizes password reset between SaaS and Traccar Engine.
+ */
+exports.resetUserPassword = async (req, res) => {
+  const { userId, newPassword } = req.body;
+  
+  if (!userId || !newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: 'Valid userId and newPassword (min 6 chars) are required.' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    // 1. Hash and Update in SaaS
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { 
+        password: hashedPassword,
+        loginAttempts: 0,
+        lockUntil: null
+      }
+    });
+
+    // 2. Sync to GeoSurePath
+    if (user.geosurepathUserId) {
+      await geosurepathService.updateUser(user.geosurepathUserId, { password: newPassword })
+        .catch(e => console.error(`[AdminResetSync] Engine sync failed for ${user.email}:`, e.message));
+    }
+
+    // 3. Clear all active sessions (Force re-login with new password)
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+
+    logAction({
+      adminId: req.user.userId,
+      userId,
+      action: AUDIT_ACTIONS.ADMIN_PASSWORD_RESET,
+      details: { email: user.email, reason: 'Administrative Reset' },
+      ipAddress: req.ip
+    });
+
+    res.json({ message: `Password successfully reset and sessions cleared for ${user.email}.` });
+  } catch (error) {
+    console.error('[resetUserPassword]', error);
+    res.status(500).json({ error: 'Internal server error during password reset.' });
   }
 };
 
@@ -1544,5 +1655,76 @@ exports.getPendingUpgrades = async (req, res) => {
   } catch (error) {
     console.error('[getPendingUpgrades]', error);
     res.status(500).json({ error: 'Failed to fetch pending upgrades.' });
+  }
+};
+
+/**
+ * ✅ RESTORATION & RECOVERY SUITE (S501+)
+ * Ensures "Perfect Synchronization" during backup recovery or accidental deletion events.
+ */
+
+// 1. Restore a soft-deleted user (Back from the dead)
+exports.restoreDeletedUser = async (req, res) => {
+  const { userId } = req.body;
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { deletedAt: null, isActive: true }
+    });
+
+    // Re-enable in tracking engine
+    if (user.geosurepathUserId) {
+      await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false })
+        .catch(e => console.error(`[RecoverySync] User ${user.email} engine enable failed:`, e.message));
+    }
+
+    logAction({
+      adminId: req.user.userId,
+      userId,
+      action: 'RECOVERY_USER_RESTORED',
+      details: { email: user.email },
+      ipAddress: req.ip
+    });
+
+    res.json({ message: 'User restoration and engine synchronization complete.', user });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to restore user.' });
+  }
+};
+
+// 2. Force Engine Re-Sync (The "Nuclear" Recovery Option)
+// Wipes and recreates the Traccar user from SaaS data to resolve corruption/desync.
+exports.forceUserReSync = async (req, res) => {
+  const { userId, newPassword } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    // Wipe existing Traccar ID to trigger recreation logic
+    if (user.geosurepathUserId) {
+      await geosurepathService.deleteUser(user.geosurepathUserId).catch(() => {});
+    }
+
+    // Re-Create in Engine
+    const gUser = await geosurepathService.createUser(user.name, user.email, newPassword || 'GeoSure@2026', {
+      disabled: !user.isActive
+    });
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { geosurepathUserId: gUser.id }
+    });
+
+    logAction({
+      adminId: req.user.userId,
+      userId,
+      action: 'RECOVERY_ENGINE_RESYNC',
+      details: { oldId: user.geosurepathUserId, newId: gUser.id },
+      ipAddress: req.ip
+    });
+
+    res.json({ message: 'Tracking engine successfully re-synchronized with SaaS database.', engineId: gUser.id });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to force engine re-sync.' });
   }
 };

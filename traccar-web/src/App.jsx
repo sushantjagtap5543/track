@@ -96,12 +96,17 @@ const App = () => {
                     return null;
                 }
   
-                // ✅ FIX: Instead of looping on window.location.reload() when Traccar API fails 
-                // but SaaS API succeeds, we force a clean session clear so they can login freshly.
-                window.localStorage.removeItem('saas_token');
-                window.localStorage.removeItem('saas_user');
-                window.localStorage.removeItem('saas_role');
-                navigate('/login', { replace: true, state: { error: 'Session Desynchronized. Please login again.' } });
+                // ✅ RECOVERY: Use SaaS data to hydrate the session if Traccar sync failed but SaaS is alive.
+                // This prevents the redirect loop for billing and dashboard access.
+                dispatch(sessionActions.updateUser({
+                    ...saasData.user,
+                    id: saasData.user.geosurepathUserId || saasData.user.id,
+                    saasId: saasData.user.id,
+                    name: saasData.user.name,
+                    email: saasData.user.email,
+                    administrator: saasData.user.role === 'ADMIN',
+                    attributes: { saasOnly: true }
+                }));
                 return null;
               }
             }

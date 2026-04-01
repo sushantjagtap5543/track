@@ -55,6 +55,11 @@ exports.updateProfile = async (req, res) => {
 
 exports.deleteAccount = async (req, res) => {
   try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    if (user?.geosurepathUserId) {
+        geosurepathService.updateUser(user.geosurepathUserId, { disabled: true }).catch(err => console.error('[DeleteAccount Sync] Failed to sync to Traccar:', err.message));
+    }
+    
     await prisma.user.update({
       where: { id: req.user.userId },
       data: { deletedAt: new Date(), isActive: false }

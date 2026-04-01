@@ -113,9 +113,26 @@ const SocketController = () => {
                   : 'Geofence Exit';
                 break;
               case 'alarm':
-                message = `ALARM: ${event.attributes.alarm || 'Triggered'}`;
+                const alarmType = event.attributes.alarm;
                 severity = 'error';
-                title = 'Urgent Alert';
+                title = '🚨 URGENT ALERT';
+                switch (alarmType) {
+                  case 'sos': message = 'EMERGENCY: SOS Button Pressed!'; break;
+                  case 'overspeed': message = 'ALERT: Vehicle is exceeding speed limits.'; break;
+                  case 'vibration': message = 'SECURITY: Unusual vibration detected.'; break;
+                  case 'lowBattery': message = 'WARNING: Device battery is critically low.'; severity = 'warning'; title = 'Low Battery'; break;
+                  case 'powerOff': message = 'CRITICAL: Main power supply disconnected.'; break;
+                  case 'tow': message = 'SECURITY: Vehicle towing detected!'; break;
+                  case 'jamming': message = 'SECURITY: Signal jamming detected!'; break;
+                  case 'tampering': message = 'SECURITY: Device tampering detected!'; break;
+                  case 'door': message = 'ALERT: Vehicle door opened.'; break;
+                  case 'bonnet': message = 'ALERT: Bonnet opened.'; break;
+                  case 'accident': message = 'CRITICAL: Possible accident detected!'; break;
+                  case 'hardAcceleration': message = 'INFO: Harsh acceleration detected.'; severity = 'info'; title = 'Driving Behavior'; break;
+                  case 'hardBraking': message = 'INFO: Harsh braking detected.'; severity = 'info'; title = 'Driving Behavior'; break;
+                  case 'hardCornering': message = 'INFO: Harsh cornering detected.'; severity = 'info'; title = 'Driving Behavior'; break;
+                  default: message = `ALARM: ${alarmType || 'Triggered'}`;
+                }
                 break;
               case 'ignitionOn':
                 message = 'Engine has been started.';
@@ -126,6 +143,16 @@ const SocketController = () => {
                 message = 'Engine has been stopped.';
                 severity = 'info';
                 title = 'Engine OFF';
+                break;
+              case 'maintenance':
+                message = 'Maintenance threshold reached.';
+                severity = 'warning';
+                title = 'Maintenance';
+                break;
+              case 'driverChanged':
+                message = 'New driver identified.';
+                severity = 'info';
+                title = 'Driver Update';
                 break;
               default:
                 message = event.type.replace(/([A-Z])/g, ' $1').trim();
@@ -145,6 +172,24 @@ const SocketController = () => {
     },
     [features, dispatch, soundEvents, soundAlarms],
   );
+
+  const bufferRef = useRef({ devices: [], positions: [] });
+  const flushBuffer = useCallback(() => {
+    const { devices, positions } = bufferRef.current;
+    if (devices.length > 0) {
+      dispatch(devicesActions.update(devices));
+      bufferRef.current.devices = [];
+    }
+    if (positions.length > 0) {
+      dispatch(positionsActions.update(positions));
+      bufferRef.current.positions = [];
+    }
+  }, [dispatch]);
+
+  useEffect(() => {
+    const interval = setInterval(flushBuffer, 500);
+    return () => clearInterval(interval);
+  }, [flushBuffer]);
 
   const connectSocket = useCallback(() => {
     clearReconnectTimeout();
@@ -188,10 +233,10 @@ const SocketController = () => {
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.devices) {
-        dispatch(devicesActions.update(data.devices));
+        bufferRef.current.devices.push(...data.devices);
       }
       if (data.positions) {
-        dispatch(positionsActions.update(data.positions));
+        bufferRef.current.positions.push(...data.positions);
       }
       if (data.events) {
         handleEvents(data.events);

@@ -153,6 +153,47 @@ const DevicePage = () => {
                 label={t('sharedDisabled')}
                 disabled={!admin}
               />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={item.attributes?.isAIS140 || false}
+                    onChange={(event) => setItem({ 
+                        ...item, 
+                        attributes: { ...item.attributes, isAIS140: event.target.checked } 
+                    })}
+                  />
+                }
+                label="Government Compliance (AIS 140)"
+              />
+              {item.attributes?.isAIS140 && (
+                <>
+                  <TextField
+                    value={item.attributes?.certNumber || ''}
+                    onChange={(event) => setItem({ 
+                      ...item, 
+                      attributes: { ...item.attributes, certNumber: event.target.value } 
+                    })}
+                    label="AIS 140 Certificate Number"
+                    helperText="Required for RTO Certification"
+                    fullWidth
+                  />
+                  <TextField
+                    label="AIS 140 Certificate Expiry"
+                    type="date"
+                    value={item.attributes?.ais140Expiry ? item.attributes.ais140Expiry.split('T')[0] : ''}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setItem({ 
+                          ...item, 
+                          attributes: { ...item.attributes, ais140Expiry: new Date(e.target.value).toISOString() } 
+                        });
+                      }
+                    }}
+                    InputLabelProps={{ shrink: true }}
+                    fullWidth
+                  />
+                </>
+              )}
               <Button variant="outlined" color="primary" onClick={() => setShowQr(true)}>
                 {t('sharedQrCode')}
               </Button>

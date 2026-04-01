@@ -111,24 +111,32 @@ const loginUser = async (email, password) => {
 
 /**
  * ✅ FIX: Wrapper that checks for 401/403 responses and auto-refreshes the session
- * before retrying once. Prevents stale-session failures from persisting.
+ * before retrying once. Added 10s timeout to prevent SaaS hanging on engine lag.
  */
 const fetchWithSessionRefresh = async (url, options, retried = false) => {
-  const response = await fetch(url, options);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-  if ((response.status === 401 || response.status === 403) && !retried) {
-    console.warn('[GeoSurePath] Session expired or invalid. Refreshing session and retrying...');
-    clearSession();
-    await ensureSession();
-    // Rebuild headers with fresh session cookie
-    const refreshedOptions = {
-      ...options,
-      headers: getAuthHeaders()
-    };
-    return fetchWithSessionRefresh(url, refreshedOptions, true);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if ((response.status === 401 || response.status === 403) && !retried) {
+      console.warn('[GeoSurePath] Session expired or invalid. Refreshing session and retrying...');
+      clearSession();
+      await ensureSession();
+      const refreshedOptions = { ...options, headers: getAuthHeaders() };
+      return fetchWithSessionRefresh(url, refreshedOptions, true);
+    }
+
+    return response;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error(`GeoSurePath API Timeout: The tracking engine is taking too long to respond (>10s).`);
+    }
+    throw err;
   }
-
-  return response;
 };
 
 const createUser = async (name, email, password, options = {}) => {
@@ -297,6 +305,20 @@ const deleteGeofence = async (geofenceId) => {
   return response.ok;
 };
 
+const updateDevice = async (deviceId, data) => {
+  await ensureSession();
+  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/devices/${deviceId}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ id: deviceId, ...data })
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`GeoSurePath updateDevice failed: ${response.status} ${text}`);
+  }
+  return response.json();
+};
+
 const updateUser = async (userId, data) => {
   await ensureSession();
   const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/users/${userId}`, {
@@ -311,13 +333,32 @@ const updateUser = async (userId, data) => {
   return response.json();
 };
 
+const redis = require('../lib/redis');
+
 const getAllLatestPositions = async () => {
-  await ensureSession();
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/positions`, {
-    headers: getAuthHeaders()
-  });
-  if (!response.ok) return [];
-  return response.json();
+  try {
+    // ✅ HIGH-CONCURRENCY CACHE (Scenario 202): 
+    // Cache the entire fleet state for 5s to prevent engine DDOS during admin audits.
+    const CACHE_KEY = 'geosurepath:fleet:positions';
+    const cached = await redis.get(CACHE_KEY);
+    if (cached) return JSON.parse(cached);
+
+    await ensureSession();
+    const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/positions`, {
+      headers: getAuthHeaders()
+    });
+    
+    if (!response.ok) return [];
+    const data = await response.json();
+    
+    await redis.setex(CACHE_KEY, 5, JSON.stringify(data));
+    return data;
+
+  } catch (error) {
+    console.warn('[Cache Error] Falling back to direct engine fetch:', error.message);
+    const response = await fetch(`${GEOSUREPATH_URL}/api/positions`, { headers: getAuthHeaders() });
+    return response.ok ? response.json() : [];
+  }
 };
 
 const getUserDevices = async (userId) => {
@@ -387,5 +428,6 @@ module.exports = {
   getAllLatestPositions,
   getUserDevices,
   getAllDevices,
-  loginUser
+  loginUser,
+  updateDevice,
 };

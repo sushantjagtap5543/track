@@ -12,6 +12,7 @@ import {
   Snackbar,
   Box,
   Button,
+  CircularProgress,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import BatteryFullIcon from '@mui/icons-material/BatteryFull';
@@ -107,10 +108,28 @@ const DeviceRow = ({ devices, index, style }) => {
 
   const isImmobilized = position?.attributes?.ignition === false;
 
-  const handleIgnitionToggle = (e) => {
+  const handleIgnitionToggle = async (e, deviceId, currentStatus) => {
     e.stopPropagation();
-    setPendingIgnition(true);
-    setTimeout(() => setPendingIgnition(false), 2000);
+    if (window.confirm(`DANGER: Are you sure you want to ${currentStatus ? 'STOP' : 'START'} the engine?`)) {
+      setPendingIgnition(true);
+      try {
+        const command = {
+          deviceId,
+          type: currentStatus ? 'engineStop' : 'engineResume',
+          attributes: {}
+        };
+        await fetch('/api/commands/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(command)
+        });
+        setToastMessage(`Command Sent: ${currentStatus ? 'Engine Stop' : 'Engine Resume'}`);
+      } catch (err) {
+        setToastMessage('Command Failed');
+      } finally {
+        setTimeout(() => setPendingIgnition(false), 2000);
+      }
+    }
   };
 
   return (
@@ -132,6 +151,23 @@ const DeviceRow = ({ devices, index, style }) => {
           primary={
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography sx={{ fontWeight: 700 }}>{primaryValue}</Typography>
+              {item.attributes?.isAIS140 && (
+                <Box sx={{ 
+                    bgcolor: 'success.main', 
+                    color: 'white', 
+                    px: 0.5, 
+                    borderRadius: '3px', 
+                    fontSize: '0.5rem', 
+                    fontWeight: 900,
+                    lineHeight: 1,
+                    ml: 0.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: '14px'
+                }}>
+                    AIS 140
+                </Box>
+              )}
               {position && (
                 <Box sx={{ display: 'flex', gap: theme.spacing(0.5), alignItems: 'center' }}>
                   <Tooltip
@@ -210,10 +246,11 @@ const DeviceRow = ({ devices, index, style }) => {
                         padding: '0 6px',
                         fontWeight: 800,
                         borderRadius: '12px',
+                        boxShadow: !isImmobilized ? '0 4px 12px rgba(239, 68, 68, 0.3)' : '0 4px 12px rgba(34, 197, 94, 0.3)'
                       }}
                       disabled={pendingIgnition}
                     >
-                      {!isImmobilized ? 'STOP' : 'START'}
+                      {pendingIgnition ? <CircularProgress size={12} color="inherit" /> : (!isImmobilized ? 'STOP' : 'START')}
                     </Button>
                   </Box>
                 )}

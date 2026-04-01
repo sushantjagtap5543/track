@@ -138,7 +138,7 @@ const ResetPasswordPage = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email }),
         });
-        setSnackbarMessage('Password reset email sent. Please check your inbox.');
+        setSnackbarMessage('Recovery credentials dispatched. Please check your enterprise inbox.');
         setSnackbarSeverity('success');
       } else {
         await fetchOrThrow('/api/auth/reset-password', {
@@ -146,7 +146,7 @@ const ResetPasswordPage = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token, newPassword: password }),
         });
-        setSnackbarMessage('Password updated successfully. You can now log in.');
+        setSnackbarMessage('Identity security protocol updated successfully. You may now re-enter the platform.');
         setSnackbarSeverity('success');
       }
       setSnackbarOpen(true);

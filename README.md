@@ -4,11 +4,11 @@
 [![Version](https://img.shields.io/badge/Version-1.2.5--Stable-green.svg)]()
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 
-**GeoSurePath** is a high-performance, enterprise-grade SaaS infrastructure designed for global vehicle tracking. built for massive scale, it wraps the industry-leading **Traccar** core in a modern, secure SaaS layer with advanced billing, AI-driven guardianship, and real-time safety controls.
+**GeoSurePath** is a high-performance, enterprise-grade SaaS infrastructure designed for global vehicle tracking. Built for massive scale, it wraps the industry-leading **Traccar** core in a modern, secure SaaS layer with advanced billing, AI-driven guardianship, and real-time safety controls.
 
 ---
 
-## 🏗️ Premium Infrastructure
+## 🏗️ Architecture & Capacity
 GeoSurePath uses a modular, high-availability architecture designed for zero-latency operations.
 
 ```mermaid
@@ -24,69 +24,80 @@ graph TD
     D --> I[GPS Devices - 2000+ Protocols]
 ```
 
-### Infrastructure Stack:
-- **Core Engine**: Java 21 (Traccar Core) - Industrial protocol processing.
-- **SaaS Layer**: Node.js 20 with Express & Prisma ORM.
-- **Frontend**: React 19 + MUI - Premium Dark/Glassmorphic interface.
-- **Safety Agent**: **AI-Guardian** - Self-healing background system maintenance.
-- **Database**: PostgreSQL 15 - Optimized for high-frequency position logging.
+### System Capacity:
+- **Device Scaling**: Support for **thousands of concurrent GPS connections**.
+- **Data Retention**: **180-day hot storage** for positions, with automated **Google Drive cold-archiving**.
+- **Protocol Range**: 5001-5150 default range for industrial sensors.
 
 ---
 
-## 💎 Safety & Security Ecosystem
+## 🎛️ Admin Command Center (Manual)
+The Admin dashboard provides global oversight and control over the entire fleet ecosystem.
 
-### 🛡️ Intelligent Protection
-- **Safe Parking (Engine Lock)**: 1-click 15m radius micro-perimeter with auto-purge.
-- **Remote Immobilization**: Secure engine cut-off and resume commands with safety logic.
-- **AI-Guardian**: Automated database pruning (180-day retention) and server-log offloading.
-- **Ignition Pulse**: High-precision monitoring of engine status synced with telemetry events.
+### 👤 User & Fleet Management
+- **Bulk Operations**: Create, delete, or update status for hundreds of users simultaneously.
+- **Device Syncing**: Force synchronization between the SaaS layer and the Tracking Engine.
+- **Impersonation Mode**: Securely log in as any user to troubleshoot issues or verify configurations.
+- **Session Control**: View active user sessions and revoke access instantly (MFA reset support).
 
-### 🔔 Smart Notifications
-- **Auditory UI**: Custom **Web Audio API** alerts with 5 distinct context-aware tones.
-- **Omni-Channel Alerts**: Push notifications, Telegram, WhatsApp API, and SMS.
-- **Live Dash**: High-fidelity Toast notifications with low-latency event delivery.
+### 💰 Billing & Revenue
+- **Advanced Analytics**: Real-time revenue reports, payment success rates, and debt tracking.
+- **Razorpay Suite**: Manage gateway configurations, verify payments, and process refunds.
+- **Manual Settlements**: Settle cash payments or adjust subscription expiry dates manually for offline transactions (Bulk Settle support).
 
----
-
-## 💼 Enterprise SaaS Features
-- **Razorpay Integrated Billing**: Automated tiered subscription and license lifecycle management.
-- **Fleet Admin Panel**: Global health monitoring, user approval, and resource scaling.
-- **Advanced Reports**: Sub-second history loading for trips, stops, and sensor telemetry.
-
----
-
-## 🚀 Rapid Deployment (Ubuntu / Debian)
-
-### 1. One-Click Installation
-Run this on a fresh Ubuntu 22.04/24.04 instance to auto-install Docker, configure secrets, and launch:
-```bash
-wget -qO- https://raw.githubusercontent.com/sushantjagtap5543/track/main/install.sh | bash
-```
-
-### 2. Manual Launch
-```bash
-git clone https://github.com/sushantjagtap5543/track.git
-cd track
-# Secrets are auto-generated from .env.example if .env is missing
-docker compose up -d --build
-```
+### 🛡️ AIS 140 Government Compliance
+- **RTO Approval**: Dedicated workflow for approving hardware devices for government tracking standards.
+- **Inventory Tracking**: Manage AIS 140 certified device inventory and certificate numbers.
+- **Data Forwarding**: Configure real-time forwarding to state/national government endpoints.
 
 ---
 
-## 💾 System Maintenance
-- **Backups**: Automated 7-day rolling SQL dumps in `/opt/track/backups/`.
-- **Database Optimization**: AI-Guardian automatically manages indices and record retention.
+## 📱 Client Protection Portal (Manual)
+The Client interface is designed for high-fidelity asset protection and real-time response.
+
+### 🌍 Real-Time Dashboard
+- **Universal Proxy**: High-speed, secure relay to the Traccar tracking engine for sub-second position updates.
+- **Hardware Integration**: Support for engine immobilization (cut-off/resume) with safety logic.
+- **Ignition Pulse**: Live monitoring of engine status (On/Off) synchronized with telemetry.
+
+### 🔒 Safety Ecosystem
+- **Safe Parking (Engine Lock)**: 1-click 15m radius geofence. Triggers immediate alerts if the vehicle moves.
+- **AI-Guardian Alerts**: Context-aware security tones for tampering, geofence exit, and overspeeding.
+- **Remote Immobilization**: Command-based engine control via secure API gateway.
+
+### 🔔 Notifications & Self-Service
+- **Auditory UI**: Custom web audio alerts with 5 distinct context-aware tones.
+- **Push & SMS**: Integrated FCM (Firebase) for mobile push and WhatsApp/SMS alert delivery.
+- **Self-Billing**: Manage subscriptions, download invoices, and upgrade plans via Razorpay.
+
+---
+
+## 💾 System Maintenance (AI-Guardian)
+- **Database Optimization**: AI-Guardian manages indices and record retention (180 days).
+- **Automated Backups**: 7-day rolling SQL dumps and Google Drive position archiving.
 - **Health Checks**: Integrated Docker health probes via `pg_isready` and `redis-cli`.
+
+---
+
+## 🚀 Rapid Deployment
+1. **One-Click Installation**:
+   ```bash
+   wget -qO- https://raw.githubusercontent.com/sushantjagtap5543/track/main/install.sh | bash
+   ```
+2. **Manual Launch**:
+   ```bash
+   git clone https://github.com/sushantjagtap5543/track.git
+   cd track
+   docker compose up -d --build
+   ```
 
 ---
 
 ## 🛡️ Best Practices
 - **Security**: Nginx level rate-limiting on `/api/auth/` and JWT-secured transit.
-- **Efficiency**: Optimized TCP/UDP port mapping (5001-5150) for industrial sensors.
+- **Efficiency**: Optimized TCP/UDP port mapping for industrial sensors.
 
 ---
 
 ## 📄 License
 This platform is licensed under the Apache License 2.0. Copyright (c) 2026 GeoSurePath.
-
-Designed with ❤️ for Enterprise Fleet Resilience.

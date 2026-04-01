@@ -44,46 +44,25 @@ const authenticateToken = async (req, res, next) => {
       }
 
       // ✅ HARDLOCK CHECK: Block access if subscription is OVERDUE
-      // EXCEPTION: Allow billing routes so the user can pay to regain access
-      const isBillingRoute = req.originalUrl && req.originalUrl.includes('/api/billing');
+      // EXCEPTION: Allow billing routes and sync so the app can function in a limited state
+      const isExemptRoute = req.originalUrl && (
+          req.originalUrl.includes('/api/billing') || 
+          req.originalUrl.includes('/api/auth/sync')
+      );
 
-      if (user.role === 'CLIENT' && !isBillingRoute) {
+      if (user.role === 'CLIENT' && !isExemptRoute) {
+        const { getAccountHardlockState } = require('../services/billingService');
         const latestSub = await prisma.subscription.findFirst({
           where: { userId: user.id },
           orderBy: { createdAt: 'desc' },
           include: { plan: true }
         });
 
-        const redisConn = require('../lib/redis');
-        const now = new Date();
-        let effectiveExpiry = latestSub?.expiresAt ? new Date(latestSub.expiresAt) : new Date(user.registrationDate);
-        if (user.graceExtensionUntil && new Date(user.graceExtensionUntil) > effectiveExpiry) {
-          effectiveExpiry = new Date(user.graceExtensionUntil);
-        }
-
-        // Dynamic Grace Period
-        let planDays = 30;
-        if (latestSub?.plan) {
-          planDays = latestSub.plan.billingCycle === 'MONTHLY' ? 30 : 365;
-          if (latestSub.planId?.toLowerCase().includes('half') || latestSub.plan.name?.toLowerCase().includes('6 month')) {
-            planDays = 180;
-          }
-        }
-
-        let gracePeriod = 7;
-        if (planDays <= 31) gracePeriod = 3;
-        else if (planDays <= 186) gracePeriod = 5;
-        else gracePeriod = 7;
-
-        const gracePeriodEnd = new Date(effectiveExpiry);
-        gracePeriodEnd.setDate(gracePeriodEnd.getDate() + gracePeriod);
-
-        const isBypassed = user.hardlockBypass || false;
-        const isHardlocked = now > gracePeriodEnd && !isBypassed;
+        const { isHardlocked, graceDays } = getAccountHardlockState(user, latestSub);
 
         if (isHardlocked) {
           return res.status(403).json({ 
-            error: `Subscription Overdue: Access blocked. Your current grace period was ${gracePeriod} days. Please pay your outstanding dues.`,
+            error: `Subscription Overdue: Access blocked. Your current grace period was ${graceDays} days. Please pay your outstanding dues.`,
             isHardlocked: true
           });
         }

@@ -456,6 +456,42 @@ const UserPage = () => {
                   disabled={!manager}
                 />
               </FormGroup>
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle1" sx={{ color: '#3b82f6', fontWeight: 800 }}>Enterprise Recovery Tools</Typography>
+            </AccordionSummary>
+            <AccordionDetails className={classes.details}>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                High-integrity synchronization tools to repair engine drift or restore accidentally deleted accounts.
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  onClick={async () => {
+                    if (window.confirm('FORCE ENGINE RE-SYNC: This will wipe and recreate the tracking engine profile for this user. Continue?')) {
+                      await fetchOrThrow(`/api/admin/users/${id}/force-resync`, { method: 'POST' });
+                      alert('Tracking engine successfully re-synchronized with SaaS.');
+                    }
+                  }}
+                  startIcon={<CachedIcon />}
+                  disabled={!admin}
+                >
+                  Nuclear Engine Re-Sync
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="success"
+                  onClick={async () => {
+                    await fetchOrThrow(`/api/admin/users/${id}/restore`, { method: 'POST' });
+                    alert('User restoration and engine synchronization complete.');
+                    window.location.reload();
+                  }}
+                  disabled={!admin}
+                >
+                  Restore & Synchronize
+                </Button>
+              </Box>
             </AccordionDetails>
           </Accordion>
           <EditAttributesAccordion
@@ -465,6 +501,8 @@ const UserPage = () => {
             definitions={{ ...commonUserAttributes, ...userAttributes }}
             focusAttribute={attribute}
           />
+        </>
+      )}
           {registrationEnabled && item.id === currentUser.id && !manager && (
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>

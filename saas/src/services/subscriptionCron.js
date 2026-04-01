@@ -41,67 +41,42 @@ const checkExpirations = async () => {
       // Here usually we'd call an email service: await emailService.sendExpiryWarning(sub.user);
     }
 
-    // 2. Automated Grace Period: Find all ACTIVE subscriptions that have JUST expired
-    const expiredSubscriptions = await prisma.subscription.findMany({
+    // 2 & 3. Automated Expiry & Grace Transitions (UNIFIED S98)
+    const subscriptionsToProcess = await prisma.subscription.findMany({
       where: {
-        status: 'ACTIVE',
-        expiresAt: { lt: now }
+        status: { in: ['ACTIVE', 'GRACE'] },
+        expiresAt: { lt: now } 
       },
-      include: { user: true }
+      include: { user: true, plan: true }
     });
 
-    if (expiredSubscriptions.length > 0) {
-      console.log(`[Cron] Found ${expiredSubscriptions.length} subscriptions hitting expiry. Moving to GRACE period...`);
-      for (const sub of expiredSubscriptions) {
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: { status: 'GRACE' }
-        });
-        console.log(`[Cron] User ${sub.user.email} moved to GRACE period (3 days remaining).`);
-      }
-    }
-
-    // 3. Final Expiry: Find subscriptions in GRACE that have exceeded the 3-day window
-    // (We consider a subscription 'fully dead' if status is GRACE and expiresAt is older than 3 days)
-    const graceLimit = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-    const deadSubscriptions = await prisma.subscription.findMany({
-      where: {
-        status: 'GRACE',
-        expiresAt: { lt: graceLimit }
-      },
-      include: { user: true }
-    });
-
-    if (deadSubscriptions.length === 0 && expiredSubscriptions.length === 0) {
+    if (subscriptionsToProcess.length === 0) {
       console.log('[Cron] No state transitions required today.');
       return;
     }
 
-    console.log(`[Cron] Processing ${deadSubscriptions.length} final terminations...`);
+    const { getAccountHardlockState } = require('./billingService');
 
-    for (const sub of deadSubscriptions) {
+    for (const sub of subscriptionsToProcess) {
+      const { isHardlocked, isGraceActive } = getAccountHardlockState(sub.user, sub);
       const user = sub.user;
-      
-      // Mark as EXPIRED/TERMINATED
-      await prisma.subscription.update({
-        where: { id: sub.id },
-        data: { status: 'EXPIRED' }
-      });
 
-      // Check if user has any other ACTIVE subscriptions
-      const otherActiveSub = await prisma.subscription.findFirst({
-        where: {
-          userId: sub.userId,
-          status: 'ACTIVE',
-          expiresAt: { gt: now }
-        }
-      });
-
-      const hasGraceExtension = user.graceExtensionUntil && new Date(user.graceExtensionUntil) > now;
-
-      if (!otherActiveSub && !hasGraceExtension) {
+      if (isGraceActive && sub.status === 'ACTIVE') {
+        // Just expired -> Move to GRACE
+        await prisma.subscription.update({
+          where: { id: sub.id },
+          data: { status: 'GRACE' }
+        });
+        console.log(`[Cron] User ${user.email} moved to GRACE period.`);
+      } else if (isHardlocked) {
+        // Grace exhausted or immediately hardlocked
         console.log(`[Cron] TERMINATING user ${user.email} - Grace period exhausted.`);
         
+        await prisma.subscription.update({
+          where: { id: sub.id },
+          data: { status: 'EXPIRED' }
+        });
+
         await prisma.user.update({
           where: { id: user.id },
           data: { isActive: false }
@@ -117,12 +92,9 @@ const checkExpirations = async () => {
           data: {
             userId: user.id,
             action: 'AUTO_EXPIRY_LOCK',
-            details: `Account locked after 3-day grace period exhausted. Subscription: ${sub.id}.`
+            details: `Account locked after grace period exhausted. Subscription: ${sub.id}.`
           }
         }).catch(err => console.debug('[Cron] Audit log suppressed:', err.message));
-
-      } else {
-        console.log(`[Cron] User ${user.email} remains active via secondary sub/extension.`);
       }
     }
   } catch (err) {

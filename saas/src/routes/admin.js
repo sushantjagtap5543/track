@@ -47,6 +47,10 @@ router.get('/users/:userId/sessions',              adminController.getUserSessio
 router.post('/users/:userId/sessions/:sessionId/revoke', adminController.revokeUserSession);
 router.post('/users/:userId/revoke-all-sessions',  adminController.revokeAllUserSessions);
 router.post('/users/hardlock-bypass',              adminController.toggleHardlockBypass);
+router.post('/users/reset-mfa',                  adminController.resetMFA);
+router.post('/users/:userId/reset-password',             adminController.resetUserPassword);
+router.post('/users/:userId/restore',                    adminController.restoreDeletedUser);
+router.post('/users/:userId/force-resync',               adminController.forceUserReSync);
 
 // ─── SUBSCRIPTION MANAGEMENT ─────────────────────────────────────────────────
 router.post('/user-subscription',                  adminController.updateUserSubscription);

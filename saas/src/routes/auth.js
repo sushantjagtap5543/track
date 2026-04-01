@@ -10,6 +10,8 @@ router.post('/refresh-token', authController.refreshToken);
 router.post('/logout', authController.logout);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
+router.post('/verify-email', authController.verifyEmail);
+router.post('/resend-verification', authController.resendVerification);
 // New MFA Routes
 router.post('/mfa/setup', authenticateToken, authController.setupMFA);
 router.post('/mfa/verify', authController.verifyMFA); // Public if called from login

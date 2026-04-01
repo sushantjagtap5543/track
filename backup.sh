@@ -24,12 +24,23 @@ fi
 
 mkdir -p "$BACKUP_DIR"
 
-# ✅ Execution
+# ✅ Execution: PostgreSQL
 if docker exec "$DB_CONTAINER" pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "$BACKUP_FILE"; then
-    echo "✅ Backup successful: $BACKUP_FILE"
+    echo "✅ Postgres backup successful: $BACKUP_FILE"
 else
-    echo "❌ Backup failed!"
+    echo "❌ Postgres backup failed!"
     exit 1
+fi
+
+# ✅ Execution: Redis (Persistence Layer Sync)
+REDIS_BACKUP="$BACKUP_DIR/redis_backup_$TIMESTAMP.rdb"
+echo "🤖 Starting Redis persistence sync..."
+if docker exec geosurepath_redis redis-cli save > /dev/null && \
+   docker cp geosurepath_redis:/data/dump.rdb "$REDIS_BACKUP"; then
+    gzip "$REDIS_BACKUP"
+    echo "✅ Redis backup successful: ${REDIS_BACKUP}.gz"
+else
+    echo "⚠️  Redis backup warning: Persistence sync skipped (check if redis is running)."
 fi
 
 # ✅ Cleanup: Keep only the last 7 days of backups

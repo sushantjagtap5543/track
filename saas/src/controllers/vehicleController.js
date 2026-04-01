@@ -95,6 +95,11 @@ exports.updateVehicle = async (req, res) => {
       }
     });
 
+    // ✅ REFINEMENT: Sync vehicle updates (name) to GeoSurePath
+    if (updated.geosurepathDeviceId && name) {
+        geosurepathService.updateVehicle(updated.geosurepathDeviceId, { name: updated.name }).catch(err => console.warn(`[VehicleSync] Failed to sync update to Traccar: ${err.message}`));
+    }
+
     res.json({ message: 'Vehicle updated successfully', vehicle: updated });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update vehicle' });
@@ -112,6 +117,11 @@ exports.deleteVehicle = async (req, res) => {
       where: { id: vehicleId },
       data: { deletedAt: new Date(), isActive: false, vehicleLogs: { create: { action: 'DELETED', details: 'Soft delete' } } }
     });
+
+    // ✅ REFINEMENT: De-provision from GeoSurePath upon deletion
+    if (vehicle.geosurepathDeviceId) {
+        geosurepathService.deleteDevice(vehicle.geosurepathDeviceId).catch(err => console.warn(`[VehicleSync] Failed to sync deletion to Traccar: ${err.message}`));
+    }
 
     res.json({ message: 'Vehicle soft-deleted successfully' });
   } catch (error) {

@@ -57,6 +57,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAdministrator } from '../common/util/permissions';
 import { exportToCsv } from '../common/util/export';
 import MfaSetup from '../billing/MfaSetup';
+import { useDispatch } from 'react-redux';
+import { sessionActions } from '../store';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const API = (path, opts = {}) => {
@@ -272,6 +274,7 @@ const BillingPage = () => {
   const isTraccarAdmin = useAdministrator();
   const saasRole = localStorage.getItem('saas_role');
   const admin = isTraccarAdmin || saasRole === 'ADMIN';
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const token = localStorage.getItem('saas_token');
 
@@ -602,8 +605,19 @@ const BillingPage = () => {
             })
           });
           if (verifyRes.ok) {
+            const syncData = await verifyRes.json();
             showFeedback('Your subscription is now ACTIVE!', 'success');
             setUpgradeDialog(false);
+            
+            // ✅ MASTER SYNC: Instantly update global session state to unlock map
+            if (syncData.user) {
+                dispatch(sessionActions.updateUser({
+                    ...syncData.user,
+                    id: syncData.user.geosurepathUserId || syncData.user.id,
+                    administrator: syncData.user.role === 'ADMIN'
+                }));
+            }
+            
             fetchBill();
           } else {
             showFeedback('Verification failed. Contact support.', 'error');
@@ -775,6 +789,17 @@ const BillingPage = () => {
                   <Grid item xs={12} sm={6} md={3}><StatCard title="Active Clients" value={dashboardOverview?.stats?.totalUsers || 0} sub="Provisioned accounts" icon={<PeopleIcon />} color="#6366f1" /></Grid>
                   <Grid item xs={12} sm={6} md={3}><StatCard title="Pending Upgrades" value={dashboardOverview?.alerts?.overdueCount || 0} sub="Immediate action required" icon={<WarningIcon />} color="#ef4444" /></Grid>
                 </Grid>
+                
+                {admin && (
+                  <Box sx={{ mb: 4, p: 3, borderRadius: '24px', bgcolor: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #3b82f622', boxShadow: '0 4px 12px #3b82f608' }}>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={900}>Universal Synchronization Engine</Typography>
+                      <Typography variant="caption" sx={{ opacity: 0.6 }}>Force a bit-perfect reconciliation between the SaaS Ledger and the GPS Tracking Engine.</Typography>
+                    </Box>
+                    <Button variant="contained" startIcon={<SyncIcon />} onClick={handleSyncAll} sx={{ borderRadius: '12px', fontWeight: 900 }}>Master Platform Sync</Button>
+                  </Box>
+                )}
+
                 <Grid container spacing={3}>
                   <Grid item xs={12} md={6}>
                     <Paper sx={{ p: 3, borderRadius: '20px', height: '100%' }}>

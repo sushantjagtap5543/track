@@ -129,35 +129,89 @@ const getSummaryStats = async () => {
 };
 
 const getAIInsights = async () => {
-  const [mrr, churnRate, totalClients, totalVehicles, allDevices] = await Promise.all([
+  const [mrr, churnRate, totalClients, totalVehicles, allDevices, driftCount, auditAlerts, saasVehicles] = await Promise.all([
     calculateMRR(),
     calculateChurnRate(),
     prisma.user.count({ where: { role: 'CLIENT', deletedAt: null } }),
-    prisma.vehicle.count(),
-    geosurepathService.getAllDevices().catch(() => [])
+    prisma.vehicle.count({ where: { deletedAt: null } }),
+    geosurepathService.getAllDevices().catch(() => []),
+    prisma.user.count({ where: { geosurepathUserId: null, role: 'CLIENT', deletedAt: null } }),
+    prisma.auditLog.count({ where: { action: { in: ['GHOST_DEVICE_ALERT', 'BRUTE_FORCE_LOCK'] }, createdAt: { gte: new Date(Date.now() - 24*3600000) } } }),
+    prisma.vehicle.findMany({ where: { deletedAt: null }, select: { imei: true } })
   ]);
 
+  // ✅ DEEP INTEGRITY: Cross-match SaaS Database vs Tracking Engine
+  const traccarImeis = new Set(allDevices.map(d => d.uniqueId));
+  const saasImeis = new Set(saasVehicles.map(v => v.imei));
+  const orphanedInEngine = allDevices.filter(d => !saasImeis.has(d.uniqueId)).length;
+  const orphanedInSaas = saasVehicles.filter(v => !traccarImeis.has(v.imei)).length;
+
   const activeVehicles = allDevices.filter(d => d.status === 'online').length;
-  const inactiveVehicles = allDevices.length - activeVehicles;
-  const projectedRevenue = mrr * 1.15;
-  const healthScore = Math.min(100, 95 + (totalClients > 10 ? 2 : 0) - (churnRate > 5 ? 5 : 0) - (inactiveVehicles > 0 ? 1 : 0));
+  const inactiveVehicles = allDevices.length > 0 ? (allDevices.length - activeVehicles) : 0;
+  const projectedRevenue = mrr * 1.05; // Conservative 5% growth
+  const healthScore = Math.min(100, 
+    95 
+    + (totalClients > 50 ? 5 : 0) 
+    - (churnRate > 5 ? 10 : 0) 
+    - (driftCount * 2) 
+    - (auditAlerts * 5)
+  );
 
   return {
     revenueProjection: parseFloat(projectedRevenue.toFixed(2)),
     churnRisk: churnRate < 3 ? 'LOW' : churnRate < 7 ? 'MODERATE' : 'HIGH',
-    guardianStatus: 'OPTIMIZED',
+    guardianStatus: auditAlerts > 0 ? 'ALERT' : (driftCount > 0 || orphanedInSaas > 0) ? 'SYNC_DRIFT' : 'OPTIMIZED',
     activeVehicles,
     inactiveVehicles,
     totalVehicles: allDevices.length || totalVehicles,
     healthScore,
+    engineDrift: driftCount,
+    securityAlerts: auditAlerts,
+    // ✅ NEW: Integrity Metrics
+    orphanedInEngine,
+    orphanedInSaas,
     recommendations: [
-      'Opportunity: 15% revenue growth projected for next quarter.',
+      `Revenue: ₹${projectedRevenue.toFixed(0)} projected for next cycle.`,
+      (driftCount > 0 || orphanedInSaas > 0)
+        ? `Integrity: ${driftCount} users or ${orphanedInSaas} devices are missing engine links.`
+        : 'Integrity: All database records are perfectly mirrored in the tracking engine.',
+      auditAlerts > 0 
+        ? `Security: ${auditAlerts} critical events detected in last 24h.` 
+        : 'Security: No brute-force or ghost device attempts detected.',
       inactiveVehicles > 0
-        ? `Alert: ${inactiveVehicles} devices are offline and require attention.`
-        : 'Fleet: All monitored assets are communicating normally.',
-      'Security: All administrative sessions are cryptographically signed.'
+        ? `Fleet: ${inactiveVehicles} devices are currently offline.`
+        : 'Fleet: All monitored assets are communicating normally.'
     ]
   };
 };
 
-module.exports = { calculateMRR, calculateChurnRate, getSummaryStats, getAIInsights };
+/**
+ * ✅ NEW: Engine Heartbeat & Latency Monitoring (Enterprise Sync)
+ * Measures real-time synchronization health between SaaS and Tracking Engine.
+ */
+const getEngineSyncHealth = async () => {
+    const start = Date.now();
+    try {
+        const response = await fetch(`${process.env.GEOSUREPATH_URL}/api/server`, { 
+            headers: { 'Accept': 'application/json' },
+            timeout: 5000 
+        });
+        const latency = Date.now() - start;
+        
+        // Check for "Orphaned" SaaS users (Users in SaaS but not in Engine)
+        const totalSaasUsers = await prisma.user.count();
+        const usersWithEngineId = await prisma.user.count({ where: { geosurepathUserId: { not: null } } });
+        const driftUsers = totalSaasUsers - usersWithEngineId;
+
+        return {
+            status: latency < 1000 ? 'EXCELLENT' : latency < 3000 ? 'DEGRADED' : 'CRITICAL',
+            latency: `${latency}ms`,
+            driftUsers,
+            isHealthy: response.ok
+        };
+    } catch (error) {
+        return { status: 'OFFLINE', latency: 'N/A', driftUsers: -1, isHealthy: false };
+    }
+};
+
+module.exports = { calculateMRR, calculateChurnRate, getSummaryStats, getAIInsights, getEngineSyncHealth };
