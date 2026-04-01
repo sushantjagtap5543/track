@@ -847,17 +847,7 @@ const LoginPage = () => {
                   </Link>
               </motion.div>
 
-              <Box sx={{ mt: 4, pt: 3, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', fontWeight: 800, textAlign: 'center', display: 'block', mb: 2, letterSpacing: '1px' }}>ENTERPRISE SINGLE SIGN-ON</Typography>
-                  <Box sx={{ display: 'flex', gap: 2 }}>
-                      <Button fullWidth variant="outlined" sx={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }} onClick={() => handleSocialLogin('Google')}>
-                          <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="G" style={{ width: 18, marginRight: 8 }} /> Google
-                      </Button>
-                      <Button fullWidth variant="outlined" sx={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }} onClick={() => handleSocialLogin('Microsoft')}>
-                          <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="MS" style={{ width: 18, marginRight: 8 }} /> Microsoft
-                      </Button>
-                  </Box>
-              </Box>
+
           </form>
         </>
       )}
