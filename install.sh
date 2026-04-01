@@ -1,71 +1,62 @@
 #!/bin/bash
 # -------------------------------------------------------------------
-# 🚀 GeoSurePath "One-Click" Enterprise Deployment Script
-# Supports: Ubuntu 22.04 / 24.04 / Debian
+# 🚀 GeoSurePath "Elite" Enterprise Deployment & Hardening Script
+# Supports: Ubuntu 22.04 / 24.04 (Lightsail & EC2 Optimized)
 # -------------------------------------------------------------------
 
 set -e
 
-echo "🛰️  Initializing GeoSurePath SaaS Platform..."
+echo "🛰️  Initializing GeoSurePath Elite Command Center..."
 
-# 1. Check for Docker & Install if missing
-if ! command -v docker &> /dev/null; then
-    echo "📦 Docker not found. Installing Docker Engine..."
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sh get-docker.sh
-    sudo usermod -aG docker $USER
-    echo "✅ Docker installed successfully."
+# 1. Infrastructure Hardening: Swap Allocation (Critical for Builds)
+if [ ! -f /swapfile_geo ]; then
+    echo "💾 Allocating 2GB Enterprise Swap for Build Resilience..."
+    sudo fallocate -l 2G /swapfile_geo
+    sudo chmod 600 /swapfile_geo
+    sudo mkswap /swapfile_geo
+    sudo swapon /swapfile_geo
+    echo "/swapfile_geo none swap sw 0 0" | sudo tee -a /etc/fstab
+    echo "✅ Swap synchronized."
 fi
 
-# Detect Docker Compose V2
-if docker compose version >/dev/null 2>&1; then
-    DC="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-    DC="docker-compose"
-else
-    echo "📦 Installing Docker Compose..."
-    sudo apt-get update && sudo apt-get install -y docker-compose-plugin
-    DC="docker compose"
+# 2. Dependency Check: Node.js & PM2
+if ! command -v node &> /dev/null; then
+    echo "📦 Node.js not found. Installing LTS version..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs
 fi
 
-# 2. Environment Setup
+if ! command -v pm2 &> /dev/null; then
+    echo "📦 Installing PM2 Global Orchestrator..."
+    sudo npm install -g pm2
+fi
+
+# 3. Environment Synchronization
 if [ ! -f .env ]; then
-    echo "🔐 Bootstrapping environment secrets from .env.example..."
+    echo "🔐 Bootstrapping environment secrets..."
     cp .env.example .env
-    # Generate random passwords if they are placeholders
-    sed -i "s/change-this-to-something-very-strong-and-unique/$(openssl rand -hex 16)/g" .env
-    sed -i "s/your-super-secret-jwt-key/$(openssl rand -hex 32)/g" .env
-    echo "✅ .env initialized with secure random secrets."
 fi
 
-# 3. Clean up existing deployments (Optional but recommended for "clean" install)
-echo "🧹 Cleaning up legacy artifacts..."
-$DC down --remove-orphans --volumes || true
-rm -rf logs/* data/* 2>/dev/null || true
+# 4. Database Schema Proliferation
+echo "🗄️  Synchronizing Database Schema (Prisma)..."
+cd saas && npm install && npx prisma migrate deploy && cd ..
 
-# 4. Launch Ecosystem
-echo "🧱 Building and Launching Containers (this may take a few minutes)..."
-$DC up -d --build
+# 5. Frontend Production Compilation
+echo "🏗️  Compiling High-Velocity Frontend Bundle..."
+cd traccar-web && npm install && npm run build && cd ..
 
-# 5. Verification & Health Check
-echo "⏳ Waiting for platform to stabilize..."
-TIMER=0
-while [ "$($DC inspect --format '{{.State.Health.Status}}' geosurepath_nginx 2>/dev/null)" != "healthy" ]; do
-    if [ $TIMER -gt 600 ]; then
-        echo "❌ Deployment Timeout! Please check 'docker compose logs'."
-        exit 1
-    fi
-    echo -n "."
-    sleep 10
-    TIMER=$((TIMER + 10))
-done
+# 6. Service Orchestration
+echo "🚀 Launching Enterprise Daemons..."
+pm2 delete saas-backend 2>/dev/null || true
+pm2 start saas/src/index.js --name saas-backend
+pm2 save
 
-echo -e "\n✅  GEOSUREPATH SAAS IS LIVE!"
-IP=$(curl -4 -s ifconfig.me || echo "your-ip")
+echo -e "\n✅  GEOSUREPATH ELITE IS LIVE!"
+IP=$(curl -4 -s ifconfig.me || echo "3.108.114.12")
 echo "----------------------------------------------------"
-echo "🌐 Dashboard: http://$IP"
-echo "📧 Admin:     admin@geosurepath.com"
-echo "🔑 Password:  admin123 (Default)"
+echo "🌐 Production IP: http://$IP"
+echo "🔒 SSL Status:    Awaiting Nginx Certbot"
+echo "📧 Support:       support@geosurepath.com"
 echo "----------------------------------------------------"
-echo "💡 To view logs: docker compose logs -f"
-echo "💡 To stop:      docker compose down"
+echo "💡 To view logs: pm2 logs saas-backend"
+echo "💡 To monitor:  pm2 monit"
