@@ -355,7 +355,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    const uaHash = crypto.createHash('md5').update(req.headers['user-agent'] || '').digest('hex');
     const { accessToken, refreshToken } = await generateTokens(user.id, user.role, user.geosurepathUserId, uaHash);
 
     res.cookie('token', accessToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 15 * 60 * 1000 });
