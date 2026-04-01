@@ -360,8 +360,8 @@ exports.login = async (req, res) => {
     res.cookie('token', accessToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 15 * 60 * 1000 });
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: REFRESH_TOKEN_EXPIRATION });
 
-    // ✅ PENTA CENTURION (S462): Self-Healing Authentication
-    // If Traccar login fails but SaaS succeeded, force-sync the password and retry once.
+    // ✅ PENTA CENTURION (S462): Self-Healing Authentication & Auto-Provisioning
+    // If Traccar login fails but SaaS succeeded, force-sync the password and auto-create if missing.
     try {
       const traccarSession = await geosurepathService.loginUser(identifier, password);
       if (traccarSession.cookie) {
@@ -378,21 +378,30 @@ exports.login = async (req, res) => {
       }
     } catch (traccarError) {
       if (traccarError.message.includes('401')) {
-        console.warn(`[Login] Password mismatch detected for ${identifier}. Initiating Self-Healing Sync...`);
+        console.warn(`[Login] Traccar Auth failed for ${identifier}. Initiating Self-Healing Sync/Provision...`);
         try {
           if (user.geosurepathUserId) {
             await geosurepathService.updateUser(user.geosurepathUserId, { password });
             console.log(`[Login] Force-synced password for ${identifier}. Retrying session relay...`);
-            
-            // Retry login once after sync
-            const retrySession = await geosurepathService.loginUser(identifier, password);
-            const match = retrySession.cookie?.match(/JSESSIONID=([^;]+)/);
-            if (match && match[1]) {
-              res.cookie('JSESSIONID', match[1], { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/' });
-            }
+          } else {
+            console.warn(`[Login] Missing Traccar Link for ${identifier}. Auto-provisioning...`);
+            const newTUser = await geosurepathService.createUser(user.name, user.email, password, { administrator: user.role === 'ADMIN' });
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { geosurepathUserId: newTUser.id }
+            });
+            console.log(`[Login] Auto-provisioned Traccar user (ID: ${newTUser.id}) for ${identifier}.`);
+          }
+          
+          // Retry login once after sync/provision
+          const retrySession = await geosurepathService.loginUser(identifier, password);
+          const match = retrySession.cookie?.match(/JSESSIONID=([^;]+)/);
+          if (match && match[1]) {
+            res.cookie('JSESSIONID', match[1], { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/' });
+            console.log(`[Login] Self-Healing recovery successful for ${identifier}`);
           }
         } catch (syncErr) {
-          console.error(`[Login] Self-Healing failed for ${identifier}: ${syncErr.message}`);
+          console.error(`[Login] Self-Healing fallback failed for ${identifier}: ${syncErr.message}`);
         }
       } else {
         console.warn(`[Login] Traccar silent login failed for ${identifier}: ${traccarError.message}`);

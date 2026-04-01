@@ -460,8 +460,8 @@ const LoginPage = () => {
   const [hardlocked, setHardlocked] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' });
 
-  // Registration provision for enterprise enrollment
-  const registrationEnabled = true;
+  // Registration disabled as per user request to force billing workflow
+  const registrationEnabled = false;
 
   const languageEnabled = useSelector((state) => {
     const attributes = state.session.server.attributes;
