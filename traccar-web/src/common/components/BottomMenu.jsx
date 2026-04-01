@@ -169,7 +169,7 @@ const BottomMenu = () => {
           <Typography color="textPrimary">{t('settingsUser')}</Typography>
         </MenuItem>
         <MenuItem onClick={() => { setAnchorEl(null); navigate('/billing'); }}>
-          <Typography color="textPrimary">{user.administrator ? 'Sovereign Hub' : 'Billing'}</Typography>
+          <Typography color="textPrimary">{user.administrator ? 'Sovereign Hub' : 'Billing & Subscription'}</Typography>
         </MenuItem>
         <MenuItem onClick={handleLogout}>
           <Typography color="error">{t('loginLogout')}</Typography>

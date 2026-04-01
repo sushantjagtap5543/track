@@ -100,6 +100,44 @@ const calculateBreakdown = (amount, taxRate, taxInclusive = false) => {
  * ✅ NEW: Sync devices from Traccar engine to SaaS database.
  * Ensures billing reflects devices added directly in the tracking engine.
  */
+/**
+ * ✅ ELITE HARDENING (Domain 2): Ghost Device Suppression.
+ * Detects devices with duplicate IMEIs across different accounts or suspicious
+ * polling intervals that suggest spoofing/piracy.
+ */
+const detectGhostDevices = async (userId) => {
+  try {
+    const userVehicles = await prisma.vehicle.findMany({ where: { userId, deletedAt: null } });
+    const userImeis = userVehicles.map(v => v.imei);
+
+    // Find if any of these IMEIs exist in other ACTIVE accounts
+    const ghosts = await prisma.vehicle.findMany({
+      where: {
+        imei: { in: userImeis },
+        userId: { not: userId },
+        deletedAt: null,
+        user: { isActive: true }
+      },
+      include: { user: true }
+    });
+
+    if (ghosts.length > 0) {
+      console.warn(`[Sentinel] Ghost Devices detected for User ${userId}:`, ghosts.map(g => g.imei));
+      await prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'GHOST_DEVICE_ALERT',
+          details: `IMEI Collision: ${ghosts.map(g => `${g.imei} (Owned by ${g.user.email})`).join(', ')}`
+        }
+      });
+      // Flag the user for admin review instead of immediate hardlock to prevent false positives
+      await prisma.user.update({ where: { id: userId }, data: { auditStatus: 'FLAGGED_FRAUD' } });
+    }
+  } catch (err) {
+    console.error('[Sentinel] Ghost detection failed:', err.message);
+  }
+};
+
 const syncUserDevices = async (userId, geosurepathUserId) => {
   if (!geosurepathUserId) return;
   try {
@@ -107,6 +145,9 @@ const syncUserDevices = async (userId, geosurepathUserId) => {
     if (!Array.isArray(traccarDevices)) return;
 
     const traccarImeis = traccarDevices.map(d => d.uniqueId);
+
+    // Run Ghost Detection
+    detectGhostDevices(userId).catch(e => console.error('[Sync] Ghost detect failed:', e.message));
 
     // 1. ADD/UPDATE: Sync devices FROM Traccar TO SaaS
     for (const td of traccarDevices) {
@@ -357,7 +398,16 @@ const getMyBill = async (req, res) => {
         // ✅ PERFORMANCE: Background sync. Don't block the UI for a device sync.
         syncUserDevices(userId, user.geosurepathUserId).catch(e => console.error('[getMyBill] Background Sync failed:', e.message));
     }
-    const bill = await calculateBillForAnyUser(userId, null, null, false, null, planId); // Set shouldSync to false
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const getAdminBillForUser = async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const bill = await calculateBillForAnyUser(userId, null, null, true, null, null);
+    if (!bill) return res.status(404).json({ error: 'User mapping not found' });
     res.json(bill);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -520,74 +570,68 @@ const settleCash = async (req, res) => {
     });
     if (!user) throw new Error('Target user not found in SaaS Ledger.');
 
-    // ✅ RECOVERY: If engine ID is missing, try a lookup by email
-    if (!user.geosurepathUserId) {
-        const engineUser = await geosurepathService.getUserByEmail(user.email);
-        if (engineUser) {
-            await prisma.user.update({ where: { id: targetUserId }, data: { geosurepathUserId: engineUser.id } });
-            user.geosurepathUserId = engineUser.id;
+    // Atomic Transaction for Financial Integrity
+    await prisma.$transaction(async (tx) => {
+      const amountToSettle = parseFloat(amount);
+      if (isNaN(amountToSettle)) throw new Error('Invalid amount provided');
+
+      const payment = await tx.payment.create({
+        data: {
+          userId: targetUserId,
+          amount: amountToSettle,
+          status: 'CAPTURED',
+          paymentMethod: 'CASH',
+          transactionId: `CASH_${Date.now()}`
         }
-    }
+      });
 
-    const amountToSettle = parseFloat(amount);
-    if (isNaN(amountToSettle)) throw new Error('Invalid amount provided');
+      const invoiceId = generateInvoiceNumber();
+      const subscription = await tx.subscription.create({
+        data: {
+          userId: targetUserId,
+          planId,
+          price: amountToSettle,
+          status: 'ACTIVE',
+          deviceCount: user.vehicles.length,
+          expiresAt,
+          invoiceId
+        }
+      });
 
-    // ✅ REFINEMENT: Create a Payment record for the audit trail
-    const payment = await prisma.payment.create({
-      data: {
-        userId: targetUserId,
-        amount: amountToSettle,
-        status: 'CAPTURED',
-        paymentMethod: 'CASH',
-        transactionId: `CASH_${Date.now()}`
-      }
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: { subscriptionId: subscription.id }
+      });
+
+      await tx.user.update({
+        where: { id: targetUserId },
+        data: { isActive: true }
+      });
+
+      await tx.vehicle.updateMany({
+        where: { userId: targetUserId, deletedAt: null },
+        data: { registrationDate: now }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          adminId: req.user.userId,
+          userId: targetUserId,
+          action: 'MANUAL_SETTLE',
+          details: `Amount: ₹${amount}, Plan: ${plan?.name}, Expiry: ${expiresAt.toISOString()}`
+        }
+      });
     });
 
-    const invoiceId = await generateInvoiceNumber();
-    const subscription = await prisma.subscription.create({
-      data: {
-        userId: targetUserId,
-        planId,
-        price: amountToSettle,
-        status: 'ACTIVE',
-        deviceCount: user.vehicles.length,
-        expiresAt,
-        invoiceId
-      }
-    });
-
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: { subscriptionId: subscription.id }
-    });
-
-    await prisma.user.update({
-      where: { id: targetUserId },
-      data: { isActive: true }
-    });
-    await prisma.vehicle.updateMany({
-      where: { userId: targetUserId, deletedAt: null },
-      data: { registrationDate: now }
-    });
-
-    // ✅ FIX 2: geosurepathService is now imported at the top, not inside this function.
+    // Post-transaction external syncs
     if (user.geosurepathUserId) {
       await geosurepathService
         .updateUser(user.geosurepathUserId, { disabled: false })
         .catch((e) => console.error('Settle re-sync failed:', e.message));
     }
 
-    await prisma.auditLog.create({
-      data: {
-        adminId: req.user.userId,
-        userId: targetUserId,
-        action: 'MANUAL_SETTLE',
-        details: `Amount: ₹${amount}, Plan: ${plan?.name}, Expiry: ${expiresAt.toISOString()}`
-      }
-    });
-
-    refreshCache(); // ✅ FIX: Invalidate plan/settings cache after a cash settlement
-    res.json({ message: 'Manual payment processed. User re-activated.' });
+    refreshCache();
+    res.json({ message: 'Manual payment processed. User re-activated and synchronized.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -285,6 +285,7 @@ exports.login = async (req, res) => {
     }
 
     // Success - Reset attempts and update lastLoginAt
+    const uaHash = crypto.createHash('md5').update(req.headers['user-agent'] || '').digest('hex');
     await prisma.user.update({
       where: { id: user.id },
       data: { 
@@ -295,7 +296,8 @@ exports.login = async (req, res) => {
           create: { 
             ipAddress: req.ip, 
             success: true, 
-            device: req.headers['user-agent']
+            device: req.headers['user-agent'],
+            fingerprint: uaHash // ✅ ELITE HARDEING: Store hash for sentinel comparisons
           } 
         } 
       }

@@ -314,7 +314,9 @@ const BillingPage = () => {
 
   // ── Dialog State ──
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [ledgerMeta, setLedgerMeta] = useState({ page: 1, totalPages: 1 });
   const [editingUser, setEditingUser] = useState(null);
+  const [mirroringUser, setMirroringUser] = useState(null);
   const [editForm, setEditForm] = useState({ planId: '', status: '', expiresAt: '', isActive: true, hardlockBypass: false });
   const [onboardDialog, setOnboardDialog] = useState(false);
   const [onboardData, setOnboardData] = useState({ name: '', email: '', password: '', role: 'CLIENT' });
@@ -564,6 +566,18 @@ const BillingPage = () => {
     else showFeedback('Sync failed', 'error');
   };
 
+  const handleImpersonate = async (userId) => {
+    showFeedback('Initializing administrative mirror session...', 'info');
+    const res = await API(`/api/billing/admin-bill/${userId}`);
+    if (res.ok) {
+        const data = await res.json();
+        setMirroringUser(data);
+        showFeedback(`Mirroring session as ${data.userName}`, 'success');
+    } else {
+        showFeedback('Could not initiate mirror session', 'error');
+    }
+  };
+
   const handleDeleteUser = async (userId, email) => {
     if (!window.confirm(`Permanently delete ${email}? This cannot be undone.`)) return;
     const res = await API(`/api/admin/users/${userId}`, { method: 'DELETE' });
@@ -638,7 +652,7 @@ const BillingPage = () => {
   // ── Admin Tabs ──
   const ADMIN_TABS = [
     { label: 'Overview', icon: <DashboardIcon /> },
-    { label: 'User Ledger', icon: <PeopleIcon /> },
+    { label: 'Subscription Ledger', icon: <PeopleIcon /> },
     { label: 'Payments', icon: <HistoryIcon /> },
     { label: 'Pending Upgrades', icon: <UpgradeIcon /> },
     { label: 'Revenue & Growth', icon: <TrendingUpIcon /> },
@@ -646,7 +660,7 @@ const BillingPage = () => {
     { label: 'System Status', icon: <MonitorHeartIcon /> },
     { label: 'Secrets Manager', icon: <ShieldIcon /> },
     { label: 'MFA Hub', icon: <ShieldIcon /> },
-    { label: 'Plan Manager', icon: <SettingsIcon /> },
+    { label: 'Plan & Subscription', icon: <SettingsIcon /> },
     { label: 'Support Hub', icon: <ContactSupportIcon /> },
   ];
 
@@ -683,7 +697,19 @@ const BillingPage = () => {
       </Box>
 
       <Container maxWidth="xl" sx={{ py: 4 }}>
-        {admin ? (
+        {mirroringUser && (
+            <Alert 
+                severity="info" 
+                variant="filled"
+                icon={<VisibilityIcon />}
+                action={<Button color="inherit" size="small" onClick={() => setMirroringUser(null)}>Exit Mirror</Button>}
+                sx={{ mb: 4, borderRadius: '16px', fontWeight: 900, bgcolor: '#0f172a' }}
+            >
+                ADMIN MIRROR MODE: Viewing dashboard as {mirroringUser.userName} ({mirroringUser.userEmail})
+            </Alert>
+        )}
+
+        {admin && !mirroringUser ? (
           <>
             {/* ─── Admin Tab Bar ─── */}
             <Paper sx={{ borderRadius: '20px', mb: 4, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
@@ -1513,9 +1539,9 @@ const BillingPage = () => {
             </Box>
           </>
         ) : (
-          /* ─── User View ─── */
+          /* ─── User View / Mirror View ─── */
           <Box>
-            {maintenanceMode ? (
+            {(maintenanceMode && !admin) ? (
               <Box sx={{ py: 12, textAlign: 'center' }}>
                 <Paper sx={{ p: 6, borderRadius: '32px', maxWidth: 600, mx: 'auto', border: '1px solid #fee2e2', bgcolor: '#fff' }}>
                   <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
@@ -1771,11 +1797,11 @@ const BillingPage = () => {
       {/* Invoice Dialog */}
       <InvoiceDialog open={Boolean(selectedInvoice)} onClose={() => setSelectedInvoice(null)} invoice={selectedInvoice} settings={adminSettings} />
 
-      {/* Self-Onboarding Wizard (Enterprise) */}
+      {/* Self-Provisioning Wizard (Enterprise) */}
       <Dialog open={onboardWizardOpen} onClose={() => setOnboardWizardOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '32px', p: 1 } }}>
           <DialogTitle sx={{ fontWeight: 950, fontSize: '1.5rem', letterSpacing: '-1px', display: 'flex', alignItems: 'center', gap: 2 }}>
               <Box sx={{ p: 1, bgcolor: 'primary.main', color: 'white', borderRadius: '12px', display: 'flex' }}><PersonAddIcon /></Box>
-              Enterprise Onboarding Wizard
+              Enterprise Subscription Provisioning
           </DialogTitle>
           <DialogContent>
               <Stepper activeStep={onboardStep} sx={{ mb: 4, '& .MuiStepIcon-root.Mui-active': { color: '#3b82f6' } }}>
@@ -1817,8 +1843,8 @@ const BillingPage = () => {
               <Button onClick={() => setOnboardWizardOpen(false)}>Exit</Button>
               <Box sx={{ flexGrow: 1 }} />
               {onboardStep > 0 && <Button onClick={() => setOnboardStep(s => s - 1)}>Back</Button>}
-              <Button variant="contained" sx={{ borderRadius: '12px', px: 4, fontWeight: 800 }} onClick={() => onboardStep < 2 ? setOnboardStep(s => s + 1) : showFeedback('Enterprise entity created successfully', 'success')}>
-                  {onboardStep === 2 ? 'Complete Onboarding' : 'Next Step'}
+              <Button variant="contained" sx={{ borderRadius: '12px', px: 4, fontWeight: 800 }} onClick={() => onboardStep < 2 ? setOnboardStep(s => s + 1) : showFeedback('Enterprise subscription entity created successfully', 'success')}>
+                  {onboardStep === 2 ? 'Complete Provisioning' : 'Next Step'}
               </Button>
           </DialogActions>
       </Dialog>

@@ -7,6 +7,12 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'production' ? ['error'] : ['query', 'info', 'warn', 'error'],
+  // ELITE HARDENING (Infra): Tuning connection pool for AWS Lightsail high-velocity scale
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL + (process.env.DATABASE_URL.includes('?') ? '&' : '?') + 'connection_limit=20&pool_timeout=30',
+    },
+  },
 });
 
 module.exports = prisma;

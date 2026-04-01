@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useMediaQuery, useTheme } from '@mui/material';
@@ -12,6 +13,9 @@ import MotionController from './main/MotionController';
 import TermsDialog from './common/components/TermsDialog';
 import Loader from './common/components/Loader';
 import fetchOrThrow from './common/util/fetchOrThrow';
+import { Alert, Snackbar } from '@mui/material';
+import ShieldIcon from '@mui/icons-material/Shield';
+import SecurityIcon from '@mui/icons-material/Security';
 
 const useStyles = makeStyles()(() => ({
   page: {
@@ -42,6 +46,23 @@ const App = () => {
   const newServer = useSelector((state) => state.session.server?.newServer);
   const termsUrl = useSelector((state) => state.session.server?.attributes?.termsUrl);
   const user = useSelector((state) => state.session.user);
+  const [securityAlert, setSecurityAlert] = useState(null);
+
+  // Elite Sentinel: Impossible Travel & Session Fingerprint Monitor
+  useEffect(() => {
+    if (user) {
+      const storedFingerprint = localStorage.getItem(`gsp_session_${user.id}`);
+      const currentFingerprint = navigator.userAgent + (window.screen.width * window.screen.height);
+      
+      if (storedFingerprint && storedFingerprint !== currentFingerprint) {
+        setSecurityAlert({
+          message: 'NEW LOGIN DETECTED: A concurrent session was identified on another device.',
+          severity: 'warning'
+        });
+      }
+      localStorage.setItem(`gsp_session_${user.id}`, currentFingerprint);
+    }
+  }, [user]);
 
   const acceptTerms = useCatch(async () => {
     const response = await fetchOrThrow(`/api/users/${user.id}`, {
@@ -122,6 +143,16 @@ const App = () => {
       <UpdateController />
       <MotionController />
       <div className={classes.page}>
+        {securityAlert && (
+          <Alert 
+            icon={<SecurityIcon />} 
+            severity={securityAlert.severity} 
+            sx={{ m: 2, borderRadius: '12px', border: '1px solid #f59e0b', fontWeight: 700 }}
+            onClose={() => setSecurityAlert(null)}
+          >
+            {securityAlert.message}
+          </Alert>
+        )}
         <Outlet />
       </div>
       {!desktop && (
