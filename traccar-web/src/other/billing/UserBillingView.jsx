@@ -9,7 +9,7 @@ import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import SecurityIcon from '@mui/icons-material/Security';
 import { motion } from 'framer-motion';
-import MfaSetup from './MfaSetup';
+import MfaSetup from '../../billing/MfaSetup';
 
 const UserBillingView = (props) => {
   const { 
