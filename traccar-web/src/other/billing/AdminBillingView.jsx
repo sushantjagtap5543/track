@@ -60,24 +60,31 @@ const StatCard = ({ title, value, sub, icon, color = '#3b82f6' }) => (
 
 const AdminBillingView = (props) => {
   const { 
-    tab, setTab, fetchAdminData, user, ADMIN_TABS, analytics, fmtCurrency, payments, 
-    ledgerPage, setLedgerPage, ledgerMeta, paymentSearch, setPaymentSearch, 
-    paymentStatusFilter, setPaymentStatusFilter, auditActionFilter, setAuditActionFilter, 
-    auditLogs, filteredAudit, fmtDate, systemHealth, adminSettings, setAdminSettings, 
-    showFeedback, setSelectedInvoice, setPlanDialog, setOnboardDialog, 
-    handleSyncAll, handleToggleBypass, handleImpersonate, handleSyncUser, 
-    handleAdjustExpiry, handleToggleStatus, handleDeleteUser, tabLoading, 
-    filteredLedger, statusFilter, setStatusFilter, setEditingUser, setEditForm, 
-    dashboardOverview, setOnboardWizardOpen, plans, handleSaveSettings, 
-    setMaintenanceMode, maintenanceMode, paymentsMeta, paymentsPage, setPaymentsPage, 
-    pendingUpgrades, filteredPayments, searchQuery, setSearchQuery, exportToCsv, handleBulkSettle, handleSettleCash, supportMessage, setSupportMessage
+    tab, setTab, fetchAdminData, user, ADMIN_TABS = [], analytics = {}, fmtCurrency, payments = [], 
+    ledgerPage = 1, setLedgerPage = () => {}, ledgerMeta = {}, paymentSearch = '', setPaymentSearch = () => {}, 
+    paymentStatusFilter = 'ALL', setPaymentStatusFilter = () => {}, auditActionFilter = 'ALL', setAuditActionFilter = () => {}, 
+    auditLogs = [], filteredAudit = [], fmtDate, systemHealth = {}, adminSettings = {}, setAdminSettings = () => {}, 
+    showFeedback = () => {}, setSelectedInvoice = () => {}, setPlanDialog = () => {}, setOnboardDialog = () => {}, 
+    handleSyncAll = () => {}, handleToggleBypass = () => {}, handleImpersonate = () => {}, handleSyncUser = () => {}, 
+    handleAdjustExpiry = () => {}, handleToggleStatus = () => {}, handleDeleteUser = () => {}, tabLoading = {}, 
+    filteredLedger = [], statusFilter = 'ALL', setStatusFilter = () => {}, setEditingUser = () => {}, setEditForm = () => {}, 
+    dashboardOverview = {}, setOnboardWizardOpen = () => {}, plans = [], handleSaveSettings = () => {}, 
+    setMaintenanceMode = () => {}, maintenanceMode = false, paymentsMeta = {}, paymentsPage = 1, setPaymentsPage = () => {}, 
+    pendingUpgrades = [], filteredPayments = [], searchQuery = '', setSearchQuery = () => {}, exportToCsv = () => {}, handleBulkSettle = () => {}, handleSettleCash = () => {}, supportMessage = '', setSupportMessage = () => {}
   } = props;
+
+  // Internal UI state for search/filters if parent doesn't provide them
+  const [localSearch, setLocalSearch] = React.useState('');
+  const [localStatus, setLocalStatus] = React.useState('ALL');
+  
+  const displaySearch = searchQuery || localSearch;
+  const setDisplaySearch = setSearchQuery || setLocalSearch;
 
   return (
     <Box>
       {/* Admin Tab Bar */}
       <Paper sx={{ borderRadius: '20px', mb: 4, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-        <Tabs value={tab} onChange={(_, v) => { setTab(v); fetchAdminData(v); }} variant="scrollable" scrollButtons="auto"
+        <Tabs value={tab || 0} onChange={(_, v) => { setTab && setTab(v); fetchAdminData && fetchAdminData(v); }} variant="scrollable" scrollButtons="auto"
           sx={{ '& .MuiTabs-indicator': { height: 3, borderRadius: '3px', bgcolor: '#3b82f6' }, '& .MuiTab-root': { fontWeight: 700, py: 2, minHeight: 60 }, '& .Mui-selected': { color: '#3b82f6 !important' } }}>
           {ADMIN_TABS.filter((t, i) => {
               if (user?.role === 'MANAGER' && ![1, 2, 10].includes(i)) return false;

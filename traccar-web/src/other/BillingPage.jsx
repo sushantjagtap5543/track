@@ -5,14 +5,40 @@ import {
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import LinkIcon from '@mui/icons-material/Link';
 import CancelIcon from '@mui/icons-material/Cancel';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useNavigate } from 'react-router-dom';
 import { useAdministrator } from '../common/util/permissions';
 import { exportToCsv } from '../common/util/export';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { sessionActions } from '../store';
+import {
+  BarChart as BarChartIcon,
+  Timeline as TimelineIcon,
+  Payment as PaymentIcon,
+  Dns as DnsIcon,
+  Security as SecurityIcon,
+  Settings as SettingsIcon,
+  Announcement as AnnouncementIcon,
+  HelpCenter as HelpCenterIcon,
+  BugReport as BugReportIcon,
+  Description as DescriptionIcon
+} from '@mui/icons-material';
+
 import AdminBillingView from './billing/AdminBillingView';
 import UserBillingView from './billing/UserBillingView';
+
+//  Constants for Sovereign Admin 
+const ADMIN_TABS = [
+  { label: 'Overview', icon: <TimelineIcon /> },
+  { label: 'Client Ledger', icon: <DescriptionIcon /> },
+  { label: 'Finance Center', icon: <PaymentIcon /> },
+  { label: 'Admin Logs', icon: <SecurityIcon /> },
+  { label: 'Growth Analytics', icon: <BarChartIcon /> },
+  { label: 'Infrastructure', icon: <DnsIcon /> },
+  { label: 'Announcements', icon: <AnnouncementIcon /> },
+  { label: 'Help Bridge', icon: <HelpCenterIcon /> },
+  { label: 'SaaS Config', icon: <SettingsIcon /> },
+  { label: 'Debug Vault', icon: <BugReportIcon /> }
+];
 
 //  Helpers 
 const API = (path, opts = {}) => {
@@ -26,14 +52,17 @@ const BillingPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const admin = useAdministrator();
+  const user = useSelector((state) => state.session.user);
 
   const [bill, setBill] = useState(null);
-  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState(0);
   const [lastSync, setLastSync] = useState(new Date());
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [mirroringUser, setMirroringUser] = useState(null);
+
+  const [upgradeDialog, setUpgradeDialog] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   const [ledger, setLedger] = useState([]);
   const [payments, setPayments] = useState([]);
@@ -81,7 +110,7 @@ const BillingPage = () => {
       }
     };
     load();
-  }, [admin]);
+  }, [admin, fetchAdminData]);
 
   const handleLogout = () => {
     dispatch(sessionActions.updateUser(null));
@@ -121,9 +150,13 @@ const BillingPage = () => {
         {admin && !mirroringUser ? (
           <AdminBillingView 
             {...{
-              tab, setTab, fetchAdminData, dashboardOverview, ledger, payments, 
-              adminSettings, fmtCurrency, fmtDate, showFeedback: (m) => alert(m), 
-              handleSyncAll: () => {}, handleLogout, lastSync, exportToCsv
+              tab, setTab, fetchAdminData, user, ADMIN_TABS, analytics: {}, fmtCurrency, fmtDate,
+              payments, ledgerPage: 1, setLedgerPage: () => {}, ledgerMeta: {}, paymentSearch: '',
+              setPaymentSearch: () => {}, auditLogs: [], filteredAudit: [], systemHealth: {},
+              adminSettings, setAdminSettings, showFeedback: (m) => alert(m), 
+              setSelectedInvoice: (i) => setSelectedInvoice(i), setPlanDialog: (p) => {},
+              setOnboardDialog: (o) => {}, handleSyncAll: () => {}, handleLogout, lastSync, 
+              exportToCsv, filteredLedger: ledger, tabLoading: {}
             }} 
           />
         ) : (
@@ -131,7 +164,8 @@ const BillingPage = () => {
             {...{
               maintenanceMode, admin, bill, adminSettings, fmtCurrency, fmtDate, 
               showFeedback: (m) => alert(m), isMobile: false, handleLogout, 
-              HardlockBanner: ({bill}) => bill?.hardlock ? <Alert severity="error">HARDLOCKED</Alert> : null, lastSync 
+              setUpgradeDialog, setSelectedInvoice,
+              HardlockBanner: ({bill}) => bill?.hardlock ? <Alert severity="error" sx={{ mb: 3, borderRadius: '16px' }}>HARDLOCKED: Account requires immediate reconciliation.</Alert> : null, lastSync 
             }} 
           />
         )}

@@ -13,9 +13,9 @@ import MfaSetup from '../../billing/MfaSetup';
 
 const UserBillingView = (props) => {
   const { 
-    maintenanceMode, admin, bill, adminSettings, fmtCurrency, fmtDate, 
-    showFeedback, setUpgradeDialog, setSelectedInvoice, isMobile, 
-    handleLogout, HardlockBanner, lastSync 
+    maintenanceMode = false, admin = false, bill = {}, adminSettings = {}, fmtCurrency = (n) => n, fmtDate = (d) => d, 
+    showFeedback = () => {}, setUpgradeDialog = () => {}, setSelectedInvoice = () => {}, isMobile = false, 
+    handleLogout = () => {}, HardlockBanner = () => null, lastSync 
   } = props;
 
   return (
