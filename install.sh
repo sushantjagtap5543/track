@@ -109,7 +109,7 @@ fi
 
 # 5. Service Orchestration (Docker Compose V2)
 echo "🚀 Launching Traccar Elite Ecosystem..."
-docker compose down --remove-orphans 2>/dev/null || true
+docker compose down -v --remove-orphans 2>/dev/null || true
 docker compose up -d --build
 
 # 6. Database Schema Proliferation (Resilient Migration)
