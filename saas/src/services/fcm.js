@@ -23,13 +23,18 @@ class FCMService {
       const serviceAccountPath = path.join(process.cwd(), 'firebase-service-account.json');
 
       if (!fs.existsSync(serviceAccountPath)) {
-        console.warn(
-          '⚠️ Push Notifications: firebase-service-account.json not found. Push disabled.'
-        );
+        console.warn('⚠️ Push Notifications: firebase-service-account.json not found. Push disabled (Non-Critical).');
         return;
       }
 
-      const serviceAccount = require(serviceAccountPath);
+      // Defense: Ensure we don't crash if the file is malformed
+      let serviceAccount;
+      try {
+        serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+      } catch (e) {
+        console.error('❌ Push Notifications: Failed to parse firebase-service-account.json:', e.message);
+        return;
+      }
 
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)

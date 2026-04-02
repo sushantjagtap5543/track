@@ -903,3 +903,14 @@ exports.googleLogin = async (req, res) => {
     message: 'Your Google workspace is being synchronized. Please use traditional credentials for the next 24 hours.' 
   });
 };
+
+exports.welcomeEmail = async (req, res) => {
+    try {
+        const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        await emailService.sendWelcomeEmail(user);
+        res.json({ message: 'Welcome email sent successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to send welcome email' });
+    }
+};
