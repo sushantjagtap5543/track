@@ -1,6 +1,6 @@
 -- Repaired Identity Mapping
 UPDATE tc_users 
-SET email = 'admin@geosurepath.com', 
+SET email = 'admin@traccar.com', 
     hashedpassword = '9f4a8b7c2e1d0f5e7a9b3c4d6e8f', 
     salt = '00000000000000000000000000000000' 
 WHERE administrator = true;
