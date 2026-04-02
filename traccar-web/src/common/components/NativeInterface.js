@@ -88,7 +88,7 @@ const NativeInterface = () => {
         try {
           const saasToken = localStorage.getItem('saas_token'); // Unified SaaS JWT key
           if (saasToken) {
-            await fetch('/api/geosurepath/tokens', {
+            await fetch('/api/traccar/tokens', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

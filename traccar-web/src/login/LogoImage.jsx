@@ -44,7 +44,7 @@ const LogoImage = () => {
 
   return (
     <Box className={classes.root}>
-      <SatelliteAltIcon className={classes.logoIcon} />
+      <img src="/traccar_logo.png" alt="Logo" className={classes.logoIcon} />
       <div className={classes.textContainer}>
         <Typography variant="h1" className={classes.brandName}>
           GeoSurePath

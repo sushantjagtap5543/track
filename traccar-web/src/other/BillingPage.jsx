@@ -153,7 +153,7 @@ const BillingPage = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box sx={{ p: 1, borderRadius: '10px', bgcolor: '#3b82f6' }}><DirectionsCarIcon /></Box>
           <Box>
-            <Typography variant="h6" fontWeight={900}>GeoSurePath</Typography>
+            <Typography variant="h3">Track Elite Fleet Ledger</Typography>
             <Typography variant="caption" sx={{ opacity: 0.5 }}>{admin ? 'Admin Dashboard' : 'Billing Portal'}</Typography>
           </Box>
         </Box>

@@ -67,7 +67,7 @@ const UserBillingView = (props) => {
             <Paper sx={{ p: 6, borderRadius: '32px', display: 'inline-block', maxWidth: 500, border: '1px solid #fee2e2', bgcolor: '#fff5f5' }}>
               <SecurityIcon sx={{ fontSize: 80, color: '#ef4444', mb: 3 }} />
               <Typography variant="h4" fontWeight={900} gutterBottom>Maintenance Protocol</Typography>
-              <Typography sx={{ opacity: 0.6, mb: 4 }}>The GeoSurePath Platinum interface is currently undergoing infrastructure synchronization. Please standby.</Typography>
+              <Typography sx={{ opacity: 0.6, mb: 4 }}>The Track Elite Platinum interface is currently undergoing infrastructure synchronization. Please standby.</Typography>
               <Button variant="outlined" color="error" onClick={handleLogout}>Logout Platform</Button>
             </Paper>
           </motion.div>

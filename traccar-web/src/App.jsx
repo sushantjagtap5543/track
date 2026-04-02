@@ -51,7 +51,7 @@ const App = () => {
   // Elite Sentinel: Impossible Travel & Session Fingerprint Monitor
   useEffect(() => {
     if (user) {
-      const storedFingerprint = localStorage.getItem(`gsp_session_${user.id}`);
+      const storedFingerprint = localStorage.getItem(`traccar_session_${user.id}`);
       const currentFingerprint = navigator.userAgent + (window.screen.width * window.screen.height);
       
       if (storedFingerprint && storedFingerprint !== currentFingerprint) {
@@ -60,7 +60,7 @@ const App = () => {
           severity: 'warning'
         });
       }
-      localStorage.setItem(`gsp_session_${user.id}`, currentFingerprint);
+      localStorage.setItem(`traccar_session_${user.id}`, currentFingerprint);
     }
   }, [user]);
 
@@ -96,7 +96,7 @@ const App = () => {
                 // This prevents the redirect loop for billing and dashboard access.
                 dispatch(sessionActions.updateUser({
                     ...saasData.user,
-                    id: saasData.user.geosurepathUserId || saasData.user.id,
+                    id: saasData.user.traccarUserId || saasData.user.id,
                     saasId: saasData.user.id,
                     name: saasData.user.name,
                     email: saasData.user.email,

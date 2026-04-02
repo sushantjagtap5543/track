@@ -443,9 +443,9 @@ const LoginPage = () => {
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
       >
-        <Typography className={classes.welcomeText} sx={{ fontSize: '3rem', mb: 1 }}>GeoSurePath Enterprise</Typography>
+        <Typography className={classes.welcomeText} sx={{ fontSize: '3rem', mb: 1 }}>Track Elite Enterprise</Typography>
         <Typography className={classes.subText} sx={{ fontSize: '1.2rem', opacity: 0.8, letterSpacing: '0.5px' }}>
-          Advanced Fleet Intelligence  Global Access Portal
+          World Class GPS Tracking & Fleet Intelligence
         </Typography>
       </motion.div>
 

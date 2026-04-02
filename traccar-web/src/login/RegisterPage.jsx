@@ -228,7 +228,7 @@ const RegisterPage = () => {
         <div className={classes.header}>
           <Typography className={classes.title}>{t('loginRegister')}</Typography>
           <Typography className={classes.subText}>
-            Join GeoSurePath today and start tracking with precision
+            Join Track Elite today and start tracking with precision
           </Typography>
         </div>
 

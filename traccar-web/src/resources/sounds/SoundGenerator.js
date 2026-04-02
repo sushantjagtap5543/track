@@ -1,5 +1,5 @@
 /**
- * GeoSurePath Premium Notification Sound System
+ * Track Elite Premium Notification Sound System
  *
  * Generates distinct, professional notification tones using the Web Audio API.
  * Each sound is carefully designed for its purpose:

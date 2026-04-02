@@ -115,7 +115,7 @@ const HardlockPaymentView = ({ onLogout, onSuccess }) => {
             Critical Access Suspension
          </Typography>
          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 3 }}>
-            Your enterprise account requires immediate billing reconciliation. All vehicle tracking services are currently restricted.
+            Your Track Elite enterprise account requires immediate billing reconciliation. All vehicle tracking services are currently restricted.
          </Typography>
 
          <Box sx={{ mb: 4, p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '16px' }}>

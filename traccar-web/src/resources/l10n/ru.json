@@ -552,7 +552,7 @@
     "notificatorMail": "Email",
     "notificatorSms": "СМС",
     "notificatorFirebase": "Push Уведомления Firebase",
-    "notificatorTraccar": "Push Уведомления GeoSurePath",
+    "notificatorTraccar": "Push Уведомления Track Elite",
     "notificatorTelegram": "Телеграмм",
     "notificatorPushover": "Нажатие",
     "notificatorWhatsapp": "WhatsApp",

@@ -1,5 +1,5 @@
 /**
- * GeoSurePath Smart Command Utility
+ * Track Elite Smart Command Utility
  * 
  * Maps device protocols to their optimal "Engine Stop" and "Engine Resume" commands.
  * This ensures high reliability without manual configuration for common hardware.
