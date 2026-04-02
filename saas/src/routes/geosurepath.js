@@ -201,11 +201,14 @@ router.all(/(.*)/, proxyAuthMiddleware, async (req, res) => {
         }
 
         // 4. Relay Request to Tracking Engine
+        const isBodyless = ['GET', 'HEAD', 'DELETE'].includes(req.method);
         const response = await fetch(targetUrl, {
             method: req.method,
             headers: relayHeaders,
-            body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body),
-            redirect: 'manual'
+            body: isBodyless ? undefined : JSON.stringify(req.body),
+            redirect: 'manual',
+            // Explicitly prevent any auto-generated content-type or length issues
+            duplex: isBodyless ? undefined : 'half'
         });
 
         // 5. Build Response
