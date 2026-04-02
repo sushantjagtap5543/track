@@ -4,7 +4,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 // Configuration from Environment
-const TRACCAR_URL = process.env.GEOSUREPATH_URL || "http://3.108.114.12";
+const TRACCAR_URL = process.env.TRACCAR_URL || "http://3.108.114.12";
 const ADMIN_USER = "sa@sa.com";
 const ADMIN_PASS = "sa";
 const AUTH = { 
@@ -12,7 +12,7 @@ const AUTH = {
     'Content-Type': 'application/json' 
 };
 
-const TEST_USER_EMAIL = process.env.GEOSUREPATH_ADMIN_EMAIL || "admin@geosurepath.com";
+const TEST_USER_EMAIL = process.env.TRACCAR_ADMIN_EMAIL || "admin@traccar.com";
 const SIM_IMEI = "GEOSIM_99999";
 const SIM_NAME = "Test Simulator Alpha";
 
@@ -51,12 +51,12 @@ async function generateData() {
         console.log(`📦 Linking SaaS Vehicle...`);
         await prisma.vehicle.upsert({
             where: { imei: SIM_IMEI },
-            update: { userId: saasUser.id, geosurepathDeviceId: traccarDeviceID },
+            update: { userId: saasUser.id, traccarDeviceId: traccarDeviceID },
             create: {
                 name: SIM_NAME,
                 imei: SIM_IMEI,
                 userId: saasUser.id,
-                geosurepathDeviceId: traccarDeviceID,
+                traccarDeviceId: traccarDeviceID,
                 registrationDate: new Date()
             }
         });
@@ -64,9 +64,9 @@ async function generateData() {
         // 4. Link User to Device in Traccar
         console.log(`🔗 Linking Traccar Permissions...`);
         try {
-            if (saasUser.geosurepathUserId) {
+            if (saasUser.traccarUserId) {
                 await axios.post(`${TRACCAR_URL}/api/permissions`, { 
-                    userId: saasUser.geosurepathUserId, 
+                    userId: saasUser.traccarUserId, 
                     deviceId: traccarDeviceID 
                 }, { headers: AUTH });
             }

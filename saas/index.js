@@ -12,9 +12,9 @@ require('dotenv').config();
 const REQUIRED_ENV_VARS = [
   'DATABASE_URL',
   'JWT_SECRET',
-  'GEOSUREPATH_URL',
-  'GEOSUREPATH_ADMIN_EMAIL',
-  'GEOSUREPATH_ADMIN_PASSWORD'
+  'TRACCAR_URL',
+  'TRACCAR_ADMIN_EMAIL',
+  'TRACCAR_ADMIN_PASSWORD'
 ];
 
 const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
@@ -103,7 +103,7 @@ app.get('/api/pulse', async (req, res) => {
     saas: 'healthy',
     database: 'unknown',
     redis: 'unknown',
-    geosurepath: 'unknown',
+    traccar: 'unknown',
     timestamp: new Date().toISOString()
   };
 
@@ -122,16 +122,16 @@ app.get('/api/pulse', async (req, res) => {
   }
 
   try {
-    const engineRes = await fetch(`${process.env.GEOSUREPATH_URL}/api/health`);
-    status.geosurepath = engineRes.ok ? 'connected' : `status: ${engineRes.status}`;
+    const engineRes = await fetch(`${process.env.TRACCAR_URL}/api/health`);
+    status.traccar = engineRes.ok ? 'connected' : `status: ${engineRes.status}`;
   } catch (err) {
-    status.geosurepath = `error: ${err.message}`;
+    status.traccar = `error: ${err.message}`;
   }
 
   const isHealthy =
     status.database === 'connected' &&
     status.redis === 'connected' &&
-    status.geosurepath === 'connected';
+    status.traccar === 'connected';
 
   res.status(isHealthy ? 200 : 503).json(status);
 });

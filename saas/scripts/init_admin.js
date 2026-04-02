@@ -4,9 +4,9 @@ const bcrypt = require('bcrypt');
 const nodeFetch = require('node-fetch');
 
 async function initAdmin() {
-  const baseURL = process.env.GEOSUREPATH_URL || 'http://geosurepath:8082';
-  const email = process.env.GEOSUREPATH_ADMIN_EMAIL || 'admin@geosurepath.com';
-  const password = process.env.GEOSUREPATH_ADMIN_PASSWORD || 'admin123';
+  const baseURL = process.env.TRACCAR_URL || 'http://traccar:8082';
+  const email = process.env.TRACCAR_ADMIN_EMAIL || 'admin@traccar.com';
+  const password = process.env.TRACCAR_ADMIN_PASSWORD || 'admin123';
 
   console.log(`🚀 [Sovereign Reset] Initializing System-Wide Master Reset...`);
 
