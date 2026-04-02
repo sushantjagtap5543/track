@@ -10,7 +10,7 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../lib/prisma');
 const { alertQueue, notificationQueue } = require('../services/queue');
-const { authenticateToken } = require('../middleware/authMiddleware');
+const { authenticateToken, authenticateTokenOptional } = require('../middleware/authMiddleware');
 // Native Node fetch will be used
 
 /**
@@ -129,7 +129,7 @@ router.post('/events', async (req, res) => {
   }
 });
 
-const { authenticateToken, authenticateTokenOptional } = require('../middleware/authMiddleware');
+// Using shared middleware destructuring from top level
 const geosurepathService = require('../services/geosurepath');
 
 /**
