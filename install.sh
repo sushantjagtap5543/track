@@ -84,6 +84,13 @@ if [ ! -f .env ]; then
     sed -i "s/JWT_SECRET=.*/JWT_SECRET=$(openssl rand -base64 32)/g" .env
 fi
 
+# 4b. Firebase Identity Placeholder (Resilience)
+# Ensure the file exists so Docker doesn't create a directory 
+if [ ! -f saas/firebase-service-account.json ]; then
+    echo "🔑 Provisioning Firebase Identity Placeholder..."
+    echo "{}" > saas/firebase-service-account.json
+fi
+
 # Detect Public IP and patch Nginx
 echo "🛰️  Detecting Public IP for Infrastructure Sync..."
 IP=$(curl -4 -s ifconfig.me || echo "localhost")
