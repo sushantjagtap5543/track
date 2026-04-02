@@ -2,7 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function verify() {
-  const email = 'admin@geosurepath.com';
+  const email = 'admin@traccar.com';
   console.log('--- FINAL PRODUCTION VERIFICATION ---');
   
   try {
