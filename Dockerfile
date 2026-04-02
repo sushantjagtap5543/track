@@ -10,7 +10,7 @@ WORKDIR /app/traccar-web
 COPY traccar-web/package*.json ./
 RUN npm install --legacy-peer-deps
 COPY traccar-web/ .
-ENV NODE_OPTIONS="--max_old_space_size=4096"
+ENV NODE_OPTIONS="--max_old_space_size=1536"
 RUN npm run build
 
 # Stage 3: Run Traccar
