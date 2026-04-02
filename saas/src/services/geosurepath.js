@@ -430,4 +430,5 @@ module.exports = {
   getAllDevices,
   loginUser,
   updateDevice,
+  setSession,
 };

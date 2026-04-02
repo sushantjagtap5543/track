@@ -38,9 +38,28 @@ async function forceSync() {
     await prisma.refreshToken.deleteMany({ where: { userId: saasUser.id } });
     console.log(`[FORCE SYNC] Cleared stale active sessions for SaaS user.`);
 
-    // 3. Find or Create Traccar User
+    // 3. Find or Create Traccar User (with fallback for fresh installs)
     console.log(`[FORCE SYNC] Looking up user in Tracking Engine...`);
-    let traccarUser = await geosurepathService.getUserByEmail(email);
+    let traccarUser;
+    try {
+        traccarUser = await geosurepathService.getUserByEmail(email);
+    } catch (sessionErr) {
+        if (sessionErr.message.includes('401')) {
+            console.warn(`[FORCE SYNC] Auth failed with .env credentials. Attempting fallback to Traccar default (admin/admin)...`);
+            try {
+                const defaultSession = await geosurepathService.loginUser('admin', 'admin');
+                if (defaultSession.cookie) {
+                    console.log(`[FORCE SYNC] Default login successful. Proceeding as system admin...`);
+                    geosurepathService.setSession(defaultSession.cookie);
+                }
+            } catch (defaultErr) {
+                console.error(`[FORCE SYNC] Fallback failed: ${defaultErr.message}`);
+                throw sessionErr; // Re-throw original 401
+            }
+        } else {
+            throw sessionErr;
+        }
+    }
 
     if (traccarUser) {
       console.log(`[FORCE SYNC] Traccar user found (ID: ${traccarUser.id}). Force-updating password...`);
