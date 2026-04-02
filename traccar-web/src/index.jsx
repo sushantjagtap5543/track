@@ -14,6 +14,33 @@ import AppThemeProvider from './AppThemeProvider';
 
 console.log('[BOOTSTRAP] Entry point reached.');
 
+// ✅ SOVEREIGN GATEWAY: Global Fetch Interceptor
+// Automatically injects the SaaS JWT token into all native fetch requests made by Traccar UI components and RTK Query.
+const originalFetch = window.fetch;
+window.fetch = async (...args) => {
+  let [resource, config] = args;
+  const token = localStorage.getItem('saas_token');
+  
+  if (token) {
+    let url = '';
+    if (typeof resource === 'string') {
+      url = resource;
+    } else if (resource && resource.url) {
+      url = resource.url;
+    }
+    
+    if (url && url.includes('/api/') && !url.includes('/api/auth/')) {
+      config = config || {};
+      config.headers = {
+        ...config.headers,
+        Authorization: `Bearer ${token}`,
+      };
+      args[1] = config;
+    }
+  }
+  return originalFetch(...args);
+};
+
 // Safety: Mount React even if preloading hangs
 const bootstrap = () => {
   console.log('[BOOTSTRAP] Initializing root...');
