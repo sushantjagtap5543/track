@@ -295,11 +295,13 @@ const LoginPage = () => {
           localStorage.setItem('saas_user', JSON.stringify(saasData.user));
         }
 
+        /* 
         if (saasData.isHardlocked) {
             setHardlocked(true);
             setLoading(false);
             return;
         }
+        */
 
         const traccarRes = await fetch('/api/session');
         if (traccarRes.ok) {
@@ -347,11 +349,13 @@ const LoginPage = () => {
           localStorage.setItem('saas_user', JSON.stringify(saasData.user));
         }
 
+        /*
         if (saasData.isHardlocked) {
             setHardlocked(true);
             setMfaLoading(false);
             return;
         }
+        */
 
         const traccarRes = await fetch('/api/session');
         if (traccarRes.ok) {
