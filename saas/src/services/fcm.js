@@ -27,10 +27,14 @@ class FCMService {
         return;
       }
 
-      // Defense: Ensure we don't crash if the file is malformed
+      // Defense: Ensure we don't crash if the file is malformed or incomplete
       let serviceAccount;
       try {
         serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+        if (!serviceAccount.project_id || !serviceAccount.private_key) {
+            console.warn('⚠️ Push Notifications: firebase-service-account.json is a placeholder. Push disabled (Non-Critical).');
+            return;
+        }
       } catch (e) {
         console.error('❌ Push Notifications: Failed to parse firebase-service-account.json:', e.message);
         return;

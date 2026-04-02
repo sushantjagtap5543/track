@@ -134,9 +134,9 @@ router.post('/events', async (req, res) => {
  * Intercepts all /api/ requests, applies Just-in-Time Hardlock checks,
  * and relays authorized traffic to the GeoSurePath Tracking Engine.
  */
-router.all('*', authenticateToken, async (req, res) => {
+router.all(/(.*)/, authenticateToken, async (req, res) => {
     // 1. Determine Target URL
-    const targetPath = req.params.path ? '/' + (Array.isArray(req.params.path) ? req.params.path.join('/') : req.params.path) : req.path.replace('/api/geosurepath', '');
+    const targetPath = req.params[0] || req.path.replace('/api/geosurepath', '');
     const targetUrl = `${process.env.GEOSUREPATH_URL}/api${targetPath}${req.url.includes('?') ? '?' + req.url.split('?')[1] : ''}`;
 
     // 2. Prepare Headers (Relay Authorization & Cookies)
