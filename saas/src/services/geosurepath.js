@@ -36,6 +36,10 @@ const clearSession = () => {
   sessionCookie = null;
 };
 
+const setSession = (cookie) => {
+  sessionCookie = cookie;
+};
+
 const getAuthHeaders = () => {
   const headers = {
     Authorization:
