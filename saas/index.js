@@ -149,7 +149,7 @@ app.use('/api/webhooks', require('./src/routes/webhooks'));
 
 // ✅ SOVEREIGN REDIRECTOR: Catch all unhandled /api calls and funnel them to the Traccar Proxy
 // This ensures that the Traccar-Web frontend works perfectly without manual URL prefixing.
-app.all('/api/(.*)', (req, res, next) => {
+app.all('/api/:path*', (req, res, next) => {
   // If it reached here, it means no native SaaS route matched it.
   // We rewrite the URL internally so the traccar router can handle it.
   req.url = req.url.replace('/api/', '/');
