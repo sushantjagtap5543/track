@@ -1,5 +1,5 @@
-// src/controllers/userController.js
 const prisma = require('../lib/prisma');
+const traccarService = require('../services/traccar');
 
 exports.getProfile = async (req, res) => {
   try {
@@ -39,9 +39,9 @@ exports.updateProfile = async (req, res) => {
       }
     });
 
-    // ✅ REFINEMENT: Sync profile updates to GeoSurePath
-    if (user.geosurepathUserId) {
-      geosurepathService.updateUser(user.geosurepathUserId, { 
+    // ✅ REFINEMENT: Sync profile updates to Traccar
+    if (user.traccarUserId) {
+      traccarService.updateUser(user.traccarUserId, { 
         name: user.name, 
         phone: user.phone || undefined 
       }).catch(err => console.error('[Profile Sync] Failed to sync to Traccar:', err.message));
@@ -56,8 +56,8 @@ exports.updateProfile = async (req, res) => {
 exports.deleteAccount = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
-    if (user?.geosurepathUserId) {
-        geosurepathService.updateUser(user.geosurepathUserId, { disabled: true }).catch(err => console.error('[DeleteAccount Sync] Failed to sync to Traccar:', err.message));
+    if (user?.traccarUserId) {
+        traccarService.updateUser(user.traccarUserId, { disabled: true }).catch(err => console.error('[DeleteAccount Sync] Failed to sync to Traccar:', err.message));
     }
     
     await prisma.user.update({

@@ -54,7 +54,7 @@ router.post('/webhook/position', async (req, res) => {
   try {
     // 1. Find the vehicle in our DB to get the owner
     const vehicle = await prisma.vehicle.findUnique({
-      where: { geosurepathDeviceId: position.deviceId },
+      where: { traccarDeviceId: position.deviceId },
       select: { id: true, userId: true }
     });
 
@@ -108,7 +108,7 @@ router.post('/webhook/event', async (req, res) => {
 
   try {
     const vehicle = await prisma.vehicle.findUnique({
-      where: { geosurepathDeviceId: event.deviceId },
+      where: { traccarDeviceId: event.deviceId },
       select: { id: true, userId: true }
     });
 

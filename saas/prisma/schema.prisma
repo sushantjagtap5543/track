@@ -29,7 +29,7 @@ model User {
   avatarUrl           String?
   timezone            String         @default("UTC")
   permissions         Json?
-  geosurepathUserId   Int?           @unique
+  traccarUserId       Int?           @unique
   isActive            Boolean        @default(true)
   isVerified          Boolean        @default(false)
   registrationDate    DateTime       @default(now())
@@ -84,8 +84,8 @@ model Vehicle {
   user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   fleetId               String?
   fleet                 Fleet?       @relation(fields: [fleetId], references: [id])
-  geosurepathDeviceId   Int?         @unique
-  geosurepathGeofenceId Int?         @unique
+  traccarDeviceId       Int?         @unique
+  traccarGeofenceId     Int?         @unique
   registrationDate      DateTime     @default(now())
   safeParkingOn         Boolean      @default(false)
   parkingLat            Float?

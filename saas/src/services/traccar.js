@@ -1,7 +1,7 @@
-// src/services/geosurepath.js
+// src/services/traccar.js
 // ✅ FIX: Integrated loginUser for session relaying.
 
-const { GEOSUREPATH_URL, GEOSUREPATH_ADMIN_EMAIL, GEOSUREPATH_ADMIN_PASSWORD } = process.env;
+const { TRACCAR_URL, TRACCAR_ADMIN_EMAIL, TRACCAR_ADMIN_PASSWORD } = process.env;
 
 /**
  * Common hardware command mappings for different protocols.
@@ -44,9 +44,9 @@ const getAuthHeaders = () => {
   const headers = {
     Authorization:
       'Basic ' +
-      Buffer.from(`${GEOSUREPATH_ADMIN_EMAIL}:${GEOSUREPATH_ADMIN_PASSWORD}`).toString('base64'),
+      Buffer.from(`${TRACCAR_ADMIN_EMAIL}:${TRACCAR_ADMIN_PASSWORD}`).toString('base64'),
     'Content-Type': 'application/json',
-    'User-Agent': 'GeoSurePath-System-Service/1.0',
+    'User-Agent': 'Traccar-System-Service/1.0',
     'X-System-Source': 'SaaS-API'
   };
   if (sessionCookie) {
@@ -58,17 +58,17 @@ const getAuthHeaders = () => {
 const ensureSession = async () => {
   if (sessionCookie) return;
 
-  console.log(`Establishing GeoSurePath session for ${GEOSUREPATH_ADMIN_EMAIL}... (URL: ${GEOSUREPATH_URL})`);
+  console.log(`Establishing Traccar session for ${TRACCAR_ADMIN_EMAIL}... (URL: ${TRACCAR_URL})`);
   
   const params = new URLSearchParams();
-  params.append('email', GEOSUREPATH_ADMIN_EMAIL);
-  params.append('password', GEOSUREPATH_ADMIN_PASSWORD);
+  params.append('email', TRACCAR_ADMIN_EMAIL);
+  params.append('password', TRACCAR_ADMIN_PASSWORD);
 
-  const response = await fetch(`${GEOSUREPATH_URL}/api/session`, {
+  const response = await fetch(`${TRACCAR_URL}/api/session`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'GeoSurePath-System-Service/1.0',
+      'User-Agent': 'Traccar-System-Service/1.0',
       'X-System-Source': 'SaaS-API'
     },
     body: params
@@ -76,14 +76,14 @@ const ensureSession = async () => {
 
   if (!response.ok) {
     const text = await response.text();
-    console.error(`[GeoSurePath] Session creation failed for ${GEOSUREPATH_ADMIN_EMAIL}. Status: ${response.status}. Body: ${text}`);
-    throw new Error(`GeoSurePath session creation failed: ${response.status} ${text}`);
+    console.error(`[Traccar] Session creation failed for ${TRACCAR_ADMIN_EMAIL}. Status: ${response.status}. Body: ${text}`);
+    throw new Error(`Traccar session creation failed: ${response.status} ${text}`);
   }
 
   const setCookie = response.headers.get('set-cookie');
   if (setCookie) {
     sessionCookie = setCookie.split(';')[0];
-    console.log('GeoSurePath session established successfully.');
+    console.log('Traccar session established successfully.');
   }
 };
 
@@ -92,11 +92,11 @@ const loginUser = async (email, password) => {
   params.append('email', email);
   params.append('password', password);
 
-  const response = await fetch(`${GEOSUREPATH_URL}/api/session`, {
+  const response = await fetch(`${TRACCAR_URL}/api/session`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'GeoSurePath-System-Service/1.0',
+      'User-Agent': 'Traccar-System-Service/1.0',
       'X-System-Source': 'SaaS-API'
     },
     body: params
@@ -126,7 +126,7 @@ const fetchWithSessionRefresh = async (url, options, retried = false) => {
     clearTimeout(timeoutId);
 
     if ((response.status === 401 || response.status === 403) && !retried) {
-      console.warn('[GeoSurePath] Session expired or invalid. Refreshing session and retrying...');
+      console.warn('[Traccar] Session expired or invalid. Refreshing session and retrying...');
       clearSession();
       await ensureSession();
       const refreshedOptions = { ...options, headers: getAuthHeaders() };
@@ -137,7 +137,7 @@ const fetchWithSessionRefresh = async (url, options, retried = false) => {
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      throw new Error(`GeoSurePath API Timeout: The tracking engine is taking too long to respond (>10s).`);
+      throw new Error(`Traccar API Timeout: The tracking engine is taking too long to respond (>10s).`);
     }
     throw err;
   }
@@ -146,7 +146,7 @@ const fetchWithSessionRefresh = async (url, options, retried = false) => {
 const createUser = async (name, email, password, options = {}) => {
   await ensureSession();
   const userData = { name, email, password, deviceLimit: 10, ...options };
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/users`, {
+  const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/users`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(userData)
@@ -162,35 +162,35 @@ const createUser = async (name, email, password, options = {}) => {
             throw new Error('The tracking engine rejected the password format.');
         }
     }
-    throw new Error(`GeoSurePath createUser failed: ${response.status} ${text}`);
+    throw new Error(`Traccar createUser failed: ${response.status} ${text}`);
   }
   return response.json();
 };
 
 const createDevice = async (name, uniqueId) => {
   await ensureSession();
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/devices`, {
+  const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/devices`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ name, uniqueId })
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`GeoSurePath createDevice failed: ${response.status} ${text}`);
+    throw new Error(`Traccar createDevice failed: ${response.status} ${text}`);
   }
   return response.json();
 };
 
 const linkDeviceToUser = async (userId, deviceId) => {
   await ensureSession();
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/permissions`, {
+  const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/permissions`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ userId, deviceId })
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`GeoSurePath linkDeviceToUser failed: ${response.status} ${text}`);
+    throw new Error(`Traccar linkDeviceToUser failed: ${response.status} ${text}`);
   }
   return response.ok;
 };
@@ -198,7 +198,7 @@ const linkDeviceToUser = async (userId, deviceId) => {
 const getLatestPosition = async (deviceId) => {
   await ensureSession();
   const response = await fetchWithSessionRefresh(
-    `${GEOSUREPATH_URL}/api/positions?deviceId=${deviceId}`,
+    `${TRACCAR_URL}/api/positions?deviceId=${deviceId}`,
     { headers: getAuthHeaders() }
   );
   if (!response.ok) return null;
@@ -213,7 +213,7 @@ const getDeviceProtocol = async (deviceId) => {
 
 const deleteUser = async (userId) => {
   await ensureSession();
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/users/${userId}`, {
+  const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/users/${userId}`, {
     method: 'DELETE',
     headers: getAuthHeaders()
   });
@@ -222,7 +222,7 @@ const deleteUser = async (userId) => {
 
 const deleteDevice = async (deviceId) => {
   await ensureSession();
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/devices/${deviceId}`, {
+  const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/devices/${deviceId}`, {
     method: 'DELETE',
     headers: getAuthHeaders()
   });
@@ -248,7 +248,7 @@ const sendCommand = async (deviceId, action, attributes = {}, retryCount = 0) =>
   }
 
   try {
-    const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/commands/send`, {
+    const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/commands/send`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ deviceId, type: commandType, attributes: commandAttributes })
@@ -262,7 +262,7 @@ const sendCommand = async (deviceId, action, attributes = {}, retryCount = 0) =>
         await new Promise(resolve => setTimeout(resolve, 2000));
         return sendCommand(deviceId, action, attributes, retryCount + 1);
       }
-      throw new Error(`GeoSurePath sendCommand failed: ${response.status} ${text}`);
+      throw new Error(`Traccar sendCommand failed: ${response.status} ${text}`);
     }
     return response.json();
   } catch (error) {
@@ -274,28 +274,28 @@ const sendCommand = async (deviceId, action, attributes = {}, retryCount = 0) =>
 
 const createGeofence = async (name, area) => {
   await ensureSession();
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/geofences`, {
+  const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/geofences`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ name, area })
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`GeoSurePath createGeofence failed: ${response.status} ${text}`);
+    throw new Error(`Traccar createGeofence failed: ${response.status} ${text}`);
   }
   return response.json();
 };
 
 const linkGeofenceToDevice = async (deviceId, geofenceId) => {
   await ensureSession();
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/permissions`, {
+  const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/permissions`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ deviceId, geofenceId })
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`GeoSurePath linkGeofenceToDevice failed: ${response.status} ${text}`);
+    throw new Error(`Traccar linkGeofenceToDevice failed: ${response.status} ${text}`);
   }
   return response.ok;
 };
@@ -303,7 +303,7 @@ const linkGeofenceToDevice = async (deviceId, geofenceId) => {
 const deleteGeofence = async (geofenceId) => {
   await ensureSession();
   const response = await fetchWithSessionRefresh(
-    `${GEOSUREPATH_URL}/api/geofences/${geofenceId}`,
+    `${TRACCAR_URL}/api/geofences/${geofenceId}`,
     { method: 'DELETE', headers: getAuthHeaders() }
   );
   return response.ok;
@@ -311,28 +311,28 @@ const deleteGeofence = async (geofenceId) => {
 
 const updateDevice = async (deviceId, data) => {
   await ensureSession();
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/devices/${deviceId}`, {
+  const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/devices/${deviceId}`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify({ id: deviceId, ...data })
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`GeoSurePath updateDevice failed: ${response.status} ${text}`);
+    throw new Error(`Traccar updateDevice failed: ${response.status} ${text}`);
   }
   return response.json();
 };
 
 const updateUser = async (userId, data) => {
   await ensureSession();
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/users/${userId}`, {
+  const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/users/${userId}`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify({ id: userId, ...data })
   });
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`GeoSurePath updateUser failed: ${response.status} ${text}`);
+    throw new Error(`Traccar updateUser failed: ${response.status} ${text}`);
   }
   return response.json();
 };
@@ -343,12 +343,12 @@ const getAllLatestPositions = async () => {
   try {
     // ✅ HIGH-CONCURRENCY CACHE (Scenario 202): 
     // Cache the entire fleet state for 5s to prevent engine DDOS during admin audits.
-    const CACHE_KEY = 'geosurepath:fleet:positions';
+    const CACHE_KEY = 'traccar:fleet:positions';
     const cached = await redis.get(CACHE_KEY);
     if (cached) return JSON.parse(cached);
 
     await ensureSession();
-    const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/positions`, {
+    const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/positions`, {
       headers: getAuthHeaders()
     });
     
@@ -360,7 +360,7 @@ const getAllLatestPositions = async () => {
 
   } catch (error) {
     console.warn('[Cache Error] Falling back to direct engine fetch:', error.message);
-    const response = await fetch(`${GEOSUREPATH_URL}/api/positions`, { headers: getAuthHeaders() });
+    const response = await fetch(`${TRACCAR_URL}/api/positions`, { headers: getAuthHeaders() });
     return response.ok ? response.json() : [];
   }
 };
@@ -368,7 +368,7 @@ const getAllLatestPositions = async () => {
 const getUserDevices = async (userId) => {
   await ensureSession();
   const response = await fetchWithSessionRefresh(
-    `${GEOSUREPATH_URL}/api/devices?userId=${userId}`,
+    `${TRACCAR_URL}/api/devices?userId=${userId}`,
     { headers: getAuthHeaders() }
   );
   if (!response.ok) return [];
@@ -377,7 +377,7 @@ const getUserDevices = async (userId) => {
 
 const getAllDevices = async () => {
   await ensureSession();
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/devices`, {
+  const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/devices`, {
     headers: getAuthHeaders()
   });
   if (!response.ok) return [];
@@ -386,7 +386,7 @@ const getAllDevices = async () => {
 
 const getUser = async (userId) => {
   await ensureSession();
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/users/${userId}`, {
+  const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/users/${userId}`, {
     headers: getAuthHeaders()
   });
   if (!response.ok) return {};
@@ -395,7 +395,7 @@ const getUser = async (userId) => {
 
 const getUserByEmail = async (email) => {
     await ensureSession();
-    const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/users?email=${encodeURIComponent(email)}`, {
+    const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/users?email=${encodeURIComponent(email)}`, {
         headers: getAuthHeaders()
     });
     if (!response.ok) return null;
@@ -408,7 +408,7 @@ const getUserByEmail = async (email) => {
 
 const getEvents = async (deviceId, from, to) => {
     await ensureSession();
-    const url = `${GEOSUREPATH_URL}/api/reports/events?deviceId=${deviceId}&from=${from.toISOString()}&to=${to.toISOString()}`;
+    const url = `${TRACCAR_URL}/api/reports/events?deviceId=${deviceId}&from=${from.toISOString()}&to=${to.toISOString()}`;
     const response = await fetchWithSessionRefresh(url, { headers: getAuthHeaders() });
     if (!response.ok) return [];
     return response.json();
@@ -416,7 +416,7 @@ const getEvents = async (deviceId, from, to) => {
 
 const syncDeviceAttributes = async (deviceId, attributes) => {
   await ensureSession();
-  const device = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/devices/${deviceId}`, {
+  const device = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/devices/${deviceId}`, {
     headers: getAuthHeaders()
   }).then(res => res.json());
 
@@ -426,7 +426,7 @@ const syncDeviceAttributes = async (deviceId, attributes) => {
 
 const getAllUsers = async () => {
   await ensureSession();
-  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/users`, {
+  const response = await fetchWithSessionRefresh(`${TRACCAR_URL}/api/users`, {
     headers: getAuthHeaders()
   });
   if (!response.ok) return [];

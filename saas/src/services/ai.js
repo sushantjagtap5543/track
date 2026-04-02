@@ -3,7 +3,7 @@ const { OPENROUTER_API_KEY } = process.env;
 const { getRandomFreeModel } = require('./modelScheduler');
 
 /**
- * 🤖 GeoSurePath AI Client (OpenRouter)
+ * 🤖 Traccar AI Client (OpenRouter)
  * Standardizes AI requests across the platform.
  * Includes built-in retry logic and request timeouts.
  */
@@ -28,14 +28,14 @@ async function callAI(prompt, model = null, retries = 3) {
         signal: controller.signal,
         headers: {
           'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'https://geosurepath.com', 
-          'X-Title': 'GeoSurePath AI Guardian',
+          'HTTP-Referer': 'https://traccar.com', 
+          'X-Title': 'Traccar AI Guardian',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model: model,
           messages: [
-            { role: 'system', content: 'You are GeoSurePath AI-Guardian, an intelligent fleet supervisor and server monitor. Analyze metrics and provide concise, executive summaries and actionable advice.' },
+            { role: 'system', content: 'You are Traccar AI-Guardian, an intelligent fleet supervisor and server monitor. Analyze metrics and provide concise, executive summaries and actionable advice.' },
             { role: 'user', content: prompt }
           ],
           temperature: 0.7,

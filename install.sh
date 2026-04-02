@@ -7,9 +7,9 @@
 set -e
 
 REPO_URL="https://github.com/sushantjagtap5543/track.git"
-INSTALL_DIR="/opt/geosurepath"
+INSTALL_DIR="/opt/traccar_platform"
 
-echo "🛰️  Initializing GeoSurePath Deep-Clean Command Center..."
+echo "🛰️  Initializing Traccar Engine Platform..."
 
 # 0. Deep Cleanup Phase (High-Resilience)
 if [ "$1" == "clean" ]; then
@@ -49,23 +49,30 @@ if ! command -v pm2 &> /dev/null; then
 fi
 
 # 2. Infrastructure Hardening: Swap Allocation
-if [ ! -f /swapfile_geo ]; then
+if [ ! -f /swapfile_trc ]; then
     echo "💾 Allocating 2GB Enterprise Swap for Build Resilience..."
-    sudo fallocate -l 2G /swapfile_geo || sudo dd if=/dev/zero of=/swapfile_geo bs=1M count=2048
-    sudo chmod 600 /swapfile_geo
-    sudo mkswap /swapfile_geo
-    sudo swapon /swapfile_geo
-    echo "/swapfile_geo none swap sw 0 0" | sudo tee -a /etc/fstab
+    sudo fallocate -l 2G /swapfile_trc || sudo dd if=/dev/zero of=/swapfile_trc bs=1M count=2048
+    sudo chmod 600 /swapfile_trc
+    sudo mkswap /swapfile_trc
+    sudo swapon /swapfile_trc
+    echo "/swapfile_trc none swap sw 0 0" | sudo tee -a /etc/fstab
     echo "✅ Swap synchronized."
 fi
 
+
 # 3. Repository Management
+if [ -d "$INSTALL_DIR" ]; then
+    sudo chown -R $USER:$USER $INSTALL_DIR
+fi
+
+sudo git config --system --add safe.directory $INSTALL_DIR || true
+
 if [ ! -d "$INSTALL_DIR" ]; then
-    echo "📂 Cloning GeoSurePath from GitHub..."
+    echo "📂 Cloning Traccar Platform from GitHub..."
     sudo git clone $REPO_URL $INSTALL_DIR
     sudo chown -R $USER:$USER $INSTALL_DIR
 elif [ "$(pwd)" != "$INSTALL_DIR" ]; then
-    echo "🔄 Updating existing GeoSurePath repository at $INSTALL_DIR..."
+    echo "🔄 Updating existing Traccar Platform repository at $INSTALL_DIR..."
     cd $INSTALL_DIR
     git fetch --all
     git reset --hard origin/main
@@ -101,7 +108,7 @@ if [ -f nginx.conf ]; then
 fi
 
 # 5. Service Orchestration (Docker Compose V2)
-echo "🚀 Launching GeoSurePath Elite Ecosystem..."
+echo "🚀 Launching Traccar Elite Ecosystem..."
 docker compose down --remove-orphans 2>/dev/null || true
 docker compose up -d --build
 
@@ -109,13 +116,13 @@ docker compose up -d --build
 echo "🗄️  Synchronizing Database Schema (Prisma)..."
 # Wait for container to be ready
 RETRIES=12
-until docker exec geosurepath_saas_api npx prisma migrate deploy || [ $RETRIES -eq 0 ]; do
+until docker exec traccar_saas_api npx prisma migrate deploy || [ $RETRIES -eq 0 ]; do
   echo "⏳ Waiting for SaaS API to stabilize... ($RETRIES attempts left)"
   sleep 10
   RETRIES=$((RETRIES-1))
 done
 
-echo -e "\n✅  GEOSUREPATH DEEP-CLEAN DEPLOYMENT COMPLETE!"
+echo -e "\n✅  TRACCAR ENGINE PLATFORM DEPLOYMENT COMPLETE!"
 echo "----------------------------------------------------"
 echo "🌐 Production IP: http://$IP"
 echo "🔒 SaaS API:      Ready"

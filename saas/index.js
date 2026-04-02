@@ -143,7 +143,7 @@ app.use('/api/vehicles', require('./src/routes/vehicles'));
 app.use('/api/billing', billingLimiter, require('./src/routes/billing'));
 app.use('/api/admin', require('./src/routes/admin'));
 app.use('/api/reports', require('./src/routes/reports'));
-app.use('/api/geosurepath', require('./src/routes/geosurepath'));
+app.use('/api/traccar', require('./src/routes/traccar'));
 app.use('/api/notifications', require('./src/routes/notifications'));
 app.use('/api/webhooks', require('./src/routes/webhooks'));
 
@@ -151,9 +151,9 @@ app.use('/api/webhooks', require('./src/routes/webhooks'));
 // This ensures that the Traccar-Web frontend works perfectly without manual URL prefixing.
 app.all('/api/*', (req, res, next) => {
   // If it reached here, it means no native SaaS route matched it.
-  // We rewrite the URL internally so the geosurepath router can handle it.
+  // We rewrite the URL internally so the traccar router can handle it.
   req.url = req.url.replace('/api/', '/');
-  return require('./src/routes/geosurepath')(req, res, next);
+  return require('./src/routes/traccar')(req, res, next);
 });
 
 // --- Global Error Handler ---

@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const os = require('os');
 const prisma = require('../lib/prisma');
 const bcrypt = require('bcrypt');
-const geosurepathService = require('../services/geosurepath');
+const traccarService = require('../services/traccar');
 const analyticsService = require('../services/analyticsService');
 const util = require('util');
 const { exec } = require('child_process');
@@ -78,12 +78,12 @@ exports.updateClientStatus = async (req, res) => {
       }
     });
     
-    // Sync with GeoSurePath: If not active, disable in GeoSurePath
-    if (user.geosurepathUserId) {
-      geosurepathService
-        .updateUser(user.geosurepathUserId, { disabled: !isActive })
+    // Sync with Traccar: If not active, disable in Traccar
+    if (user.traccarUserId) {
+      traccarService
+        .updateUser(user.traccarUserId, { disabled: !isActive })
         .then(() =>
-          console.log(`[Sync] User ${user.email} ${isActive ? 'activated' : 'disabled'} in GeoSurePath.`)
+          console.log(`[Sync] User ${user.email} ${isActive ? 'activated' : 'disabled'} in Traccar.`)
         )
         .catch((syncError) =>
           console.error(`[Sync Error] Failed to sync status for ${user.email}:`, syncError.message)
@@ -157,8 +157,8 @@ exports.bulkUpdateStatus = async (req, res) => {
 
   try {
     const users = await prisma.user.findMany({
-      where: { id: { in: userIds }, geosurepathUserId: { not: null } },
-      select: { id: true, email: true, geosurepathUserId: true }
+      where: { id: { in: userIds }, traccarUserId: { not: null } },
+      select: { id: true, email: true, traccarUserId: true }
     });
 
     await prisma.user.updateMany({
@@ -166,9 +166,9 @@ exports.bulkUpdateStatus = async (req, res) => {
       data: { isActive }
     });
 
-    // ✅ FIX: Sync bulk status to GeoSurePath
+    // ✅ FIX: Sync bulk status to Traccar
     users.forEach(user => {
-        geosurepathService.updateUser(user.geosurepathUserId, { disabled: !isActive })
+        traccarService.updateUser(user.traccarUserId, { disabled: !isActive })
             .catch(e => console.error(`[BulkSync] Failed for ${user.email}:`, e.message));
     });
 
@@ -194,8 +194,8 @@ exports.bulkDeleteUsers = async (req, res) => {
 
   try {
     const users = await prisma.user.findMany({
-      where: { id: { in: userIds }, geosurepathUserId: { not: null } },
-      select: { id: true, email: true, geosurepathUserId: true }
+      where: { id: { in: userIds }, traccarUserId: { not: null } },
+      select: { id: true, email: true, traccarUserId: true }
     });
 
     await prisma.user.updateMany({
@@ -203,9 +203,9 @@ exports.bulkDeleteUsers = async (req, res) => {
       data: { deletedAt: new Date(), isActive: false }
     });
 
-    // ✅ FIX: Sync bulk deletion to GeoSurePath (Disable users)
+    // ✅ FIX: Sync bulk deletion to Traccar (Disable users)
     users.forEach(user => {
-        geosurepathService.updateUser(user.geosurepathUserId, { disabled: true })
+        traccarService.updateUser(user.traccarUserId, { disabled: true })
             .catch(e => console.error(`[BulkDeleteSync] Failed for ${user.email}:`, e.message));
     });
 
@@ -230,7 +230,7 @@ exports.getAdvancedStats = async (req, res) => {
     const [mrr, churnRate, heatmapData] = await Promise.all([
       analyticsService.calculateMRR(),
       analyticsService.calculateChurnRate(),
-      geosurepathService.getAllLatestPositions()
+      traccarService.getAllLatestPositions()
     ]);
 
     res.json({
@@ -360,12 +360,12 @@ exports.updateUserSubscription = async (req, res) => {
 
     // Sync status to Traccar if suspended
     if (status === 'EXPIRED' || status === 'CANCELLED') {
-      if (user.geosurepathUserId) {
-        await geosurepathService.updateUser(user.geosurepathUserId, { disabled: true });
+      if (user.traccarUserId) {
+        await traccarService.updateUser(user.traccarUserId, { disabled: true });
       }
     } else if (status === 'ACTIVE') {
-      if (user.geosurepathUserId) {
-        await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false });
+      if (user.traccarUserId) {
+        await traccarService.updateUser(user.traccarUserId, { disabled: false });
       }
     }
 
@@ -406,12 +406,12 @@ exports.impersonateUser = async (req, res) => {
     // if (targetUser.role === 'ADMIN') return res.status(403).json({ error: 'Cannot impersonate another administrator.' });
 
     // Helper: Generate Tokens
-    const generateTokens = async (userId, role, geosurepathUserId, uaHash = null) => {
+    const generateTokens = async (userId, role, traccarUserId, uaHash = null) => {
       const accessToken = jwt.sign(
         { 
           userId, 
           role, 
-          geosurepathUserId, 
+          traccarUserId, 
           uaHash,
           isGhost: true,
           impersonatedBy: req.user.userId 
@@ -423,7 +423,7 @@ exports.impersonateUser = async (req, res) => {
     };
 
     const uaHash = crypto.createHash('md5').update(req.headers['user-agent'] || '').digest('hex');
-    const { accessToken } = await generateTokens(targetUser.id, targetUser.role, targetUser.geosurepathUserId, uaHash);
+    const { accessToken } = await generateTokens(targetUser.id, targetUser.role, targetUser.traccarUserId, uaHash);
 
     res.json({ accessToken, user: targetUser });
 
@@ -475,13 +475,13 @@ exports.createUser = async (req, res) => {
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) return res.status(400).json({ error: 'User already exists with this email.' });
 
-    // 2. Create in GeoSurePath first
+    // 2. Create in Traccar first
     let gUser;
     try {
-      gUser = await geosurepathService.createUser(name, email, password);
-      console.log(`[AdminOnboard] Created GeoSurePath user for ${email} (ID: ${gUser.id})`);
+      gUser = await traccarService.createUser(name, email, password);
+      console.log(`[AdminOnboard] Created Traccar user for ${email} (ID: ${gUser.id})`);
     } catch (gsErr) {
-      console.error('[AdminOnboard] GeoSurePath creation failed:', gsErr.message);
+      console.error('[AdminOnboard] Traccar creation failed:', gsErr.message);
       return res.status(500).json({ error: 'Failed to create user in tracking engine.' });
     }
 
@@ -493,7 +493,7 @@ exports.createUser = async (req, res) => {
         email,
         password: hashedPassword,
         role,
-        geosurepathUserId: gUser.id,
+        traccarUserId: gUser.id,
         isActive: true,
         isVerified: true 
       }
@@ -549,8 +549,8 @@ exports.updateUserRole = async (req, res) => {
     });
 
     // ✅ SYNC (S99): Instantly synchronize administrative permissions to Traccar
-    if (user.geosurepathUserId) {
-        await geosurepathService.updateUser(user.geosurepathUserId, { administrator: role === 'ADMIN' })
+    if (user.traccarUserId) {
+        await traccarService.updateUser(user.traccarUserId, { administrator: role === 'ADMIN' })
             .catch(e => console.error(`[AdminRoleSync] Traccar sync failed for ${user.email}:`, e.message));
     }
 
@@ -581,11 +581,11 @@ exports.bulkCreateDevices = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found in SaaS Ledger.' });
 
     // ✅ RECOVERY: If engine ID is missing, try a lookup by email
-    if (!user.geosurepathUserId) {
-        const engineUser = await geosurepathService.getUserByEmail(user.email);
+    if (!user.traccarUserId) {
+        const engineUser = await traccarService.getUserByEmail(user.email);
         if (engineUser) {
-            await prisma.user.update({ where: { id: userId }, data: { geosurepathUserId: engineUser.id } });
-            user.geosurepathUserId = engineUser.id;
+            await prisma.user.update({ where: { id: userId }, data: { traccarUserId: engineUser.id } });
+            user.traccarUserId = engineUser.id;
         } else {
             return res.status(404).json({ error: `User ${user.email} lacks a tracking engine ID and was not found in Traccar. Please sync or onboard first.` });
         }
@@ -599,17 +599,17 @@ exports.bulkCreateDevices = async (req, res) => {
         
         await Promise.all(batch.map(async (dev) => {
             try {
-                // 1. Create in GeoSurePath
-                const gDevice = await geosurepathService.createDevice(dev.name, dev.uniqueId);
+                // 1. Create in Traccar
+                const gDevice = await traccarService.createDevice(dev.name, dev.uniqueId);
                 // 2. Link to User
-                await geosurepathService.linkDeviceToUser(user.geosurepathUserId, gDevice.id);
+                await traccarService.linkDeviceToUser(user.traccarUserId, gDevice.id);
                 // 3. Register in SaaS Ledger for Billing
                 await prisma.vehicle.upsert({
                     where: { imei: String(dev.uniqueId) },
                     update: { 
                         name: dev.name, 
                         userId, 
-                        geosurepathDeviceId: gDevice.id, 
+                        traccarDeviceId: gDevice.id, 
                         isActive: true,
                         deletedAt: null 
                     },
@@ -617,7 +617,7 @@ exports.bulkCreateDevices = async (req, res) => {
                         name: dev.name, 
                         imei: String(dev.uniqueId), 
                         userId, 
-                        geosurepathDeviceId: gDevice.id,
+                        traccarDeviceId: gDevice.id,
                         registrationDate: new Date()
                     }
                 });
@@ -772,8 +772,8 @@ exports.deleteUser = async (req, res) => {
     });
 
     // Disable in Traccar too
-    if (user.geosurepathUserId) {
-      geosurepathService.updateUser(user.geosurepathUserId, { disabled: true })
+    if (user.traccarUserId) {
+      traccarService.updateUser(user.traccarUserId, { disabled: true })
         .catch(e => console.error(`[DeleteSync] ${e.message}`));
     }
 
@@ -797,11 +797,11 @@ exports.syncDevicesForUser = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ error: 'User not found.' });
-    if (!user.geosurepathUserId) return res.status(400).json({ error: 'User has no linked Traccar account.' });
+    if (!user.traccarUserId) return res.status(400).json({ error: 'User has no linked Traccar account.' });
 
     // ✅ REFINEMENT: Use the high-precision sync engine from billingController
     const { syncUserDevices } = require('./billingController');
-    await syncUserDevices(userId, user.geosurepathUserId);
+    await syncUserDevices(userId, user.traccarUserId);
 
     const count = await prisma.vehicle.count({ where: { userId, deletedAt: null } });
 
@@ -1007,8 +1007,8 @@ exports.getUserServicesForAdmin = async (req, res) => {
 exports.syncAllDevices = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
-      where: { role: 'CLIENT', deletedAt: null, geosurepathUserId: { not: null } },
-      select: { id: true, email: true, geosurepathUserId: true }
+      where: { role: 'CLIENT', deletedAt: null, traccarUserId: { not: null } },
+      select: { id: true, email: true, traccarUserId: true }
     });
 
     const { syncUserDevices } = require('./billingController');
@@ -1017,7 +1017,7 @@ exports.syncAllDevices = async (req, res) => {
     for (const user of users) {
       try {
         // ✅ FIX: Removed dead uaHash computation (it was computed but never used)
-        await syncUserDevices(user.id, user.geosurepathUserId);
+        await syncUserDevices(user.id, user.traccarUserId);
         totalProcessedUsers++;
       } catch (err) {
         console.error(`[GlobalSync] Failed for ${user.email}:`, err.message);
@@ -1128,8 +1128,8 @@ exports.upgradeUser = async (req, res) => {
       data: { isActive: true }
     });
 
-    if (user.geosurepathUserId) {
-      await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false });
+    if (user.traccarUserId) {
+      await traccarService.updateUser(user.traccarUserId, { disabled: false });
     }
 
     logAction({
@@ -1163,10 +1163,10 @@ exports.toggleHardlockBypass = async (req, res) => {
     });
 
     // ✅ SYNC: If bypass enabled, ensure Traccar user is enabled
-    if (user.geosurepathUserId && bypass) {
-        await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false })
+    if (user.traccarUserId && bypass) {
+        await traccarService.updateUser(user.traccarUserId, { disabled: false })
             .catch(e => console.error(`[AdminControl] Bypass sync failed for ${user.email}:`, e.message));
-    } else if (user.geosurepathUserId && !bypass) {
+    } else if (user.traccarUserId && !bypass) {
         // Optional: If bypass disabled, we could trigger a re-eval, but the next login/cron will handle it.
         // For now, enabling is the most critical "Control" action.
     }
@@ -1231,9 +1231,9 @@ exports.resetUserPassword = async (req, res) => {
       }
     });
 
-    // 2. Sync to GeoSurePath
-    if (user.geosurepathUserId) {
-      await geosurepathService.updateUser(user.geosurepathUserId, { password: newPassword })
+    // 2. Sync to Traccar
+    if (user.traccarUserId) {
+      await traccarService.updateUser(user.traccarUserId, { password: newPassword })
         .catch(e => console.error(`[AdminResetSync] Engine sync failed for ${user.email}:`, e.message));
     }
 
@@ -1269,8 +1269,8 @@ exports.syncVehicleEvents = async (req, res) => {
 
     let totalEvents = 0;
     for (const vehicle of user.vehicles) {
-      if (!vehicle.geosurepathDeviceId) continue;
-      const events = await geosurepathService.getEvents(vehicle.geosurepathDeviceId, from, to);
+      if (!vehicle.traccarDeviceId) continue;
+      const events = await traccarService.getEvents(vehicle.traccarDeviceId, from, to);
       for (const ev of events) {
         await prisma.vehicleEvent.upsert({
           where: { id: String(ev.id) }, // Traccar IDs are unique
@@ -1331,10 +1331,10 @@ exports.retryEnrollment = async (req, res) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    const gUser = await geosurepathService.createUser(user.name, user.email, password, { phone: user.phone });
-    await prisma.user.update({ where: { id: userId }, data: { geosurepathUserId: gUser.id } });
+    const gUser = await traccarService.createUser(user.name, user.email, password, { phone: user.phone });
+    await prisma.user.update({ where: { id: userId }, data: { traccarUserId: gUser.id } });
 
-    res.json({ message: 'Enrollment successfully recovered.', geosurepathUserId: gUser.id });
+    res.json({ message: 'Enrollment successfully recovered.', traccarUserId: gUser.id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1351,24 +1351,24 @@ exports.transferVehicle = async (req, res) => {
     if (!targetUser) return res.status(404).json({ error: 'Target user not found.' });
 
     // 1. Unlink from old user in Traccar
-    if (vehicle.geosurepathDeviceId && vehicle.userId) {
+    if (vehicle.traccarDeviceId && vehicle.userId) {
        const oldUser = await prisma.user.findUnique({ where: { id: vehicle.userId } });
-       if (oldUser?.geosurepathUserId) {
+       if (oldUser?.traccarUserId) {
           // Traccar /api/permissions is delete simple remove link
-          await fetch(`${process.env.GEOSUREPATH_URL}/api/permissions`, {
+          await fetch(`${process.env.TRACCAR_URL}/api/permissions`, {
              method: 'DELETE',
              headers: {
                 'Content-Type': 'application/json',
-                Authorization: 'Basic ' + Buffer.from(`${process.env.GEOSUREPATH_ADMIN_EMAIL}:${process.env.GEOSUREPATH_ADMIN_PASSWORD}`).toString('base64')
+                Authorization: 'Basic ' + Buffer.from(`${process.env.TRACCAR_ADMIN_EMAIL}:${process.env.TRACCAR_ADMIN_PASSWORD}`).toString('base64')
              },
-             body: JSON.stringify({ userId: oldUser.geosurepathUserId, deviceId: vehicle.geosurepathDeviceId })
+             body: JSON.stringify({ userId: oldUser.traccarUserId, deviceId: vehicle.traccarDeviceId })
           }).catch(e => console.error('[Transfer] Unlink failed:', e.message));
        }
     }
 
     // 2. Link to new user in Traccar
-    if (vehicle.geosurepathDeviceId && targetUser.geosurepathUserId) {
-       await geosurepathService.linkDeviceToUser(targetUser.geosurepathUserId, vehicle.geosurepathDeviceId);
+    if (vehicle.traccarDeviceId && targetUser.traccarUserId) {
+       await traccarService.linkDeviceToUser(targetUser.traccarUserId, vehicle.traccarDeviceId);
     }
 
     // 3. Update SaaS Ownership
@@ -1540,7 +1540,7 @@ exports.massSyncUsers = async (req, res) => {
     try {
         const users = await prisma.user.findMany({
             where: { deletedAt: null, role: { in: ['CLIENT', 'MANAGER'] } },
-            select: { id: true, email: true, name: true, isActive: true, geosurepathUserId: true }
+            select: { id: true, email: true, name: true, isActive: true, traccarUserId: true }
         });
 
         const results = {
@@ -1552,26 +1552,26 @@ exports.massSyncUsers = async (req, res) => {
 
         for (const user of users) {
             try {
-                let gUserId = user.geosurepathUserId;
+                let gUserId = user.traccarUserId;
                 
                 // 1. If missing engine ID, search by email
                 if (!gUserId) {
-                    const engineUser = await geosurepathService.getUserByEmail(user.email);
+                    const engineUser = await traccarService.getUserByEmail(user.email);
                     if (engineUser) {
                         gUserId = engineUser.id;
-                        await prisma.user.update({ where: { id: user.id }, data: { geosurepathUserId: gUserId } });
+                        await prisma.user.update({ where: { id: user.id }, data: { traccarUserId: gUserId } });
                     }
                 }
 
                 if (gUserId) {
                     // 2. Update existing user (Sync status)
-                    await geosurepathService.updateUser(gUserId, { name: user.name, disabled: !user.isActive });
+                    await traccarService.updateUser(gUserId, { name: user.name, disabled: !user.isActive });
                 } else {
                     // 3. Re-create missing user (Use a temporary password or reset later)
                     // Note: Since we don't have the plaintext password here, we create with a placeholder 
                     // and rely on the next login's "Self-Healing" to fix it.
-                    const newGUser = await geosurepathService.createUser(user.name, user.email, 'GSP_RECOVERY_123');
-                    await prisma.user.update({ where: { id: user.id }, data: { geosurepathUserId: newGUser.id } });
+                    const newGUser = await traccarService.createUser(user.name, user.email, 'TRACCAR_RECOVERY_123');
+                    await prisma.user.update({ where: { id: user.id }, data: { traccarUserId: newGUser.id } });
                 }
                 
                 results.synced++;

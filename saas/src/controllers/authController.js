@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const prisma = require('../lib/prisma');
-const geosurepathService = require('../services/geosurepath');
+const traccarService = require('../services/traccar');
 const { emailQueue } = require('../services/queue');
 const { logAction, AUDIT_ACTIONS } = require('../services/auditService');
 const speakeasy = require('speakeasy');
@@ -34,9 +34,9 @@ const calculateHardlock = (user, latestSub) => {
 exports.calculateHardlock = calculateHardlock;
 
 // Helper: Generate Tokens
-const generateTokens = async (userId, role, geosurepathUserId, uaHash = null) => {
+const generateTokens = async (userId, role, traccarUserId, uaHash = null) => {
   const accessToken = jwt.sign(
-    { userId, role, geosurepathUserId, uaHash },
+    { userId, role, traccarUserId, uaHash },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRATION }
   );
@@ -88,7 +88,7 @@ exports.register = async (req, res) => {
     // 2. Cross-System Provisioning: Traccar (S6 Resilient)
     let gUser;
     try {
-        gUser = await geosurepathService.createUser(name, email, password, { 
+        gUser = await traccarService.createUser(name, email, password, { 
             phone, 
             login: username || email,
             disabled: requireVerify 
@@ -97,9 +97,9 @@ exports.register = async (req, res) => {
     } catch (createErr) {
         if (createErr.message.includes('already exists')) {
             console.warn(`[Register] Traccar user already exists for ${email}. Re-using and syncing...`);
-            gUser = await geosurepathService.getUserByEmail(email);
+            gUser = await traccarService.getUserByEmail(email);
             if (gUser) {
-              await geosurepathService.updateUser(gUser.id, { disabled: requireVerify, password }).catch(() => {});
+              await traccarService.updateUser(gUser.id, { disabled: requireVerify, password }).catch(() => {});
             }
         } else {
             console.error(`[Register] Traccar Provisioning Delay for ${email}: ${createErr.message}`);
@@ -112,7 +112,7 @@ exports.register = async (req, res) => {
         data: {
             name, username, email, phone,
             password: hashedPassword,
-            geosurepathUserId: gUser?.id || null, // ✅ NEW: Allow null for deferred provisioning
+            traccarUserId: gUser?.id || null, // ✅ NEW: Allow null for deferred provisioning
             role: 'CLIENT',
             isActive: true,
             isVerified: !requireVerify,
@@ -131,11 +131,11 @@ exports.register = async (req, res) => {
 
     // 4. Communication: Verification or Welcome
     if (requireVerify) {
-        const verifyUrl = `${process.env.FRONTEND_URL || 'http://3.108.114.12'}/verify-email?token=${verificationToken}&email=${email}`;
-        emailService.sendEmail(email, 'Verify Your GeoSurePath Account', `
+         const verifyUrl = `${process.env.FRONTEND_URL || 'http://3.108.114.12'}/verify-email?token=${verificationToken}&email=${email}`;
+        emailService.sendEmail(email, 'Verify Your Traccar Account', `
             <div style="font-family: sans-serif; max-width: 600px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px;">
                 <h2 style="color: #3b82f6;">Welcome! Please Verify Your Email</h2>
-                <p>Hello ${name}, thank you for joining GeoSurePath.</p>
+                <p>Hello ${name}, thank you for joining Traccar.</p>
                 <p>Please click the button below to verify your email and activate your tracking account:</p>
                 <div style="text-align: center; margin: 32px 0;">
                     <a href="${verifyUrl}" style="background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Verify Email Address</a>
@@ -191,8 +191,8 @@ exports.verifyEmail = async (req, res) => {
         });
 
         // Activate in Traccar
-        if (user.geosurepathUserId) {
-            await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false })
+        if (user.traccarUserId) {
+            await traccarService.updateUser(user.traccarUserId, { disabled: false })
                 .then(() => console.log(`[Verification] Traccar user enabled for ${email}`))
                 .catch(e => console.warn(`[Verification] Traccar sync failed for ${email}:`, e.message));
         }
@@ -226,7 +226,7 @@ exports.resendVerification = async (req, res) => {
         });
 
         const verifyUrl = `${process.env.FRONTEND_URL || 'http://3.108.114.12'}/verify-email?token=${verificationToken}&email=${email}`;
-        await emailService.sendEmail(email, 'Verify Your GeoSurePath Account (Resend)', `
+        await emailService.sendEmail(email, 'Verify Your Traccar Account (Resend)', `
              <div style="font-family: sans-serif; max-width: 600px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px;">
                 <h2 style="color: #3b82f6;">Verify Your Email</h2>
                 <p>Hello ${user.name}, please click the button below to verify your email:</p>
@@ -366,7 +366,7 @@ exports.login = async (req, res) => {
       }
 
       // ✅ LIMIT SYNC: Ensure Traccar deviceLimit matches SaaS subscription deviceCount
-      if (latestSub && user.geosurepathUserId) {
+      if (latestSub && user.traccarUserId) {
         user.deviceLimit = latestSub.deviceCount; // Temporary property for later use or just update now
       }
     }
@@ -377,7 +377,7 @@ exports.login = async (req, res) => {
     // ✅ PENTA CENTURION (S462): Self-Healing Authentication & Auto-Provisioning
     // We establish the Traccar session BEFORE the MFA check so the cookie is set early.
     try {
-      const traccarSession = await geosurepathService.loginUser(identifier, password);
+      const traccarSession = await traccarService.loginUser(identifier, password);
       if (traccarSession.cookie) {
         const match = traccarSession.cookie.match(/JSESSIONID=([^;]+)/);
         if (match && match[1]) {
@@ -402,7 +402,7 @@ exports.login = async (req, res) => {
 
       if (isAdminInSaaS !== isAdminInTraccar || deviceLimitInTraccar !== currentDeviceLimit || isDisabledInTraccar !== targetDisabled) {
           console.log(`[Login] State Mismatch for ${identifier}. Syncing Traccar Admin=${isAdminInSaaS}, Limit=${currentDeviceLimit}, Disabled=${targetDisabled}`);
-          await geosurepathService.updateUser(user.geosurepathUserId, { 
+          await traccarService.updateUser(user.traccarUserId, { 
               administrator: isAdminInSaaS,
               deviceLimit: currentDeviceLimit,
               disabled: targetDisabled
@@ -412,8 +412,8 @@ exports.login = async (req, res) => {
       if (traccarError.message.includes('401')) {
         console.warn(`[Login] Traccar Auth failed for ${identifier}. Initiating Self-Healing Sync/Provision...`);
         try {
-          if (user.geosurepathUserId) {
-            await geosurepathService.updateUser(user.geosurepathUserId, { 
+          if (user.traccarUserId) {
+            await traccarService.updateUser(user.traccarUserId, { 
                 password, 
                 administrator: user.role === 'ADMIN', 
                 deviceLimit: user.deviceLimit || 10,
@@ -422,19 +422,19 @@ exports.login = async (req, res) => {
             console.log(`[Login] Force-synced credentials & limits for ${identifier}. Retrying session relay...`);
           } else {
             console.warn(`[Login] Missing Traccar Link for ${identifier}. Auto-provisioning...`);
-            const newTUser = await geosurepathService.createUser(user.name, user.email, password, { 
+            const newTUser = await traccarService.createUser(user.name, user.email, password, { 
                 administrator: user.role === 'ADMIN',
                 deviceLimit: user.deviceLimit || 10,
                 disabled: isHardlocked || !user.isVerified || !user.isActive
             });
             await prisma.user.update({
               where: { id: user.id },
-              data: { geosurepathUserId: newTUser.id }
+              data: { traccarUserId: newTUser.id }
             });
             console.log(`[Login] Auto-provisioned Traccar user (ID: ${newTUser.id}) for ${identifier}.`);
           }
           
-          const retrySession = await geosurepathService.loginUser(identifier, password);
+          const retrySession = await traccarService.loginUser(identifier, password);
           const match = retrySession.cookie?.match(/JSESSIONID=([^;]+)/);
           if (match && match[1]) {
             res.cookie('JSESSIONID', match[1], { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/' });
@@ -458,7 +458,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    const { accessToken, refreshToken } = await generateTokens(user.id, user.role, user.geosurepathUserId, uaHash);
+    const { accessToken, refreshToken } = await generateTokens(user.id, user.role, user.traccarUserId, uaHash);
 
     res.cookie('token', accessToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 15 * 60 * 1000 });
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: REFRESH_TOKEN_EXPIRATION });
@@ -503,7 +503,7 @@ exports.refreshToken = async (req, res) => {
     // Rotate tokens with UA Hashing (S321)
     await prisma.refreshToken.delete({ where: { id: storedToken.id } });
     const uaHash = crypto.createHash('md5').update(req.headers['user-agent'] || '').digest('hex');
-    const tokens = await generateTokens(storedToken.user.id, storedToken.user.role, storedToken.user.geosurepathUserId, uaHash);
+    const tokens = await generateTokens(storedToken.user.id, storedToken.user.role, storedToken.user.traccarUserId, uaHash);
 
     const isSecure = process.env.SECURE_COOKIES === 'true';
     res.cookie('token', tokens.accessToken, { httpOnly: true, secure: isSecure, sameSite: 'strict', maxAge: 15 * 60 * 1000 });
@@ -546,12 +546,12 @@ exports.forgotPassword = async (req, res) => {
     
     emailQueue.add('reset-password', {
       to: user.email,
-      subject: 'Secure Recovery: Reset Your GeoSurePath Password',
+      subject: 'Secure Recovery: Reset Your Traccar Password',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background: #fafafa;">
           <h2 style="color: #3b82f6; text-align: center;">Identity Recovery Protocol</h2>
           <p>Hello ${user.name},</p>
-          <p>A password reset has been requested for your GeoSurePath Enterprise account. Please click the button below to establish your new encrypted credentials:</p>
+          <p>A password reset has been requested for your Traccar Enterprise account. Please click the button below to establish your new encrypted credentials:</p>
           
           <div style="text-align: center; margin: 32px 0;">
             <a href="${resetUrl}" style="background: #3b82f6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1rem; display: inline-block; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">Reset My Password</a>
@@ -602,10 +602,10 @@ exports.resetPassword = async (req, res) => {
       data: { password: hashedPassword, resetToken: null, resetTokenExpires: null }
     });
 
-    // ✅ FIX: Sync password change to GeoSurePath using correct geosurepathUserId
-      if (user.geosurepathUserId) {
-        await geosurepathService.updateUser(user.geosurepathUserId, { password: newPassword })
-          .catch(gsErr => console.error('[ResetPassword] GeoSurePath sync failed:', gsErr.message));
+    // ✅ FIX: Sync password change to Traccar using correct traccarUserId
+      if (user.traccarUserId) {
+        await traccarService.updateUser(user.traccarUserId, { password: newPassword })
+          .catch(gsErr => console.error('[ResetPassword] Traccar sync failed:', gsErr.message));
       }
 
       // 3. SECURE SYNC (S35): Revoke all active sessions on other devices
@@ -634,14 +634,14 @@ exports.changePassword = async (req, res) => {
       data: { password: hashedPassword }
     });
 
-    // ✅ FIX: Sync password change to GeoSurePath 
+    // ✅ FIX: Sync password change to Traccar 
     try {
-      if (user.geosurepathUserId) {
-        await geosurepathService.updateUser(user.geosurepathUserId, { password: newPassword });
-        console.log(`[ChangePassword] Synchronized password for GeoSurePath user ${user.geosurepathUserId}`);
+      if (user.traccarUserId) {
+        await traccarService.updateUser(user.traccarUserId, { password: newPassword });
+        console.log(`[ChangePassword] Synchronized password for Traccar user ${user.traccarUserId}`);
       }
     } catch (gsErr) {
-      console.error('[ChangePassword] GeoSurePath sync failed:', gsErr.message);
+      console.error('[ChangePassword] Traccar sync failed:', gsErr.message);
     }
 
     // ✅ SECURE SYNC (S35): Revoke all sessions, forcing a global re-login with the new password.
@@ -771,7 +771,7 @@ exports.setupMFA = async (req, res) => {
     const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const secret = speakeasy.generateSecret({ name: `GeoSurePath (${user.email})` });
+    const secret = speakeasy.generateSecret({ name: `Traccar (${user.email})` });
     
     // Temporarily store secret (unverified)
     await prisma.user.update({

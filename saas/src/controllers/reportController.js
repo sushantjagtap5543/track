@@ -5,7 +5,7 @@
 // ✅ FIX 2: Use shared Prisma singleton to avoid connection pool exhaustion.
 
 const prisma = require('../lib/prisma');
-const geosurepathService = require('../services/geosurepath');
+const traccarService = require('../services/traccar');
 
 // Helper for proxying report requests with security check
 const proxyReport = async (req, res, reportType) => {
@@ -18,18 +18,18 @@ const proxyReport = async (req, res, reportType) => {
   try {
     // Security check: ensure deviceId belongs to the requesting user
     const vehicle = await prisma.vehicle.findFirst({
-      where: { geosurepathDeviceId: parseInt(deviceId), userId: req.user.userId }
+      where: { traccarDeviceId: parseInt(deviceId), userId: req.user.userId }
     });
     if (!vehicle && req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Access denied to this device' });
     }
 
-    const url = `${process.env.GEOSUREPATH_URL}/api/reports/${reportType}?deviceId=${deviceId}&from=${from}&to=${to}`;
-    const response = await geosurepathService.fetchWithSessionRefresh(url, {
-      headers: geosurepathService.getAuthHeaders()
+    const url = `${process.env.TRACCAR_URL}/api/reports/${reportType}?deviceId=${deviceId}&from=${from}&to=${to}`;
+    const response = await traccarService.fetchWithSessionRefresh(url, {
+      headers: traccarService.getAuthHeaders()
     });
 
-    if (!response.ok) throw new Error(`GeoSurePath returned ${response.status}`);
+    if (!response.ok) throw new Error(`Traccar returned ${response.status}`);
 
     const data = await response.json();
     res.json(data);

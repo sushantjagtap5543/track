@@ -133,111 +133,101 @@ router.post('/events', async (req, res) => {
 const geosurepathService = require('../services/geosurepath');
 
 /**
- * ✅ SOVEREIGN PROXY (S99-PLATINUM): The Master Gateway to the Tracking Engine.
- * This upgrade ensures that all proxied traffic uses the SaaS Backend's Master Authority,
- * eliminating 401 redirect loops caused by client cookie expiration.
+ * ✅ SOVEREIGN PROXY (PLATINUM HARDENED): The Master Gateway to the Tracking Engine.
+ * Resolves "Bad Request" by intelligently handling headers and rawBody buffers.
  */
 const proxyAuthMiddleware = (req, res, next) => {
-    const targetPath = req.params[0] || req.path.replace('/api/geosurepath', '');
-    const explicitlyPublicPaths = ['/server', '/password'];
+    const targetPath = req.params[0] || req.path.replace('/api/traccar', '');
+    const explicitlyPublicPaths = ['/server', '/password', '/session'];
     const isExplicitlyPublic = explicitlyPublicPaths.some(p => targetPath === p || targetPath.startsWith(p + '?') || targetPath.startsWith(p + '/'));
     
     if (isExplicitlyPublic) {
         return next();
     }
     
-    // For /session and others, we try to authenticate but don't hard-block yet if it's a known semi-public path
-    if (targetPath === '/session' || targetPath.startsWith('/session/')) {
-        return authenticateTokenOptional(req, res, next);
-    }
-
     return authenticateToken(req, res, next);
 };
 
 router.all(/(.*)/, proxyAuthMiddleware, async (req, res) => {
     try {
-        const targetPath = req.params[0] || req.path.replace('/api/geosurepath', '');
+        const targetPath = req.params[0] || req.path.replace('/api/traccar', '');
         
-        // --- SECURE ROUTING OVERRIDE (S99-STABLE) ---
-        // For session hydration, return the SaaS user directly to prevent Admin-leak
+        // --- SECURE ROUTING OVERRIDE ---
         if (targetPath === '/session' && req.method === 'GET' && req.user) {
             return res.json({
                 ...req.user,
-                id: req.user.geosurepathUserId || req.user.userId,
+                id: req.user.traccarUserId || req.user.userId,
                 administrator: req.user.role === 'ADMIN',
                 name: req.user.name || 'User',
                 email: req.user.email || 'user@example.com'
             });
         }
 
-        // --- SECURE ROUTING OVERRIDE (S99-STABLE) ---
-        // For device creation, use the validated service layer to ensure perfect payload formatting.
         if (targetPath === '/devices' && req.method === 'POST') {
             const { name, uniqueId } = req.body;
             if (!name || !uniqueId) return res.status(400).json({ error: 'Name and uniqueId are required' });
             
-            const device = await geosurepathService.createDevice(name, uniqueId);
+            const device = await traccarService.createDevice(name, uniqueId);
             
-            // If the user is NOT an admin, we must also link the device to them
-            if (req.user.role !== 'ADMIN' && req.user.geosurepathUserId) {
-                await geosurepathService.linkDeviceToUser(req.user.geosurepathUserId, device.id);
+            if (req.user.role !== 'ADMIN' && req.user.traccarUserId) {
+                await traccarService.linkDeviceToUser(req.user.traccarUserId, device.id);
             }
             
             return res.status(200).json(device);
         }
 
         // 1. Determine Scope & Authority
-        const isSecure = process.env.SECURE_COOKIES === 'true';
         let useMasterAuthority = false;
         let queryParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
 
         if (req.user) {
             useMasterAuthority = true;
-            // ✅ AUTO-SCOPING: If the user is NOT an admin, enforce their specific ID in collection queries
-            if (req.user.role !== 'ADMIN' && req.user.geosurepathUserId) {
+            if (req.user.role !== 'ADMIN' && req.user.traccarUserId) {
                 const collectivePaths = ['/devices', '/positions', '/geofences', '/groups', '/calendars', '/events'];
                 if (collectivePaths.some(p => targetPath.startsWith(p))) {
-                    queryParams.set('userId', req.user.geosurepathUserId);
+                    queryParams.set('userId', req.user.traccarUserId);
                 }
             }
         }
 
         const queryString = queryParams.toString();
-        const targetUrl = `${process.env.GEOSUREPATH_URL}/api${targetPath}${queryString ? '?' + queryString : ''}`;
+        const targetUrl = `${process.env.TRACCAR_URL}/api${targetPath}${queryString ? '?' + queryString : ''}`;
 
-        // 2. Prepare Clean Headers
+        // 2. Prepare Clean Headers (PLATINUM HARDENING: Resolve "Bad Request")
         const relayHeaders = {};
+        const headerWhitelist = [
+            'accept', 'accept-language', 'user-agent', 'x-requested-with', 
+            'content-range', 'range', 'if-match', 'if-none-match'
+        ];
         
-        // Whitelist safe headers from client
-        const headerWhitelist = ['accept', 'accept-language', 'user-agent', 'x-requested-with'];
         headerWhitelist.forEach(h => {
             if (req.headers[h]) relayHeaders[h] = req.headers[h];
         });
 
-        // Ensure JSON acceptance
         relayHeaders['accept'] = 'application/json';
 
-        // Add Content-Type only for body-bearing requests
-        if (!['GET', 'HEAD', 'DELETE'].includes(req.method) && req.body && Object.keys(req.body).length > 0) {
-            relayHeaders['content-type'] = 'application/json';
+        // 🟢 FIX: Only set Content-Type if we actually have a body to avoid "Bad Request" on empty-body POSTs
+        const hasBody = !['GET', 'HEAD', 'DELETE'].includes(req.method) && 
+                        ((req.body && Object.keys(req.body).length > 0) || req.rawBody);
+
+        if (hasBody) {
+            relayHeaders['content-type'] = req.headers['content-type'] || 'application/json';
         }
 
-        // 3. Apply Master Authority if authenticated via SaaS
+        // 3. Apply Master Authority
         if (useMasterAuthority) {
-            await geosurepathService.ensureSession();
-            Object.assign(relayHeaders, geosurepathService.getAuthHeaders());
+            await traccarService.ensureSession();
+            Object.assign(relayHeaders, traccarService.getAuthHeaders());
         }
 
-        // 4. Relay Request to Tracking Engine
-        const isBodyless = ['GET', 'HEAD', 'DELETE'].includes(req.method);
+        // 4. Relay Request
         const fetchOptions = {
             method: req.method,
             headers: relayHeaders,
             redirect: 'manual'
         };
 
-        if (!isBodyless) {
-            // ✅ S99-STABLE: Use rawBody buffer if available to prevent JSON re-serialization issues (Jackson Column 9 error)
+        if (hasBody) {
             fetchOptions.body = req.rawBody || JSON.stringify(req.body);
         }
 
@@ -247,7 +237,6 @@ router.all(/(.*)/, proxyAuthMiddleware, async (req, res) => {
         const responseHeaders = {};
         response.headers.forEach((value, key) => {
             const lowerKey = key.toLowerCase();
-            // Security: Strip Set-Cookie to prevent leaking Master session
             if (!['content-encoding', 'transfer-encoding', 'content-length', 'connection', 'set-cookie'].includes(lowerKey)) {
                 responseHeaders[key] = value;
             }
@@ -257,14 +246,12 @@ router.all(/(.*)/, proxyAuthMiddleware, async (req, res) => {
         res.set(responseHeaders);
         res.status(response.status).send(data);
 
-        if (response.status >= 400) {
-            const errorText = data.toString();
-            console.warn(`[Sovereign Proxy] ${req.method} ${targetUrl} -> ${response.status}`);
-            console.warn(`[Sovereign Proxy] Request Body:`, JSON.stringify(req.body));
-            console.warn(`[Sovereign Proxy] Response Body:`, errorText);
+        if (response.status >= 400 && process.env.NODE_ENV !== 'production') {
+            console.warn(`[Traccar Proxy] ${req.method} ${targetUrl} -> ${response.status}`);
+            console.warn(`[Traccar Proxy] Payload:`, data.toString().substring(0, 200));
         }
     } catch (err) {
-        console.error('[Sovereign Proxy] Critical Failure:', err);
+        console.error('[Traccar Proxy] Failure:', err);
         res.status(502).json({ error: 'Tracking Engine Gateway Error', details: err.message });
     }
 });

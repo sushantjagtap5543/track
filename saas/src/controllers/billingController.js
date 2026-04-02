@@ -1,6 +1,6 @@
 // src/controllers/billingController.js
 // ✅ FIX 1: Use shared Prisma singleton.
-// ✅ FIX 2: Moved the `require('../services/geosurepath')` that was buried inside
+// ✅ FIX 2: Moved the `require('../services/traccar')` that was buried inside
 //    the `settleCash` function body to a proper top-level import.
 // ✅ FIX 3: `generateInvoiceNumber` now uses a proper auto-incremented counter from the
 //    DB via a sequence query instead of slicing the last 4 chars of a UUID string,
@@ -9,7 +9,7 @@
 //    an empty array but does NOT cache it, allowing the next request to try again.
 
 const prisma = require('../lib/prisma');
-const geosurepathService = require('../services/geosurepath');
+const traccarService = require('../services/traccar');
 const analyticsService = require('../services/analyticsService');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
@@ -74,7 +74,7 @@ const generateInvoiceNumber = () => {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   const randomSuffix = crypto.randomBytes(4).toString('hex').toUpperCase(); 
-  return `GSP-INV-${year}${month}${day}-${randomSuffix}`;
+  return `TRC-INV-${year}${month}${day}-${randomSuffix}`;
 };
 
 const GST_RATE_DEFAULT = 0.18;
@@ -138,10 +138,10 @@ const detectGhostDevices = async (userId) => {
   }
 };
 
-const syncUserDevices = async (userId, geosurepathUserId) => {
-  if (!geosurepathUserId) return;
+const syncUserDevices = async (userId, traccarUserId) => {
+  if (!traccarUserId) return;
   try {
-    const traccarDevices = await geosurepathService.getUserDevices(geosurepathUserId);
+    const traccarDevices = await traccarService.getUserDevices(traccarUserId);
     if (!Array.isArray(traccarDevices)) return;
 
     const traccarImeis = traccarDevices.map(d => d.uniqueId);
@@ -154,7 +154,7 @@ const syncUserDevices = async (userId, geosurepathUserId) => {
       const existing = await prisma.vehicle.findFirst({
         where: { 
           OR: [
-            { geosurepathDeviceId: td.id },
+            { traccarDeviceId: td.id },
             { imei: td.uniqueId }
           ]
         }
@@ -167,7 +167,7 @@ const syncUserDevices = async (userId, geosurepathUserId) => {
             userId,
             name: td.name,
             imei: td.uniqueId,
-            geosurepathDeviceId: td.id,
+            traccarDeviceId: td.id,
             registrationDate: new Date(),
             isActive: true,
             isAIS140: td.attributes?.isAIS140 || false,
@@ -182,7 +182,7 @@ const syncUserDevices = async (userId, geosurepathUserId) => {
         await prisma.vehicle.update({
           where: { id: existing.id },
           data: { 
-            geosurepathDeviceId: td.id,
+            traccarDeviceId: td.id,
             userId: userId,
             deletedAt: null, // Restore if it was deleted
             isAIS140: td.attributes?.isAIS140 ?? existing.isAIS140,
@@ -224,8 +224,8 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
   const taxInclusive = settings?.taxInclusive || false;
   if (shouldSync) {
     const user = preloadedUser || await prisma.user.findUnique({ where: { id: userId } });
-    if (user && user.geosurepathUserId) {
-        await syncUserDevices(userId, user.geosurepathUserId);
+    if (user && user.traccarUserId) {
+        await syncUserDevices(userId, user.traccarUserId);
     }
   }
 
@@ -411,8 +411,8 @@ const getMyBill = async (req, res) => {
   try {
     // 1. Trigger background sync
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (user?.geosurepathUserId) {
-        syncUserDevices(userId, user.geosurepathUserId).catch(e => console.error('[getMyBill] Background Sync failed:', e.message));
+    if (user?.traccarUserId) {
+        syncUserDevices(userId, user.traccarUserId).catch(e => console.error('[getMyBill] Background Sync failed:', e.message));
     }
 
     // 2. Calculate and return bill
@@ -510,7 +510,7 @@ const getAllUsersLedger = async (req, res) => {
            graceDaysRemaining: bill?.sentry?.graceDaysRemaining || 0,
            isVIP: !!u.graceExtensionUntil && new Date(u.graceExtensionUntil) > new Date(),
            hardlockBypass: u.hardlockBypass || false,
-           isLinkedToEngine: !!u.geosurepathUserId, // ✅ NEW: Track engine link status
+           isLinkedToEngine: !!u.traccarUserId, // ✅ NEW: Track engine link status
            mfaEnabled: u.mfaEnabled || false,
            createdAt: u.createdAt,
          };
@@ -656,9 +656,9 @@ const settleCash = async (req, res) => {
     });
 
     // Post-transaction external syncs
-    if (user.geosurepathUserId) {
-      await geosurepathService
-        .updateUser(user.geosurepathUserId, { disabled: false })
+    if (user.traccarUserId) {
+      await traccarService
+        .updateUser(user.traccarUserId, { disabled: false })
         .catch((e) => console.error('Settle re-sync failed:', e.message));
     }
 
@@ -681,11 +681,11 @@ const demoSettle = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found in SaaS Ledger.' });
 
     // ✅ RECOVERY: If engine ID is missing, try a lookup by email
-    if (!user.geosurepathUserId) {
-        const engineUser = await geosurepathService.getUserByEmail(user.email);
+    if (!user.traccarUserId) {
+        const engineUser = await traccarService.getUserByEmail(user.email);
         if (engineUser) {
-            await prisma.user.update({ where: { id: userId }, data: { geosurepathUserId: engineUser.id } });
-            user.geosurepathUserId = engineUser.id;
+            await prisma.user.update({ where: { id: userId }, data: { traccarUserId: engineUser.id } });
+            user.traccarUserId = engineUser.id;
         }
     }
 
@@ -737,9 +737,9 @@ const demoSettle = async (req, res) => {
       data: { registrationDate: now }
     });
 
-    if (user.geosurepathUserId) {
-      await geosurepathService
-        .updateUser(user.geosurepathUserId, { disabled: false })
+    if (user.traccarUserId) {
+      await traccarService
+        .updateUser(user.traccarUserId, { disabled: false })
         .catch((e) => console.error('[DemoSettle] sync failed:', e.message));
     }
 

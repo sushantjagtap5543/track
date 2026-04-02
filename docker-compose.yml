@@ -1,14 +1,14 @@
 services:
   db:
     image: postgres:15-alpine
-    container_name: geosurepath_db
+    container_name: traccar_db
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER:-geosurepath}
+      POSTGRES_USER: ${DB_USER:-traccar}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME:-geosurepath}
+      POSTGRES_DB: ${DB_NAME:-traccar_db}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-geosurepath} -d $${POSTGRES_DB:-geosurepath}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-traccar} -d $${POSTGRES_DB:-traccar_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -21,7 +21,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: geosurepath_redis
+    container_name: traccar_redis
     command: redis-server --appendonly yes
     restart: always
     healthcheck:
@@ -32,15 +32,15 @@ services:
     volumes:
       - redis_data:/data
 
-  geosurepath:
+  traccar:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: geosurepath_traccar
+    container_name: traccar_engine
     restart: always
     environment:
-      - DATABASE_URL=jdbc:postgresql://db:5432/geosurepath
-      - DATABASE_USER=geosurepath
+      - DATABASE_URL=jdbc:postgresql://db:5432/traccar_db
+      - DATABASE_USER=traccar
       - DATABASE_PASSWORD=${DB_PASSWORD}
       - CONFIG_USE_ENVIRONMENT_VARIABLES=true
       - JAVA_OPTS=-Xms512m -Xmx3g -XX:MaxGCPauseMillis=200
@@ -62,7 +62,7 @@ services:
 
   saas-api:
     build: ./saas
-    container_name: geosurepath_saas_api
+    container_name: traccar_saas_api
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
@@ -74,7 +74,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      geosurepath:
+      traccar:
         condition: service_healthy
     command: ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss && node scripts/seed_plans.js && node index.js"]
     # No direct port exposure (Nginx only)
@@ -85,14 +85,14 @@ services:
       - ./logs:/app/logs:rw
       - ./saas/data:/app/data:rw
     environment:
-      - DATABASE_URL=postgresql://${DB_USER:-geosurepath}:${DB_PASSWORD}@db:5432/${DB_NAME:-geosurepath}?schema=saas
+      - DATABASE_URL=postgresql://${DB_USER:-traccar}:${DB_PASSWORD}@db:5432/${DB_NAME:-traccar_db}?schema=saas
       - REDIS_HOST=redis
-      - GEOSUREPATH_URL=http://geosurepath:8082
+      - TRACCAR_URL=http://traccar:8082
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - GOOGLE_WEBHOOK_URL=${GOOGLE_WEBHOOK_URL}
       - JWT_SECRET=${JWT_SECRET}
-      - GEOSUREPATH_ADMIN_EMAIL=${GEOSUREPATH_ADMIN_EMAIL}
-      - GEOSUREPATH_ADMIN_PASSWORD=${GEOSUREPATH_ADMIN_PASSWORD}
+      - TRACCAR_ADMIN_EMAIL=${TRACCAR_ADMIN_EMAIL}
+      - TRACCAR_ADMIN_PASSWORD=${TRACCAR_ADMIN_PASSWORD}
       - SECURE_COOKIES=${SECURE_COOKIES:-false}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://3.108.114.12}
       - SMTP_HOST=${SMTP_HOST}
@@ -103,7 +103,7 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: geosurepath_nginx
+    container_name: traccar_nginx
     restart: always
     ports:
       - "80:80"
@@ -112,7 +112,7 @@ services:
     depends_on:
       saas-api:
         condition: service_healthy
-      geosurepath:
+      traccar:
         condition: service_healthy
 
 volumes:

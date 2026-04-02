@@ -10,7 +10,7 @@
 const { Queue, Worker } = require('bullmq');
 const IORedis = require('ioredis');
 const prisma = require('../lib/prisma');
-const geosurepathService = require('./geosurepath');
+const traccarService = require('./traccar');
 const fcmService = require('./fcm');
 const emailService = require('./emailService');
 
@@ -59,7 +59,7 @@ const registerWorker = (worker, name) => {
 };
 
 const startWorkers = () => {
-  console.log('[GeoSurePath] Starting background workers...');
+  console.log('[Traccar] Starting background workers...');
 
   // 1. Email Worker
   registerWorker(
@@ -85,8 +85,8 @@ const startWorkers = () => {
           const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
           if (!vehicle) return;
 
-          const position = await geosurepathService.getLatestPosition(
-            vehicle.geosurepathDeviceId
+          const position = await traccarService.getLatestPosition(
+            vehicle.traccarDeviceId
           );
           if (position && position.speed === 0) {
             await prisma.notification.create({
@@ -112,7 +112,7 @@ const startWorkers = () => {
         const { userId, type, message, data } = job.data;
         await prisma.notification.create({ data: { userId, type, message } });
         await fcmService.sendToUser(userId, {
-          title: `GeoSurePath: ${type}`,
+          title: `Traccar: ${type}`,
           body: message,
           data: data || {}
         });
@@ -138,7 +138,7 @@ const startWorkers = () => {
 };
 
 const stopWorkers = async () => {
-  console.log('[GeoSurePath] Closing background workers...');
+  console.log('[Traccar] Closing background workers...');
   await Promise.all(activeWorkers.map((w) => w.close()));
   await redisConnection.quit();
 };

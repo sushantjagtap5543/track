@@ -18,7 +18,7 @@ const os = require('os');
 const cron = require('node-cron');
 const prisma = require('../lib/prisma');
 const { callAI } = require('./ai');
-const geosurepathService = require('./geosurepath');
+const traccarService = require('./traccar');
 const { emailQueue } = require('./queue');
 
 // --- 0. Billing Enforcement Shield ---
@@ -30,7 +30,7 @@ async function enforceBillingShield() {
     });
 
     for (const user of users) {
-      if (!user.geosurepathUserId) continue;
+      if (!user.traccarUserId) continue;
 
       const latestSub = user.subscriptions[0];
       if (!latestSub) continue;
@@ -62,7 +62,7 @@ async function enforceBillingShield() {
               html: `
                 <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #f87171; border-radius: 12px; padding: 24px;">
                   <h2 style="color: #ef4444;">🛡️ Fleet Protection Warning</h2>
-                  <p>Your GeoSurePath protection plan is expiring in <strong>${diffDays} day${diffDays > 1 ? 's' : ''}</strong>.</p>
+                  <p>Your Traccar protection plan is expiring in <strong>${diffDays} day${diffDays > 1 ? 's' : ''}</strong>.</p>
                   <p>To avoid a hard-lock of your hardware devices and maintain tracking continuity, please settle your dues on the billing dashboard.</p>
                   <div style="margin-top: 24px; text-align: center;">
                     <a href="${process.env.APP_URL || '#'}/billing" style="background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">SETTLE DUES NOW</a>
@@ -77,12 +77,12 @@ async function enforceBillingShield() {
       }
 
       try {
-        const currentTraccarStatus = await geosurepathService
-          .getUser(user.geosurepathUserId)
+        const currentTraccarStatus = await traccarService
+          .getUser(user.traccarUserId)
           .catch(() => ({}));
 
         if (currentTraccarStatus.disabled !== shouldBeDisabled) {
-          await geosurepathService.updateUser(user.geosurepathUserId, {
+          await traccarService.updateUser(user.traccarUserId, {
             disabled: shouldBeDisabled
           });
           console.log(
@@ -276,7 +276,7 @@ async function runSyncAudit() {
   console.log('🤖 AI-Guardian: Starting Universal Synchronization Audit...');
   try {
     const saasUsers = await prisma.user.findMany({ where: { deletedAt: null } });
-    const traccarUsers = await geosurepathService.getAllUsers(); // Assuming this is added or using findMany logic
+    const traccarUsers = await traccarService.getAllUsers(); // Assuming this is added or using findMany logic
     
     console.log(`🤖 AI-Guardian: Audit Baseline -> SaaS: ${saasUsers.length}, Traccar: ${traccarUsers.length}`);
 
@@ -346,7 +346,7 @@ async function generateDailySummary() {
 
     const reportText = `
 ==============================================
-🤖 GeoSurePath AI-Guardian Intelligence Report
+🤖 Traccar AI-Guardian Intelligence Report
 Date: ${reportData.timestamp}
 ==============================================
 ${aiAnalysis || '⚠️ AI Analysis temporarily unavailable.'}

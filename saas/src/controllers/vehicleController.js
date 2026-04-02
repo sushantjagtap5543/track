@@ -1,6 +1,6 @@
 // src/controllers/vehicleController.js
 const prisma = require('../lib/prisma');
-const geosurepathService = require('../services/geosurepath');
+const traccarService = require('../services/traccar');
 
 // Helpers
 const isValidIMEI = (imei) => /^\d{15}$/.test(imei);
@@ -19,17 +19,17 @@ exports.createVehicle = async (req, res) => {
     const existing = await prisma.vehicle.findUnique({ where: { imei } });
     if (existing) return res.status(400).json({ error: 'Vehicle with this IMEI already exists.' });
 
-    const geosurepathDevice = await geosurepathService.createDevice(name, imei);
+    const traccarDevice = await traccarService.createDevice(name, imei);
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (user?.geosurepathUserId) {
-      await geosurepathService.linkDeviceToUser(user.geosurepathUserId, geosurepathDevice.id);
+    if (user?.traccarUserId) {
+      await traccarService.linkDeviceToUser(user.traccarUserId, traccarDevice.id);
     }
 
     const vehicle = await prisma.vehicle.create({
       data: {
         userId, name, imei, type, model, plate, fleetId,
-        geosurepathDeviceId: geosurepathDevice.id,
+        traccarDeviceId: traccarDevice.id,
         registrationDate: new Date(),
         vehicleLogs: { create: { action: 'CREATED', details: 'Vehicle added to fleet' } }
       }
@@ -95,9 +95,9 @@ exports.updateVehicle = async (req, res) => {
       }
     });
 
-    // ✅ REFINEMENT: Sync vehicle updates (name) to GeoSurePath
-    if (updated.geosurepathDeviceId && name) {
-        geosurepathService.updateVehicle(updated.geosurepathDeviceId, { name: updated.name }).catch(err => console.warn(`[VehicleSync] Failed to sync update to Traccar: ${err.message}`));
+    // ✅ REFINEMENT: Sync vehicle updates (name) to Traccar
+    if (updated.traccarDeviceId && name) {
+        traccarService.updateVehicle(updated.traccarDeviceId, { name: updated.name }).catch(err => console.warn(`[VehicleSync] Failed to sync update to Traccar: ${err.message}`));
     }
 
     res.json({ message: 'Vehicle updated successfully', vehicle: updated });
@@ -118,9 +118,9 @@ exports.deleteVehicle = async (req, res) => {
       data: { deletedAt: new Date(), isActive: false, vehicleLogs: { create: { action: 'DELETED', details: 'Soft delete' } } }
     });
 
-    // ✅ REFINEMENT: De-provision from GeoSurePath upon deletion
-    if (vehicle.geosurepathDeviceId) {
-        geosurepathService.deleteDevice(vehicle.geosurepathDeviceId).catch(err => console.warn(`[VehicleSync] Failed to sync deletion to Traccar: ${err.message}`));
+    // ✅ REFINEMENT: De-provision from Traccar upon deletion
+    if (vehicle.traccarDeviceId) {
+        traccarService.deleteDevice(vehicle.traccarDeviceId).catch(err => console.warn(`[VehicleSync] Failed to sync deletion to Traccar: ${err.message}`));
     }
 
     res.json({ message: 'Vehicle soft-deleted successfully' });
@@ -140,16 +140,16 @@ exports.bulkUploadVehicles = async (req, res) => {
     try {
       if (!isValidIMEI(v.imei)) throw new Error('Invalid IMEI');
       
-      const geosurepathDevice = await geosurepathService.createDevice(v.name, v.imei);
+      const traccarDevice = await traccarService.createDevice(v.name, v.imei);
       const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (user?.geosurepathUserId) {
-        await geosurepathService.linkDeviceToUser(user.geosurepathUserId, geosurepathDevice.id);
+      if (user?.traccarUserId) {
+        await traccarService.linkDeviceToUser(user.traccarUserId, traccarDevice.id);
       }
 
       const created = await prisma.vehicle.create({
         data: {
           userId, name: v.name, imei: v.imei, type: v.type, model: v.model, plate: v.plate,
-          geosurepathDeviceId: geosurepathDevice.id,
+          traccarDeviceId: traccarDevice.id,
           registrationDate: new Date(),
           vehicleLogs: { create: { action: 'CREATED', details: 'Bulk upload' } }
         }
@@ -172,14 +172,14 @@ exports.toggleEngine = async (req, res) => {
 
   try {
     const vehicle = await prisma.vehicle.findFirst({ where: { id: vehicleId, userId: req.user.userId } });
-    if (!vehicle || !vehicle.geosurepathDeviceId) return res.status(404).json({ error: 'Vehicle not found' });
+    if (!vehicle || !vehicle.traccarDeviceId) return res.status(404).json({ error: 'Vehicle not found' });
 
     if (action === 'engineStop') {
-      const position = await geosurepathService.getLatestPosition(vehicle.geosurepathDeviceId);
+      const position = await traccarService.getLatestPosition(vehicle.traccarDeviceId);
       if (position && position.speed > 20) return res.status(400).json({ error: 'Cannot stop engine while driving over 20km/h.' });
     }
 
-    await geosurepathService.sendCommand(vehicle.geosurepathDeviceId, action);
+    await traccarService.sendCommand(vehicle.traccarDeviceId, action);
     await prisma.vehicleLog.create({ data: { vehicleId, action: 'ENGINE_TOGGLE', details: `Action: ${action}` } });
 
     res.json({ message: `Engine command '${action}' sent successfully` });
@@ -197,17 +197,17 @@ exports.toggleSafeParking = async (req, res) => {
     const vehicle = await prisma.vehicle.findFirst({ where: { id: vehicleId, userId: req.user.userId } });
     if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
 
-    let geosurepathGeofenceId = vehicle.geosurepathGeofenceId;
+    let traccarGeofenceId = vehicle.traccarGeofenceId;
 
     if (enable) {
       if (!isValidCoords(lat, lng)) return res.status(400).json({ error: 'Invalid coordinates provided.' });
       const area = `CIRCLE (${lat} ${lng}, ${radius || 20})`;
-      const geofence = await geosurepathService.createGeofence(`SafeParking_${vehicle.name}`, area);
-      geosurepathGeofenceId = geofence.id;
-      await geosurepathService.linkGeofenceToDevice(vehicle.geosurepathDeviceId, geosurepathGeofenceId);
-    } else if (geosurepathGeofenceId) {
-      await geosurepathService.deleteGeofence(geosurepathGeofenceId).catch(() => {});
-      geosurepathGeofenceId = null;
+      const geofence = await traccarService.createGeofence(`SafeParking_${vehicle.name}`, area);
+      traccarGeofenceId = geofence.id;
+      await traccarService.linkGeofenceToDevice(vehicle.traccarDeviceId, traccarGeofenceId);
+    } else if (traccarGeofenceId) {
+      await traccarService.deleteGeofence(traccarGeofenceId).catch(() => {});
+      traccarGeofenceId = null;
     }
 
     await prisma.vehicle.update({
@@ -217,7 +217,7 @@ exports.toggleSafeParking = async (req, res) => {
         parkingLat: enable ? lat : null,
         parkingLng: enable ? lng : null,
         parkingRadius: enable ? radius || 20 : null,
-        geosurepathGeofenceId,
+        traccarGeofenceId,
         vehicleLogs: { create: { action: 'SAFE_PARKING_TOGGLE', details: `Enable: ${enable}` } }
       }
     });
@@ -272,11 +272,11 @@ exports.getVehicleById = async (req, res) => {
     if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
 
     let realTime = null;
-    if (vehicle.geosurepathDeviceId) {
+    if (vehicle.traccarDeviceId) {
       try {
-        realTime = await geosurepathService.getLatestPosition(vehicle.geosurepathDeviceId);
+        realTime = await traccarService.getLatestPosition(vehicle.traccarDeviceId);
       } catch (err) {
-        console.warn(`[VehicleController] Failed position fetch: \${err.message}`);
+        console.warn(`[VehicleController] Failed position fetch: ${err.message}`);
       }
     }
 

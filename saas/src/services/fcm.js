@@ -74,7 +74,7 @@ class FCMService {
           priority: 'high',
           notification: {
             sound: 'default',
-            channelId: 'geosurepath_critical'
+            channelId: 'traccar_critical'
           }
         },
         apns: {

@@ -1,7 +1,7 @@
 // saas/src/services/analyticsService.js
 // UPGRADED: Real-world business stats with live device counts, overdue tracking, and MRR.
 const prisma = require('../lib/prisma');
-const geosurepathService = require('./geosurepath');
+const traccarService = require('./traccar');
 
 const calculateMRR = async () => {
   const activeSubscriptions = await prisma.subscription.findMany({
@@ -69,7 +69,7 @@ const getSummaryStats = async () => {
   let activeVehicles = 0;
   let inactiveVehicles = 0;
   try {
-    const allTraccarDevices = await geosurepathService.getAllDevices();
+    const allTraccarDevices = await traccarService.getAllDevices();
     if (Array.isArray(allTraccarDevices) && allTraccarDevices.length > 0) {
       totalDevices = allTraccarDevices.length;
       activeVehicles = allTraccarDevices.filter(d => d.status === 'online').length;
@@ -134,8 +134,8 @@ const getAIInsights = async () => {
     calculateChurnRate(),
     prisma.user.count({ where: { role: 'CLIENT', deletedAt: null } }),
     prisma.vehicle.count({ where: { deletedAt: null } }),
-    geosurepathService.getAllDevices().catch(() => []),
-    prisma.user.count({ where: { geosurepathUserId: null, role: 'CLIENT', deletedAt: null } }),
+    traccarService.getAllDevices().catch(() => []),
+    prisma.user.count({ where: { traccarUserId: null, role: 'CLIENT', deletedAt: null } }),
     prisma.auditLog.count({ where: { action: { in: ['GHOST_DEVICE_ALERT', 'BRUTE_FORCE_LOCK'] }, createdAt: { gte: new Date(Date.now() - 24*3600000) } } }),
     prisma.vehicle.findMany({ where: { deletedAt: null }, select: { imei: true } })
   ]);
@@ -211,7 +211,7 @@ const getDetailedLedgerStats = async () => {
 const getEngineSyncHealth = async () => {
     const start = Date.now();
     try {
-        const response = await fetch(`${process.env.GEOSUREPATH_URL}/api/server`, { 
+        const response = await fetch(`${process.env.TRACCAR_URL}/api/server`, { 
             headers: { 'Accept': 'application/json' },
             timeout: 5000 
         });
@@ -219,12 +219,12 @@ const getEngineSyncHealth = async () => {
         
         // Check for "Orphaned" SaaS users (Users in SaaS but not in Engine)
         const totalSaasUsers = await prisma.user.count({ where: { deletedAt: null } });
-        const usersWithEngineId = await prisma.user.count({ where: { geosurepathUserId: { not: null }, deletedAt: null } });
+        const usersWithEngineId = await prisma.user.count({ where: { traccarUserId: { not: null }, deletedAt: null } });
         const driftUsers = totalSaasUsers - usersWithEngineId;
 
         // Check for IMEI drift
         const saasVehicles = await prisma.vehicle.count({ where: { deletedAt: null } });
-        const traccarDevices = await geosurepathService.getAllDevices().catch(() => []);
+        const traccarDevices = await traccarService.getAllDevices().catch(() => []);
         const driftDevices = Math.abs(saasVehicles - traccarDevices.length);
 
         return {

@@ -1,7 +1,7 @@
 // saas/src/services/subscriptionCron.js
 const cron = require('node-cron');
 const prisma = require('../lib/prisma');
-const geosurepathService = require('./geosurepath');
+const traccarService = require('./traccar');
 
 /**
  * Daily Subscription Expiry Check
@@ -82,8 +82,8 @@ const checkExpirations = async () => {
           data: { isActive: false }
         });
 
-        if (user.geosurepathUserId) {
-          await geosurepathService.updateUser(user.geosurepathUserId, { disabled: true })
+        if (user.traccarUserId) {
+          await traccarService.updateUser(user.traccarUserId, { disabled: true })
             .then(() => console.log(`[Cron] Sync Success: User ${user.email} disabled in Traccar.`))
             .catch(err => console.error(`[Cron] Sync Failed for ${user.email}:`, err.message));
         }
