@@ -40,7 +40,7 @@
   },
   "scripts": {
     "start": "vite --host",
-    "build": "cross-env NODE_OPTIONS=--max_old_space_size=4096 vite build",
+    "build": "cross-env NODE_OPTIONS=--max_old_space_size=1536 vite build",
     "generate-pwa-assets": "pwa-assets-generator --preset minimal public/logo.svg",
     "lint": "eslint .",
     "lint:fix": "eslint --fix ."
