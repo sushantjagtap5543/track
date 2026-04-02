@@ -698,37 +698,19 @@ exports.syncSession = async (req, res) => {
       }
     }
 
-    // ✅ TRACCAR SESSION RECOVERY: If JSESSIONID is missing from cookies, 
-    // try to re-establish it silently using stored credentials or sync.
-    const isSecure = process.env.SECURE_COOKIES === 'true';
+    // ✅ SOVEREIGN RECOVERY: In Sovereign Mode, we don't strictly NEED JSESSIONID in the browser
+    // because the backend handles it. However, we'll still log for visibility.
     if (!req.cookies.JSESSIONID) {
-        try {
-            // We don't have the password here, but we can try a sync or use a service account 
-            // if we really need to, but the best way is to trigger a re-sync if possible.
-            // For now, we'll just log and let the frontend handle the retry if needed.
-            console.log(`[SyncSession] JSESSIONID missing for ${user.email}.`);
-        } catch (syncErr) {
-            console.error(`[SyncSession] Traccar recovery failed: ${syncErr.message}`);
-        }
-    }
-
-    // ✅ FIX: Audit Log for Admin Sync (Optional but good for tracking active sessions)
-    if (user.role === 'ADMIN') {
-        logAction({
-            adminId: user.id,
-            action: AUDIT_ACTIONS.ADMIN_SESSION_SYNC,
-            details: { email: user.email },
-            ipAddress: req.ip
-        });
+        console.log(`[SyncSession] Browser JSESSIONID missing for ${user.email}. (Sovereign Mode Active)`);
     }
 
     const authHeader = req.headers['authorization'];
     const token = (authHeader && authHeader.split(' ')[1]) || req.cookies.token;
 
     res.json({
-      message: 'Session synchronized',
+      message: 'Session synchronized (Gateway Active)',
       user,
-      token, // ✅ FIX: Allow frontend to persist token from synced session
+      token, 
       isHardlocked
     });
   } catch (error) {

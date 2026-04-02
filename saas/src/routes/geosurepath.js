@@ -129,10 +129,12 @@ router.post('/events', async (req, res) => {
   }
 });
 
+const geosurepathService = require('../services/geosurepath');
+
 /**
- * ✅ UNIVERSAL PROXY (S99): The Master Gateway to the Tracking Engine.
- * Intercepts all /api/ requests, applies Just-in-Time Hardlock checks,
- * and relays authorized traffic to the GeoSurePath Tracking Engine.
+ * ✅ SOVEREIGN PROXY (S99-PLATINUM): The Master Gateway to the Tracking Engine.
+ * This upgrade ensures that all proxied traffic uses the SaaS Backend's Master Authority,
+ * eliminating 401 redirect loops caused by client cookie expiration.
  */
 const proxyAuthMiddleware = (req, res, next) => {
     const targetPath = req.params[0] || req.path.replace('/api/geosurepath', '');
@@ -146,43 +148,73 @@ const proxyAuthMiddleware = (req, res, next) => {
 };
 
 router.all(/(.*)/, proxyAuthMiddleware, async (req, res) => {
-    // 1. Determine Target URL
-    const targetPath = req.params[0] || req.path.replace('/api/geosurepath', '');
-    const targetUrl = `${process.env.GEOSUREPATH_URL}/api${targetPath}${req.url.includes('?') ? '?' + req.url.split('?')[1] : ''}`;
-
-    // 2. Prepare Headers (Relay Authorization & Cookies)
-    const headers = { ...req.headers };
-    delete headers.host;
-    delete headers.connection;
-    
-    // Ensure the engine sees the correct Content-Type if present
-    if (req.body && Object.keys(req.body).length > 0) {
-        headers['Content-Type'] = 'application/json';
-    }
-
     try {
-        const proxyRes = await fetch(targetUrl, {
+        const targetPath = req.params[0] || req.path.replace('/api/geosurepath', '');
+        
+        // 1. Determine Scope & Authority
+        const isSecure = process.env.SECURE_COOKIES === 'true';
+        let useMasterAuthority = false;
+        let queryParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
+
+        if (req.user) {
+            useMasterAuthority = true;
+            // ✅ AUTO-SCOPING: If the user is NOT an admin, enforce their specific ID in collection queries
+            if (req.user.role !== 'ADMIN' && req.user.geosurepathUserId) {
+                const collectivePaths = ['/devices', '/positions', '/geofences', '/groups', '/calendars', '/events'];
+                if (collectivePaths.some(p => targetPath.startsWith(p))) {
+                    queryParams.set('userId', req.user.geosurepathUserId);
+                }
+            }
+        }
+
+        const queryString = queryParams.toString();
+        const targetUrl = `${process.env.GEOSUREPATH_URL}/api${targetPath}${queryString ? '?' + queryString : ''}`;
+
+        // 2. Prepare Headers
+        let headers = { ...req.headers };
+        if (useMasterAuthority) {
+            await geosurepathService.ensureSession();
+            headers = { ...headers, ...geosurepathService.getAuthHeaders() };
+        }
+        
+        delete headers.host;
+        delete headers.connection;
+        // Strip client's own Traccar cookie to prevent shadowing the Master session
+        delete headers.cookie; 
+        if (geosurepathService.getAuthHeaders().Cookie) {
+            headers['Cookie'] = geosurepathService.getAuthHeaders().Cookie;
+        }
+
+        if (req.body && Object.keys(req.body).length > 0) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        // 3. Relay Request
+        const proxyRes = await geosurepathService.fetchWithSessionRefresh(targetUrl, {
             method: req.method,
             headers,
             body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body),
             redirect: 'manual'
         });
 
-        // 3. Relay Status & Headers (including JSESSIONID)
+        // 4. Relay Response
         res.status(proxyRes.status);
         proxyRes.headers.forEach((val, key) => {
-            if (['content-encoding', 'content-length', 'transfer-encoding'].includes(key.toLowerCase())) return;
+            const lowKey = key.toLowerCase();
+            // Security: Strip Set-Cookie from Traccar to prevent leaking Master session to Client
+            if (['content-encoding', 'content-length', 'transfer-encoding', 'set-cookie'].includes(lowKey)) return;
             res.setHeader(key, val);
         });
 
-        // 4. Relay Body
         const data = Buffer.from(await proxyRes.arrayBuffer());
         res.send(data);
 
-        console.log(`[Universal Proxy] ${req.method} ${targetUrl} -> ${proxyRes.status}`);
+        if (proxyRes.status >= 400) {
+            console.warn(`[Sovereign Proxy] ${req.method} ${targetUrl} -> ${proxyRes.status}`);
+        }
     } catch (error) {
-        console.error(`[Universal Proxy] Failed to relay request to ${targetUrl}:`, error.message);
-        res.status(502).json({ error: 'Tracking Engine Gateway Timeout or Error', details: error.message });
+        console.error(`[Sovereign Proxy] Critical Relay Error:`, error.message);
+        res.status(502).json({ error: 'Tracking Engine Gateway Error', details: error.message });
     }
 });
 

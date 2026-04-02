@@ -430,9 +430,10 @@ module.exports = {
   createGeofence,
   linkGeofenceToDevice,
   getAllLatestPositions,
-  getUserDevices,
-  getAllDevices,
   loginUser,
   updateDevice,
   setSession,
+  getAuthHeaders,
+  ensureSession,
+  fetchWithSessionRefresh,
 };
