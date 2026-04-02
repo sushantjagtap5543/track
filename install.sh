@@ -86,8 +86,9 @@ fi
 
 # 4b. Firebase Identity Placeholder (Resilience)
 # Ensure the file exists so Docker doesn't create a directory 
-if [ ! -f saas/firebase-service-account.json ]; then
+if [ -d saas/firebase-service-account.json ] || [ ! -f saas/firebase-service-account.json ]; then
     echo "🔑 Provisioning Firebase Identity Placeholder..."
+    sudo rm -rf saas/firebase-service-account.json
     echo "{}" > saas/firebase-service-account.json
 fi
 
