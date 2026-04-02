@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const geosurepathService = require('./src/services/geosurepath');
 const bcrypt = require('bcrypt');
@@ -5,8 +6,8 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function forceSync() {
-  const email = 'admin@geosurepath.com';
-  const password = 'admin123';
+  const email = process.env.GEOSUREPATH_ADMIN_EMAIL || 'admin@geosurepath.com';
+  const password = process.env.GEOSUREPATH_ADMIN_PASSWORD || 'admin123';
   console.log(`[FORCE SYNC] Starting full authentication sync for ${email}`);
 
   try {

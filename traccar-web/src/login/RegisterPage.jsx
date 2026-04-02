@@ -147,12 +147,7 @@ const RegisterPage = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [errorText, setErrorText] = useState('');
 
-  useEffectAsync(async () => {
-    if (totpForce) {
-      const response = await fetchOrThrow('/api/users/totp', { method: 'POST' });
-      setTotpKey(await response.text());
-    }
-  }, [totpForce, setTotpKey]);
+  // TOTP polling removed for registration flow stability (S99)
 
   const handleSubmit = useCatch(async (event) => {
     event.preventDefault();
@@ -294,6 +289,8 @@ const RegisterPage = () => {
             autoComplete="new-password"
             onChange={(event) => setPassword(event.target.value)}
             className={classes.input}
+            helperText="Min. 8 chars, must include a number"
+            FormHelperTextProps={{ sx: { color: 'rgba(255,255,255,0.5)', fontWeight: 600 } }}
           />
           <TextField
             required

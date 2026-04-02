@@ -75,7 +75,11 @@ exports.register = async (req, res) => {
     const existing = await prisma.user.findFirst({
         where: { OR: [{ email }, { ...(username && { username }) }] }
     });
-    if (existing) return res.status(400).json({ error: 'User with this email or username already exists in our system.' });
+    if (existing) {
+        return res.status(400).json({ 
+            error: 'An account with this email/username is already registered. Please login or reset your password.' 
+        });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const requireVerify = process.env.REQUIRE_VERIFICATION === 'true';
@@ -92,14 +96,14 @@ exports.register = async (req, res) => {
         console.log(`[Register] Created Traccar user: ${email} (ID: ${gUser.id})`);
     } catch (createErr) {
         if (createErr.message.includes('already exists')) {
+            console.warn(`[Register] Traccar user already exists for ${email}. Re-using and syncing...`);
             gUser = await geosurepathService.getUserByEmail(email);
             if (gUser) {
               await geosurepathService.updateUser(gUser.id, { disabled: requireVerify, password }).catch(() => {});
             }
         } else {
             console.error(`[Register] Traccar Provisioning Delay for ${email}: ${createErr.message}`);
-            // We allow SaaS registration to proceed without Traccar ID. 
-            // The self-healing login flow will catch this later.
+            // We allow SaaS registration to proceed without Traccar ID (Self-Healing takes over later)
         }
     }
 
