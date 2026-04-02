@@ -18,9 +18,9 @@ const testEmail = async () => {
   try {
     await sendEmail({
       to: recipient,
-      subject: 'GeoSurePath SMTP Test',
+      subject: 'Traccar SMTP Test',
       html: `
-        <h1>GeoSurePath Email Service Test</h1>
+        <h1>Traccar Email Service Test</h1>
         <p>This is a test email to verify your SMTP configuration.</p>
         <p>Time: ${new Date().toLocaleString()}</p>
         <p style="color: green; font-weight: bold;">Configuration seems correct!</p>
