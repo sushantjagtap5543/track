@@ -46,9 +46,10 @@ services:
       - JAVA_OPTS=-Xms512m -Xmx3g -XX:MaxGCPauseMillis=200
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
     depends_on:
       db:
         condition: service_healthy
