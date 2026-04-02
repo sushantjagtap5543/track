@@ -3,16 +3,16 @@
 <properties>
 
     <entry key='database.driver'>org.postgresql.Driver</entry>
-    <entry key='database.url'>jdbc:postgresql://db:5432/geosurepath</entry>
-    <entry key='database.user'>geosurepath</entry>
+    <entry key='database.url'>jdbc:postgresql://db:5432/traccar_db</entry>
+    <entry key='database.user'>traccar</entry>
     <entry key='config.useEnvironmentVariables'>true</entry>
     <entry key='database.password'>placeholder</entry>
 
     <entry key='web.path'>./modern</entry>
     <entry key='web.port'>8082</entry>
-    <entry key='web.title'>GeoSurePath</entry>
-    <entry key='web.description'>GeoSurePath Professional Fleet Management &amp; GPS Tracking</entry>
-    <entry key='web.colorPrimary'>#3b82f6</entry>
+    <entry key='web.title'>Traccar Elite</entry>
+    <entry key='web.description'>Traccar Professional Fleet Management &amp; GPS Tracking</entry>
+    <entry key='web.colorPrimary'>#1e40af</entry>
     <entry key='database.changelog'>./schema/changelog-master.xml</entry>
 
     <entry key='geofence.polyline'>true</entry>
@@ -49,7 +49,7 @@
 
     <!-- EVENT & POSITION FORWARDING TO SAAS API -->
     <entry key='event.forward.enable'>true</entry>
-    <entry key='event.forward.url'>http://saas-api:3001/api/geosurepath/events</entry>
+    <entry key='event.forward.url'>http://saas-api:3001/api/traccar/events</entry>
     <entry key='event.forward.header'>Content-Type: application/json</entry>
 
     <entry key='forward.enable'>true</entry>
