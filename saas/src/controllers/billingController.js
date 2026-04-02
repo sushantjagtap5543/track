@@ -822,7 +822,7 @@ const createOrder = async (req, res) => {
 
 const handleWebhook = async (req, res) => {
   const settings = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
-  const secret = settings?.razorpayWebhookSecret || process.env.RAZORPAY_WEBHOOK_SECRET || 'gsp_webhook_secret';
+  const secret = settings?.razorpayWebhookSecret || process.env.RAZORPAY_WEBHOOK_SECRET || 'traccar_webhook_secret';
   
   const shasum = crypto.createHmac('sha256', secret);
   shasum.update(JSON.stringify(req.body));
@@ -876,8 +876,8 @@ const handleWebhook = async (req, res) => {
           const expiresAt = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
 
           // ✅ SYNC: Ensure we have the latest device count before creating subscription
-          if (payment.user.geosurepathUserId) {
-            await syncUserDevices(payment.userId, payment.user.geosurepathUserId);
+          if (payment.user.traccarUserId) {
+            await syncUserDevices(payment.userId, payment.user.traccarUserId);
           }
 
           const updatedUser = await prisma.user.findUnique({
@@ -919,8 +919,8 @@ const handleWebhook = async (req, res) => {
           });
 
           // Sync with Traccar
-          if (payment.user.geosurepathUserId) {
-              await geosurepathService.updateUser(payment.user.geosurepathUserId, { disabled: false })
+          if (payment.user.traccarUserId) {
+              await traccarService.updateUser(payment.user.traccarUserId, { disabled: false })
                 .catch(e => console.error('[Webhook] Traccar sync failed:', e.message));
           }
 
@@ -1008,8 +1008,8 @@ const verifyPayment = async (req, res) => {
 
     // ✅ SYNC: Ensure we have the latest device count before creating subscription
     // ✅ PERFECTION (S75): Wrap in try-catch so billing/payment still works even if engine is down.
-    if (payment.user.geosurepathUserId) {
-      await syncUserDevices(payment.userId, payment.user.geosurepathUserId)
+    if (payment.user.traccarUserId) {
+      await syncUserDevices(payment.userId, payment.user.traccarUserId)
         .catch(e => console.error('[VerifyPayment] Engine Sync Failed (S75 Resilience):', e.message));
     }
 
@@ -1054,16 +1054,16 @@ const verifyPayment = async (req, res) => {
     // ✅ INSTANT SYNC: Force a device sync immediately after payment so the dashboard is up-to-date.
     try {
       const user = await prisma.user.findUnique({ where: { id: payment.userId } });
-      if (user?.geosurepathUserId) {
-        await syncUserDevices(user.id, user.geosurepathUserId);
+      if (user?.traccarUserId) {
+        await syncUserDevices(user.id, user.traccarUserId);
       }
     } catch (syncErr) {
       console.error('[PaymentVerify] Immediate sync failed (non-critical):', syncErr.message);
     }
 
     // Sync with Traccar
-    if (payment.user.geosurepathUserId) {
-        await geosurepathService.updateUser(payment.user.geosurepathUserId, { disabled: false })
+    if (payment.user.traccarUserId) {
+        await traccarService.updateUser(payment.user.traccarUserId, { disabled: false })
           .catch(e => console.error('[VerifyPayment] Traccar sync failed:', e.message));
     }
 
@@ -1387,8 +1387,8 @@ const bulkSettleCash = async (req, res) => {
         data: { registrationDate: now }
       });
 
-      if (user.geosurepathUserId) {
-        geosurepathService.updateUser(user.geosurepathUserId, { disabled: false })
+      if (user.traccarUserId) {
+        traccarService.updateUser(user.traccarUserId, { disabled: false })
           .catch(e => console.error(`[BulkSettle] Sync failed for ${user.email}:`, e.message));
       }
 

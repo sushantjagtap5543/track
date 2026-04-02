@@ -16,7 +16,7 @@ async function simulate() {
 
     console.log(`📡 Broadcast Active for ${imeis.length} Units...`);
 
-    const TRACCAR_HOST = "geosurepath";
+    const TRACCAR_HOST = "traccar";
     const TRACCAR_PORT = 5055;
     const TICK_INTERVAL = 15; // Every 15 seconds for HIGHER density
 

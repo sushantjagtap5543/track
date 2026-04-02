@@ -1,7 +1,7 @@
 const http = require('http');
 
 /**
- * GeoSurePath Single Vehicle Continuous Simulator
+ * traccar Single Vehicle Continuous Simulator
  * IMEI: IMEI_TEST_777
  * Remote Server: 3.108.114.12
  */
@@ -50,7 +50,7 @@ function simulateStep() {
     req.end();
 }
 
-console.log("🚀 Starting GeoSurePath Real-time Continuous Simulation...");
+console.log("🚀 Starting traccar Real-time Continuous Simulation...");
 console.log(`📍 Device: IMEI_TEST_777 (TRACER_001)`);
 console.log(`🌐 Target: http://${REMOTE_HOST}:${PORT}`);
 

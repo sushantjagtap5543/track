@@ -4,16 +4,16 @@ const bcrypt = require('bcrypt');
 const { execSync: _execSync } = require('child_process');
 
 async function masterResync() {
-    console.log("🚀 Initializing GeoSurePath Hyper-Sovereign Identity Lock...");
+    console.log("🚀 Initializing traccar Hyper-Sovereign Identity Lock...");
 
-    const ADMIN_EMAIL = "admin@geosurepath.com";
+    const ADMIN_EMAIL = "admin@traccar.com";
     const TARGET_PASS = "password123";
     const hashed = await bcrypt.hash(TARGET_PASS, 10);
 
     try {
-        // 1. SAAS SYNC (Match all geosurepath users to password123)
+        // 1. SAAS SYNC (Match all traccar users to password123)
         await prisma.user.updateMany({
-            where: { email: { contains: "geosurepath" } },
+            where: { email: { contains: "traccar" } },
             data: { password: hashed, role: 'USER' }
         });
         
@@ -30,10 +30,10 @@ async function masterResync() {
         
         const _sql = `
             UPDATE tc_users 
-            SET email = 'admin@geosurepath.com', 
+            SET email = 'admin@traccar.com', 
                 login = 'admin', 
-                hashedpassword = (SELECT hashedpassword FROM tc_users WHERE email = 'client_1@geosurepath.test' LIMIT 1), 
-                salt = (SELECT salt FROM tc_users WHERE email = 'client_1@geosurepath.test' LIMIT 1) 
+                hashedpassword = (SELECT hashedpassword FROM tc_users WHERE email = 'client_1@traccar.test' LIMIT 1), 
+                salt = (SELECT salt FROM tc_users WHERE email = 'client_1@traccar.test' LIMIT 1) 
             WHERE id = 1;
         `;
         

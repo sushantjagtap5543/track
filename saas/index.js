@@ -1,6 +1,6 @@
 // index.js (saas/index.js)
 // ✅ FIX 1: Added startup environment variable validation. Missing critical vars
-//    (DATABASE_URL, JWT_SECRET, GEOSUREPATH_URL) now cause a clear, immediate crash
+//    (DATABASE_URL, JWT_SECRET, traccar_URL) now cause a clear, immediate crash
 //    with a descriptive message instead of silent failures deep in runtime.
 // ✅ FIX 2: Added express-rate-limit on the /api/auth routes (Skip for now if not installed)
 // ✅ FIX 3: Fixed graceful shutdown — moved all requires to the top to avoid race conditions.
@@ -95,7 +95,7 @@ app.use(express.json({
 
 // Health check endpoints
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'GeoSurePath SaaS API is running.' });
+  res.json({ status: 'ok', message: 'Traccar SaaS API is running.' });
 });
 
 app.get('/api/pulse', async (req, res) => {
@@ -165,7 +165,7 @@ app.use((err, req, res, _next) => {
 
 const PORT = process.env.PORT || 3001;
 const server = app.listen(PORT, () => {
-  console.log(`[GeoSurePath] Server is running on port ${PORT}`);
+  console.log(`[Traccar] Server is running on port ${PORT}`);
 });
 
 // --- Socket.io Integration ---
@@ -215,15 +215,15 @@ socketService.init(io);
 
 // --- Graceful Shutdown (FIX 3: all requires are now at the top) ---
 const shutdown = async (signal) => {
-  console.log(`\n[GeoSurePath] Received ${signal}. Shutting down gracefully...`);
+  console.log(`\n[Traccar] Received ${signal}. Shutting down gracefully...`);
 
   server.close(async () => {
     try {
       await stopWorkers();
       await prisma.$disconnect();
-      console.log('[GeoSurePath] Cleanup complete. Process exiting.');
+      console.log('[Traccar] Cleanup complete. Process exiting.');
     } catch (e) {
-      console.error('[GeoSurePath] Error during shutdown:', e.message);
+      console.error('[traccar] Error during shutdown:', e.message);
     } finally {
       process.exit(0);
     }
@@ -231,7 +231,7 @@ const shutdown = async (signal) => {
 
   // Force exit after 10 seconds if graceful shutdown stalls
   setTimeout(() => {
-    console.error('[GeoSurePath] Forced shutdown after timeout.');
+    console.error('[Traccar] Forced shutdown after timeout.');
     process.exit(1);
   }, 10000);
 };
@@ -239,9 +239,9 @@ const shutdown = async (signal) => {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('uncaughtException', (err) => {
-  console.error('[GeoSurePath] Uncaught Exception:', err.message);
+  console.error('[Traccar] Uncaught Exception:', err.message);
   shutdown('uncaughtException');
 });
 process.on('unhandledRejection', (reason) => {
-  console.error('[GeoSurePath] Unhandled Rejection:', reason);
+  console.error('[traccar] Unhandled Rejection:', reason);
 });

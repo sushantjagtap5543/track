@@ -5,14 +5,14 @@ const dns = require('dns').promises;
 // Testing accounts configuration
 const ADMIN_CREDENTIALS = {
     name: 'Test Admin',
-    email: 'admin@geosurepath.com',
+    email: 'admin@traccar.com',
     password: 'AdminTestPassword123!',
     role: 'ADMIN'
 };
 
 const CLIENT_CREDENTIALS = {
     name: 'Test Client',
-    email: 'client@geosurepath.com',
+    email: 'client@traccar.com',
     password: 'ClientTestPassword123!',
     role: 'CLIENT'
 };
@@ -130,7 +130,7 @@ async function main() {
     if (!process.env.DATABASE_URL) {
         const docker = await isInsideDocker();
         const host = docker ? 'db' : 'localhost';
-        process.env.DATABASE_URL = `postgresql://geosurepath:9f4a8b7c2e1d0f5e7a9b3c4d6e8f@${host}:5432/geosurepath?schema=saas`;
+        process.env.DATABASE_URL = `postgresql://traccar:9f4a8b7c2e1d0f5e7a9b3c4d6e8f@${host}:5432/traccar?schema=saas`;
         console.log(`Using Database Host: ${host}`);
     }
 

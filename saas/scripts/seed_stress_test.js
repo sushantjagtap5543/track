@@ -4,17 +4,17 @@ const bcrypt = require('bcrypt');
 const axios = require('axios');
 
 async function seedStressTest() {
-    console.log("🚀 Initializing GeoSurePath Sovereign Stress Test (100 Clients)...");
+    console.log("🚀 Initializing traccar Sovereign Stress Test (100 Clients)...");
     
     // Auth for Traccar API (Admin credentials)
-    const TRACCAR_URL = "http://geosurepath:8082";
+    const TRACCAR_URL = "http://traccar:8082";
     const AUTH_HEADER = { 'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'), 'Content-Type': 'application/json' };
 
     const hashedPassword = await bcrypt.hash("password123", 10);
     const now = new Date();
     
     for (let i = 1; i <= 100; i++) {
-        const userEmail = `client_${i}@geosurepath.test`;
+        const userEmail = `client_${i}@traccar.test`;
         const userName = `Enterprise Client ${i}`;
         
         // --- 1. PROVISION IN SAAS (POSTGRES) ---
@@ -50,7 +50,7 @@ async function seedStressTest() {
             const traccarUserId = traccarUserRes.data.id;
 
             // Link to SaaS
-            await prisma.user.update({ where: { id: user.id }, data: { geosurepathUserId: traccarUserId } });
+            await prisma.user.update({ where: { id: user.id }, data: { traccarUserId: traccarUserId } });
 
             // Provision 2-3 Vehicles
             const vehicleCount = 2 + (i % 2);
@@ -72,7 +72,7 @@ async function seedStressTest() {
                         imei,
                         name: `Fleet Unit ${i}-${j}`,
                         userId: user.id,
-                        geosurepathDeviceId: traccarDeviceID,
+                        traccarDeviceId: traccarDeviceID,
                         registrationDate: globalRegDate
                     }
                 });

@@ -5,8 +5,8 @@ async function findAdmin() {
     try {
         const u = await prisma.user.findFirst({ where: { role: 'ADMIN' }, select: { email: true } });
         console.log("-----------------------------------------");
-        console.log("GEOSUREPATH IDENTITY DISCOVERY");
-        console.log("ADMIN EMAIL: ", u?.email || "admin@geosurepath.com (DEFAULT)");
+        console.log("traccar IDENTITY DISCOVERY");
+        console.log("ADMIN EMAIL: ", u?.email || "admin@traccar.com (DEFAULT)");
         console.log("ADMIN PWD  :  admin123 (DEFAULT)");
         console.log("TRACCAR    :  admin / admin (DEFAULT)");
         console.log("-----------------------------------------");

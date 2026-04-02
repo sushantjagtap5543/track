@@ -4,16 +4,16 @@ const prisma = new PrismaClient();
 const bcrypt = require('bcrypt');
 
 async function hyperSync() {
-    console.log("🚀 Initializing GeoSurePath Hyper-Sync Identity Matrix...");
+    console.log("🚀 Initializing traccar Hyper-Sync Identity Matrix...");
     
     // TRACCAR CONFIG (Standard Admin Credentials Found)
-    const TRACCAR_URL = "http://geosurepath:8082";
+    const TRACCAR_URL = "http://traccar:8082";
     const TRACCAR_MASTER_AUTH = { 
         'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'), 
         'Content-Type': 'application/json' 
     };
 
-    const ADMIN_EMAIL = "admin@geosurepath.com";
+    const ADMIN_EMAIL = "admin@traccar.com";
     const ADMIN_PASS = "admin123";
     const CLIENT_PASS = "password123";
 

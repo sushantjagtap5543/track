@@ -6,9 +6,9 @@ const axios = require('axios');
 async function syncAdmin() {
     console.log("🚀 Initializing Sovereign Admin Sync (SaaS + Traccar)...");
     
-    const ADMIN_EMAIL = "admin@geosurepath.com";
+    const ADMIN_EMAIL = "admin@traccar.com";
     const ADMIN_PASS = "admin123";
-    const TRACCAR_URL = "http://geosurepath:8082";
+    const TRACCAR_URL = "http://traccar:8082";
     const TRACCAR_AUTH = { 'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'), 'Content-Type': 'application/json' };
 
     const hashed = await bcrypt.hash(ADMIN_PASS, 10);
@@ -23,7 +23,7 @@ async function syncAdmin() {
 
     // 2. TRACCAR SYNC
     try {
-        // Try to update existing 'admin' or create a new 'admin@geosurepath.com'
+        // Try to update existing 'admin' or create a new 'admin@traccar.com'
         // In Traccar, 'admin' is the default. We'll update its password to admin123
         const usersRes = await axios.get(`${TRACCAR_URL}/api/users`, { headers: TRACCAR_AUTH });
         const traccarAdmin = usersRes.data.find(u => u.administrator);
@@ -37,7 +37,7 @@ async function syncAdmin() {
             }, { headers: TRACCAR_AUTH });
             
             // Link SaaS to Traccar
-            await prisma.user.update({ where: { id: saasAdmin.id }, data: { geosurepathUserId: traccarAdmin.id } });
+            await prisma.user.update({ where: { id: saasAdmin.id }, data: { traccarUserId: traccarAdmin.id } });
             console.log("✅ Traccar Admin Unified.");
         }
     } catch (err) {

@@ -7,7 +7,7 @@ async function restore() {
 
   const users = [
     {
-      email: 'admin@geosurepath.com',
+      email: 'admin@traccar.com',
       name: 'System Admin',
       password: 'admin123',
       role: 'ADMIN'

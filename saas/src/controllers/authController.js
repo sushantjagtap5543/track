@@ -826,7 +826,7 @@ exports.verifyMFA = async (req, res) => {
         }
 
         const uaHash = crypto.createHash('md5').update(req.headers['user-agent'] || '').digest('hex');
-        const tokens = await generateTokens(user.id, user.role, user.geosurepathUserId, uaHash);
+        const tokens = await generateTokens(user.id, user.role, user.traccarUserId, uaHash);
         const isSecure = process.env.SECURE_COOKIES === 'true';
         res.cookie('token', tokens.accessToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 15 * 60 * 1000 });
         res.cookie('refreshToken', tokens.refreshToken, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: REFRESH_TOKEN_EXPIRATION });

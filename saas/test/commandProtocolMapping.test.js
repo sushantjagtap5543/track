@@ -1,9 +1,9 @@
-﻿// saas/test/commandProtocolMapping.test.js
+// saas/test/commandProtocolMapping.test.js
 
 // Mock process.env BEFORE requiring the service
-process.env.GEOSUREPATH_URL = 'http://mock-traccar';
-process.env.GEOSUREPATH_ADMIN_EMAIL = 'admin@example.com';
-process.env.GEOSUREPATH_ADMIN_PASSWORD = 'admin';
+process.env.traccar_URL = 'http://mock-traccar';
+process.env.traccar_ADMIN_EMAIL = 'admin@example.com';
+process.env.traccar_ADMIN_PASSWORD = 'admin';
 
 // Mock fetch
 global.fetch = async (url, options) => {
@@ -38,11 +38,11 @@ global.fetch = async (url, options) => {
     return { ok: false, status: 404, text: async () => 'Not Found' };
 };
 
-const geosurepathService = require('../src/services/geosurepath');
+const traccarService = require('../src/services/traccar');
 
 async function runTests() {
     console.log('--- TEST 1: gt06 (Built-in engineStop) ---');
-    const res1 = await geosurepathService.sendCommand(1, 'engineStop');
+    const res1 = await traccarService.sendCommand(1, 'engineStop');
     console.log('Sent Type:', res1.sent.type);
     console.log('Sent Attributes:', JSON.stringify(res1.sent.attributes));
     if (res1.sent.type === 'engineStop') {
@@ -53,7 +53,7 @@ async function runTests() {
     }
 
     console.log('\n--- TEST 2: h02 (Custom engineStop mapping) ---');
-    const res2 = await geosurepathService.sendCommand(2, 'engineStop');
+    const res2 = await traccarService.sendCommand(2, 'engineStop');
     console.log('Sent Type:', res2.sent.type);
     console.log('Sent Attributes:', JSON.stringify(res2.sent.attributes));
     if (res2.sent.type === 'custom' && res2.sent.attributes.data === 'stop123456') {
@@ -64,7 +64,7 @@ async function runTests() {
     }
 
     console.log('\n--- TEST 3: unknown protocol (Fallback to generic) ---');
-    const res3 = await geosurepathService.sendCommand(3, 'engineStop');
+    const res3 = await traccarService.sendCommand(3, 'engineStop');
     console.log('Sent Type:', res3.sent.type);
     console.log('Sent Attributes:', JSON.stringify(res3.sent.attributes));
     if (res3.sent.type === 'engineStop') {

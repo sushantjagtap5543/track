@@ -330,7 +330,7 @@ async function generateDailySummary() {
     };
 
     const aiAnalysis = await callAI(`
-      Generate a professional fleet intelligence report for GeoSurePath management:
+      Generate a professional fleet intelligence report for Traccar management:
       - SaaS Users: ${reportData.userCount}
       - Active Vehicles: ${reportData.fleetSize}
       - Premium Subscriptions: ${reportData.premiumSubscriptions}

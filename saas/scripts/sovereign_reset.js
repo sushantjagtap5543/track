@@ -9,8 +9,8 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 async function sovereignReset() {
     console.log("🚀 INITIALIZING SOVEREIGN MASTER RESET...");
-    const ADMIN_EMAIL = process.env.GEOSUREPATH_ADMIN_EMAIL || "admin@geosurepath.com";
-    const ADMIN_PASS = process.env.GEOSUREPATH_ADMIN_PASSWORD || "admin123";
+    const ADMIN_EMAIL = process.env.traccar_ADMIN_EMAIL || "admin@traccar.com";
+    const ADMIN_PASS = process.env.traccar_ADMIN_PASSWORD || "admin123";
 
     try {
         console.log("💀 Purging all existing Client Identities and Ledger records...");

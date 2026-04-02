@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = 'admin@geosurepath.com';
+  const email = 'admin@traccar.com';
   const password = 'admin123';
   const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -37,12 +37,12 @@ async function main() {
         password: hashedPassword,
         role: 'ADMIN',
         isActive: true,
-        name: 'GeoSurePath Administrator'
+        name: 'traccar Administrator'
       },
       create: {
         email,
         password: hashedPassword,
-        name: 'GeoSurePath Administrator',
+        name: 'traccar Administrator',
         role: 'ADMIN',
         isActive: true
       }

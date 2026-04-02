@@ -18,7 +18,7 @@ async function runStressTest() {
       // 1. MOCK DATA
       const mockUser = {
         id: scenarioId,
-        email: `${scenarioId}@geosurepath.com`,
+        email: `${scenarioId}@traccar.com`,
         name: `User ${i}`,
         createdAt: regDate,
         vehicles: Array.from({ length: fleetSize }, (_, j) => ({

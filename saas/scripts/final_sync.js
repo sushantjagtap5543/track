@@ -6,9 +6,9 @@ const bcrypt = require('bcrypt');
 async function finalSync() {
     console.log("🚀 Initializing Zero-Gap Identity Reconciliation...");
     
-    const EMAIL = "admin@geosurepath.com";
+    const EMAIL = "admin@traccar.com";
     const PASS = "admin123";
-    const TRACCAR_URL = "http://geosurepath:8082";
+    const TRACCAR_URL = "http://traccar:8082";
     // Using current known admin creds to update others
     const TRACCAR_AUTH = { 'Authorization': 'Basic ' + Buffer.from('admin:admin').toString('base64'), 'Content-Type': 'application/json' };
 

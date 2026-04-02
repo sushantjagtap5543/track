@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 
 async function masterReset() {
     console.log("🚀 INITIALIZING SOVEREIGN MASTER RESET...");
-    const EMAIL = "admin@geosurepath.com";
+    const EMAIL = "admin@traccar.com";
     const PASS = "admin123";
 
     try {
@@ -30,7 +30,7 @@ async function masterReset() {
             create: { email: EMAIL, name: "Sovereign Master Admin", password: hashed, role: 'ADMIN', status: 'ACTIVE' }
         });
 
-        console.log(`✅ SUCCESS: Master Admin Locked. Login: admin@geosurepath.com / admin123`);
+        console.log(`✅ SUCCESS: Master Admin Locked. Login: admin@traccar.com / admin123`);
     } catch (err) {
         console.error("❌ Reset Failed:", err.message);
     } finally { 

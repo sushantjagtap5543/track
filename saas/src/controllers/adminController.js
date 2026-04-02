@@ -267,7 +267,7 @@ exports.getSettings = async (req, res) => {
   try {
     const settings = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
     if (!settings) {
-      return res.json({ taxRate: 18, supportEmail: 'support@geosurepath.com', currency: 'INR', currencySymbol: '₹' });
+      return res.json({ taxRate: 18, supportEmail: 'support@traccar.com', currency: 'INR', currencySymbol: '₹' });
     }
     // Mask sensitive keys
     const masked = { ...settings };
@@ -502,12 +502,12 @@ exports.createUser = async (req, res) => {
     // 4. Send Welcome Email
     emailQueue.add('welcome-email', {
       to: user.email,
-      subject: 'Welcome to GeoSurePath - Admin Onboarding',
+      subject: 'Welcome to Traccar - Admin Onboarding',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-          <h2 style="color: #3b82f6;">Welcome to GeoSurePath</h2>
+          <h2 style="color: #3b82f6;">Welcome to Traccar</h2>
           <p>Hello ${name},</p>
-          <p>An administrator has manually onboarded you to the GeoSurePath platform.</p>
+          <p>An administrator has manually onboarded you to the Traccar platform.</p>
           <div style="background: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <strong>Login Email:</strong> ${email}<br>
             <strong>Default Password:</strong> ${password}
@@ -1684,8 +1684,8 @@ exports.restoreDeletedUser = async (req, res) => {
     });
 
     // Re-enable in tracking engine
-    if (user.geosurepathUserId) {
-      await geosurepathService.updateUser(user.geosurepathUserId, { disabled: false })
+    if (user.traccarUserId) {
+      await traccarService.updateUser(user.traccarUserId, { disabled: false })
         .catch(e => console.error(`[RecoverySync] User ${user.email} engine enable failed:`, e.message));
     }
 
@@ -1712,25 +1712,25 @@ exports.forceUserReSync = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
     // Wipe existing Traccar ID to trigger recreation logic
-    if (user.geosurepathUserId) {
-      await geosurepathService.deleteUser(user.geosurepathUserId).catch(() => {});
+    if (user.traccarUserId) {
+      await traccarService.deleteUser(user.traccarUserId).catch(() => {});
     }
 
     // Re-Create in Engine
-    const gUser = await geosurepathService.createUser(user.name, user.email, newPassword || 'GeoSure@2026', {
+    const gUser = await traccarService.createUser(user.name, user.email, newPassword || 'Traccar@2026', {
       disabled: !user.isActive
     });
 
     await prisma.user.update({
       where: { id: userId },
-      data: { geosurepathUserId: gUser.id }
+      data: { traccarUserId: gUser.id }
     });
 
     logAction({
       adminId: req.user.userId,
       userId,
       action: 'RECOVERY_ENGINE_RESYNC',
-      details: { oldId: user.geosurepathUserId, newId: gUser.id },
+      details: { oldId: user.traccarUserId, newId: gUser.id },
       ipAddress: req.ip
     });
 

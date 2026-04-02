@@ -3,8 +3,8 @@ const prisma = new PrismaClient();
 const bcrypt = require('bcrypt');
 
 async function seed() {
-  const email = process.env.GEOSUREPATH_ADMIN_EMAIL || 'admin@geosurepath.com';
-  const password = process.env.GEOSUREPATH_ADMIN_PASSWORD || 'AdminTestPassword123!';
+  const email = process.env.traccar_ADMIN_EMAIL || 'admin@traccar.com';
+  const password = process.env.traccar_ADMIN_PASSWORD || 'AdminTestPassword123!';
   
   console.log(`Seeding Admin: ${email}`);
   

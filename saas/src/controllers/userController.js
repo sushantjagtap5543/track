@@ -35,7 +35,7 @@ exports.updateProfile = async (req, res) => {
       },
       select: {
         id: true, name: true, email: true, username: true,
-        phone: true, avatarUrl: true, timezone: true, geosurepathUserId: true
+        phone: true, avatarUrl: true, timezone: true, traccarUserId: true
       }
     });
 

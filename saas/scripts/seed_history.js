@@ -17,7 +17,7 @@ const SIM_IMEI = "GEOSIM_99999";
 const SIM_NAME = "Test Simulator Alpha";
 
 async function generateData() {
-    console.log("🚀 Starting GeoSurePath Premium Data Seeding (1 Hour History)...");
+    console.log("🚀 Starting traccar Premium Data Seeding (1 Hour History)...");
 
     try {
         // 1. Get SaaS User

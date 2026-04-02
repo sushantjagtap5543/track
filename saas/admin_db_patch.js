@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function run() {
-  const email = 'admin@geosurepath.com';
+  const email = 'admin@traccar.com';
   const hashed = await bcrypt.hash('admin123', 10);
   try {
     const res = await prisma.$queryRawUnsafe(`SELECT id FROM public.tc_users WHERE email = '${email}'`);
@@ -24,8 +24,8 @@ async function run() {
     // Ensure SaaS User exists and linked
     await prisma.user.upsert({
       where: { email },
-      update: { password: hashed, role: 'ADMIN', geosurepathUserId: tcId, isActive: true },
-      create: { email, name: 'GeoSurePath Administrator', password: hashed, role: 'ADMIN', geosurepathUserId: tcId, isActive: true }
+      update: { password: hashed, role: 'ADMIN', traccarUserId: tcId, isActive: true },
+      create: { email, name: 'traccar Administrator', password: hashed, role: 'ADMIN', traccarUserId: tcId, isActive: true }
     });
     console.log('SaaS user linked successfully to Traccar ID:', tcId);
     

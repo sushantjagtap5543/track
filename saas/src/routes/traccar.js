@@ -1,8 +1,8 @@
-// src/routes/geosurepath.js
+// src/routes/traccar.js
 // ✅ FIX 1: Use shared Prisma singleton instead of `new PrismaClient()`.
 // ✅ FIX 2: The `/events` endpoint now compares `event.geofenceId` correctly.
 //    The original code compared an integer geofenceId from the Traccar event against
-//    `vehicle.geosurepathGeofenceId` which is also an integer — but without explicit
+//    `vehicle.traccarGeofenceId` which is also an integer — but without explicit
 //    type coercion, this could fail silently if the event field came in as a string.
 //    Added parseInt() to guarantee the comparison is int vs int.
 
@@ -48,7 +48,7 @@ router.post('/events', async (req, res) => {
 
   try {
     const vehicle = await prisma.vehicle.findFirst({
-      where: { geosurepathDeviceId: device.id },
+      where: { traccarDeviceId: device.id },
       include: { user: true }
     });
 
@@ -58,8 +58,8 @@ router.post('/events', async (req, res) => {
     let message = `Alert for ${vehicle.name}: ${event.type}`;
 
     // ✅ FIX 2: Ensure integer comparison for geofenceId
-    const vehicleGeofenceId = vehicle.geosurepathGeofenceId
-      ? parseInt(vehicle.geosurepathGeofenceId)
+    const vehicleGeofenceId = vehicle.traccarGeofenceId
+      ? parseInt(vehicle.traccarGeofenceId)
       : null;
     const eventGeofenceId = event.geofenceId ? parseInt(event.geofenceId) : null;
 
@@ -124,13 +124,13 @@ router.post('/events', async (req, res) => {
     console.log(`[Alert] Processed event ${event.type} for ${vehicle.user.email}`);
     res.sendStatus(200);
   } catch (error) {
-    console.error('Error processing GeoSurePath event:', error);
+    console.error('Error processing Traccar event:', error);
     res.sendStatus(500);
   }
 });
 
 // Using shared middleware destructuring from top level
-const geosurepathService = require('../services/geosurepath');
+const traccarService = require('../services/traccar');
 
 /**
  * ✅ SOVEREIGN PROXY (PLATINUM HARDENED): The Master Gateway to the Tracking Engine.
