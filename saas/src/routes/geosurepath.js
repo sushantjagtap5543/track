@@ -177,32 +177,33 @@ router.all(/(.*)/, proxyAuthMiddleware, async (req, res) => {
         const queryString = queryParams.toString();
         const targetUrl = `${process.env.GEOSUREPATH_URL}/api${targetPath}${queryString ? '?' + queryString : ''}`;
 
-        // 2. Prepare Headers
-        let headers = { ...req.headers };
+        // 2. Prepare Clean Headers
+        const relayHeaders = {};
         
-        // Strip sensitive/unwanted headers from client
-        delete headers.host;
-        delete headers.connection;
-        delete headers.cookie;
-        delete headers.authorization; 
+        // Whitelist safe headers from client
+        const headerWhitelist = ['accept', 'accept-language', 'user-agent', 'x-requested-with'];
+        headerWhitelist.forEach(h => {
+            if (req.headers[h]) relayHeaders[h] = req.headers[h];
+        });
 
-        // ✅ FIX (S110): Strip Content-Type for GET/HEAD/DELETE to prevent 415 Unsupported Media Type
-        if (['GET', 'HEAD', 'DELETE'].includes(req.method)) {
-            delete headers['content-type'];
-        } else if (req.body && Object.keys(req.body).length > 0) {
-            headers['content-type'] = 'application/json';
+        // Ensure JSON acceptance
+        relayHeaders['accept'] = 'application/json';
+
+        // Add Content-Type only for body-bearing requests
+        if (!['GET', 'HEAD', 'DELETE'].includes(req.method) && req.body && Object.keys(req.body).length > 0) {
+            relayHeaders['content-type'] = 'application/json';
         }
 
         // 3. Apply Master Authority if authenticated via SaaS
         if (useMasterAuthority) {
             await geosurepathService.ensureSession();
-            Object.assign(headers, geosurepathService.getAuthHeaders());
+            Object.assign(relayHeaders, geosurepathService.getAuthHeaders());
         }
 
         // 4. Relay Request to Tracking Engine
         const response = await fetch(targetUrl, {
             method: req.method,
-            headers: headers,
+            headers: relayHeaders,
             body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body),
             redirect: 'manual'
         });
