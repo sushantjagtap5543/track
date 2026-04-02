@@ -11,7 +11,7 @@ const router = express.Router();
 const prisma = require('../lib/prisma');
 const { alertQueue, notificationQueue } = require('../services/queue');
 const { authenticateToken } = require('../middleware/authMiddleware');
-const fetch = require('node-fetch');
+// Native Node fetch will be used
 
 /**
  * Register or refresh an FCM device token for push notifications.
@@ -176,7 +176,7 @@ router.all(/(.*)/, proxyAuthMiddleware, async (req, res) => {
         });
 
         // 4. Relay Body
-        const data = await proxyRes.buffer();
+        const data = Buffer.from(await proxyRes.arrayBuffer());
         res.send(data);
 
         console.log(`[Universal Proxy] ${req.method} ${targetUrl} -> ${proxyRes.status}`);
