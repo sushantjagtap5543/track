@@ -308,7 +308,7 @@ const LoginPage = () => {
         }
 
         generateLoginToken();
-        const defaultTarget = target || (saasData.user?.role === 'ADMIN' ? '/billing' : '/');
+        const defaultTarget = target || '/';
         const finalTarget = window.sessionStorage.getItem('postLogin') || defaultTarget;
         window.sessionStorage.removeItem('postLogin');
         window.location.href = finalTarget;
@@ -359,7 +359,7 @@ const LoginPage = () => {
           dispatch(sessionActions.updateUser(user));
         }
 
-        const finalTarget = saasData.user?.role === 'ADMIN' ? '/billing' : '/';
+        const finalTarget = '/';
         window.location.href = finalTarget;
       } else {
         const data = await response.json().catch(() => ({}));
@@ -597,19 +597,7 @@ const LoginPage = () => {
                 </motion.div>
               )}
 
-              <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.75 }}>
-                <Button
-                  onClick={() => navigate('/billing')}
-                  type="button"
-                  variant="outlined"
-                  fullWidth
-                  disabled={loading}
-                  className={classes.secondaryButton}
-                  startIcon={<PaymentIcon />}
-                >
-                  BILLING
-                </Button>
-              </motion.div>
+              {/* Billing button removed as per user request to simplify login flow */}
 
               {registrationEnabled && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }} style={{ textAlign: 'center', marginTop: '16px' }}>
