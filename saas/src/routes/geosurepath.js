@@ -179,54 +179,54 @@ router.all(/(.*)/, proxyAuthMiddleware, async (req, res) => {
 
         // 2. Prepare Headers
         let headers = { ...req.headers };
-        if (useMasterAuthority) {
-            await geosurepathService.ensureSession();
-            headers = { ...headers, ...geosurepathService.getAuthHeaders() };
-        } else {
-            // ✅ FIX: The client sends `Authorization: Bearer <saas_token>` natively now.
-            // Traccar's engine chokes on this (throws 401) because it thinks it's an OpenID token.
-            // We MUST strip the Authorization header if we are not injecting Master Authority.
-            delete headers.authorization;
-        }
         
+        // Strip sensitive/unwanted headers from client
         delete headers.host;
         delete headers.connection;
-        // Strip client's own Traccar cookie to prevent shadowing the Master session
-        delete headers.cookie; 
-        if (geosurepathService.getAuthHeaders().Cookie) {
-            headers['Cookie'] = geosurepathService.getAuthHeaders().Cookie;
+        delete headers.cookie;
+        delete headers.authorization; 
+
+        // ✅ FIX (S110): Strip Content-Type for GET/HEAD/DELETE to prevent 415 Unsupported Media Type
+        if (['GET', 'HEAD', 'DELETE'].includes(req.method)) {
+            delete headers['content-type'];
+        } else if (req.body && Object.keys(req.body).length > 0) {
+            headers['content-type'] = 'application/json';
         }
 
-        if (req.body && Object.keys(req.body).length > 0) {
-            headers['Content-Type'] = 'application/json';
+        // 3. Apply Master Authority if authenticated via SaaS
+        if (useMasterAuthority) {
+            await geosurepathService.ensureSession();
+            Object.assign(headers, geosurepathService.getAuthHeaders());
         }
 
-        // 3. Relay Request
-        const proxyRes = await geosurepathService.fetchWithSessionRefresh(targetUrl, {
+        // 4. Relay Request to Tracking Engine
+        const response = await fetch(targetUrl, {
             method: req.method,
-            headers,
+            headers: headers,
             body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body),
             redirect: 'manual'
         });
 
-        // 4. Relay Response
-        res.status(proxyRes.status);
-        proxyRes.headers.forEach((val, key) => {
-            const lowKey = key.toLowerCase();
-            // Security: Strip Set-Cookie from Traccar to prevent leaking Master session to Client
-            if (['content-encoding', 'content-length', 'transfer-encoding', 'set-cookie'].includes(lowKey)) return;
-            res.setHeader(key, val);
+        // 5. Build Response
+        const responseHeaders = {};
+        response.headers.forEach((value, key) => {
+            const lowerKey = key.toLowerCase();
+            // Security: Strip Set-Cookie to prevent leaking Master session
+            if (!['content-encoding', 'transfer-encoding', 'content-length', 'connection', 'set-cookie'].includes(lowerKey)) {
+                responseHeaders[key] = value;
+            }
         });
 
-        const data = Buffer.from(await proxyRes.arrayBuffer());
-        res.send(data);
+        const data = Buffer.from(await response.arrayBuffer());
+        res.set(responseHeaders);
+        res.status(response.status).send(data);
 
-        if (proxyRes.status >= 400) {
-            console.warn(`[Sovereign Proxy] ${req.method} ${targetUrl} -> ${proxyRes.status}`);
+        if (response.status >= 400) {
+            console.warn(`[Sovereign Proxy] ${req.method} ${targetUrl} -> ${response.status}`);
         }
-    } catch (error) {
-        console.error(`[Sovereign Proxy] Critical Relay Error:`, error.message);
-        res.status(502).json({ error: 'Tracking Engine Gateway Error', details: error.message });
+    } catch (err) {
+        console.error('[Sovereign Proxy] Critical Failure:', err);
+        res.status(502).json({ error: 'Tracking Engine Gateway Error', details: err.message });
     }
 });
 
