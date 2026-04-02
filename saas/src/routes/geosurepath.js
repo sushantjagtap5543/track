@@ -175,6 +175,11 @@ router.all(/(.*)/, proxyAuthMiddleware, async (req, res) => {
         if (useMasterAuthority) {
             await geosurepathService.ensureSession();
             headers = { ...headers, ...geosurepathService.getAuthHeaders() };
+        } else {
+            // ✅ FIX: The client sends `Authorization: Bearer <saas_token>` natively now.
+            // Traccar's engine chokes on this (throws 401) because it thinks it's an OpenID token.
+            // We MUST strip the Authorization header if we are not injecting Master Authority.
+            delete headers.authorization;
         }
         
         delete headers.host;
