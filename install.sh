@@ -88,7 +88,7 @@ if [ ! -f .env ]; then
     echo "🔐 Generating environment secrets..."
     cp .env.example .env
     # Generate random JWT secret if placeholder
-    sed -i "s/JWT_SECRET=.*/JWT_SECRET=$(openssl rand -base64 32)/g" .env
+    sed -i "s|JWT_SECRET=.*|JWT_SECRET=$(openssl rand -base64 32)|g" .env
 fi
 
 # 4b. Firebase Identity Placeholder (Resilience)
