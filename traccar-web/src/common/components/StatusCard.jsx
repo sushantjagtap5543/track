@@ -282,6 +282,20 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                             }
                           />
                         ))}
+                      {user.role === 'ADMIN' && (
+                        <>
+                          <TableRow>
+                            <TableCell colSpan={2} className={classes.cell} sx={{ pt: 2 }}>
+                               <Typography variant="caption" sx={{ fontWeight: 900, color: 'primary.main', opacity: 0.8 }}>ADMIN TECHNICAL DATA</Typography>
+                               <Divider />
+                            </TableCell>
+                          </TableRow>
+                          <StatusRow name="Unique ID (IMEI)" content={device.uniqueId} />
+                          <StatusRow name="Protocol" content={device.protocol || 'Unknown'} />
+                          <StatusRow name="Internal ID" content={device.id} />
+                          <StatusRow name="Server Time" content={formatTime(position.serverTime, 'seconds')} />
+                        </>
+                      )}
                     </TableBody>
                     <TableFooter>
                       <TableRow>

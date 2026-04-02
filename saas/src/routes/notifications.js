@@ -62,6 +62,36 @@ router.post('/webhook/position', async (req, res) => {
       // 2. Broadcast to user room and vehicle room
       socketService.emitToUser(vehicle.userId, 'position_update', position);
       socketService.emitToVehicleRoom(vehicle.id, 'position_update', position);
+
+      // ✅ AIS 140: Government Port Forwarding (Platinum Feature)
+      if (vehicle.isAIS140 && vehicle.forwardingEnabled && vehicle.governmentEndpoint) {
+          // Asynchronous forwarding to avoid blocking internal tracking
+          (async () => {
+              try {
+                  const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
+                  const response = await fetch(vehicle.governmentEndpoint, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'X-AIS140-IMEI': position.attributes.uniqueId || 'UNKNOWN' },
+                      body: JSON.stringify(position),
+                      timeout: 5000 // 5s timeout to prevent hanging
+                  });
+                  
+                  await prisma.vehicle.update({
+                      where: { id: vehicle.id },
+                      data: { 
+                          lastForwardedAt: new Date(),
+                          forwardingStatus: response.ok ? 'SUCCESS' : `FAILED (${response.status})`
+                      }
+                  });
+              } catch (forwardError) {
+                  console.error(`[AIS140-Forward] Failed for ${vehicle.id}:`, forwardError.message);
+                  await prisma.vehicle.update({
+                      where: { id: vehicle.id },
+                      data: { forwardingStatus: `ERROR: ${forwardError.message.substring(0, 50)}` }
+                  });
+              }
+          })();
+      }
     }
 
     res.status(200).send();

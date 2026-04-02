@@ -91,10 +91,6 @@ const App = () => {
                 window.localStorage.setItem('saas_user', JSON.stringify(saasData.user));
                 window.localStorage.setItem('saas_role', saasData.user.role);
                 
-                if (saasData.isHardlocked) {
-                    navigate('/login', { replace: true, state: { hardlocked: true, reason: 'Subscription Expired' } });
-                    return null;
-                }
   
                 //  RECOVERY: Use SaaS data to hydrate the session if Traccar sync failed but SaaS is alive.
                 // This prevents the redirect loop for billing and dashboard access.
@@ -121,21 +117,6 @@ const App = () => {
       }
     } else {
       // Periodic hardlock check for active sessions
-      const checkHardlock = async () => {
-          const res = await fetch('/api/auth/sync').catch(() => ({ ok: false }));
-          if (res.ok) {
-              const data = await res.json();
-              if (data.isHardlocked) {
-                  dispatch(sessionActions.updateUser(null));
-                  localStorage.removeItem('saas_token');
-                  navigate('/login', { replace: true, state: { hardlocked: true } });
-              }
-          }
-      };
-      
-      const interval = setInterval(checkHardlock, 60000); // Check every minute
-      checkHardlock(); 
-      return () => clearInterval(interval);
     }
     return null;
   }, [user, navigate, dispatch]);

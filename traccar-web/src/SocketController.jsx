@@ -35,6 +35,7 @@ const SocketController = () => {
   };
 
   const [notifications, setNotifications] = useState([]);
+  const [breachedDevices, setBreachedDevices] = useState({}); // { deviceId: event }
 
   const soundEvents = useAttributePreference('soundEvents', '');
   const soundAlarms = useAttributePreference('soundAlarms', 'sos');
@@ -51,10 +52,10 @@ const SocketController = () => {
         (e) =>
           soundEvents.includes(e.type) ||
           (e.type === 'alarm' && soundAlarms.includes(e.attributes.alarm)) ||
-          // Smart Overlay: Always sound for critical status changes if prefs are default
+          // Platinum Upgrade: Always sound for all critical events
           (!soundEvents &&
             !soundAlarms &&
-            ['deviceOnline', 'deviceOffline', 'alarm', 'ignitionOn', 'ignitionOff'].includes(
+            ['deviceOnline', 'deviceOffline', 'alarm', 'ignitionOn', 'ignitionOff', 'geofenceEnter', 'geofenceExit', 'powerCut'].includes(
               e.type,
             )) ||
           // SECURITY FIX: Always sound alarm for Safe Parking breach regardless of system settings
@@ -164,11 +165,18 @@ const SocketController = () => {
             message: message,
             severity,
             title,
-            duration: severity === 'error' || title.includes('SECURITY') ? 30000 : 5000,
+            duration: severity === 'error' || title.includes('SECURITY') || title.includes('IGNITION') ? 15000 : 6000,
             show: true,
           };
         }),
       ]);
+
+      // ✅ PLATINUM SECURITY: Capture breaches for persistent siren/banner
+      events.forEach(e => {
+        if (e.type === 'geofenceExit' && e.attributes.name?.startsWith('Safe Parking')) {
+            setBreachedDevices(prev => ({ ...prev, [e.deviceId]: e }));
+        }
+      });
     },
     [features, dispatch, soundEvents, soundAlarms],
   );
@@ -334,6 +342,39 @@ const SocketController = () => {
           >
             <AlertTitle>{notification.title}</AlertTitle>
             {notification.message}
+          </Alert>
+        </Snackbar>
+      ))}
+      {Object.values(breachedDevices).map((event) => (
+        <Snackbar
+          key={`breach-${event.id}`}
+          open={true}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          sx={{ mb: 10 }}
+        >
+          <Alert
+            severity="error"
+            variant="filled"
+            onClose={() => setBreachedDevices(prev => {
+                const n = { ...prev };
+                delete n[event.deviceId];
+                return n;
+            })}
+            sx={{ 
+                width: '100vw', 
+                maxWidth: '600px', 
+                boxShadow: 24, 
+                borderRadius: '16px',
+                animation: 'pulse 1.5s infinite',
+                '@keyframes pulse': {
+                    '0%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(239, 68, 68, 0.7)' },
+                    '70%': { transform: 'scale(1.02)', boxShadow: '0 0 0 15px rgba(239, 68, 68, 0)' },
+                    '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(239, 68, 68, 0)' }
+                }
+            }}
+          >
+            <AlertTitle sx={{ fontWeight: 900, fontSize: '1.2rem' }}>⚠️ SECURITY BREACH DETECTED!</AlertTitle>
+            Your vehicle <b>{event.attributes.deviceName || 'Device'}</b> has moved outside the Safe Parking zone!
           </Alert>
         </Snackbar>
       ))}

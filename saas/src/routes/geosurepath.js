@@ -158,6 +158,34 @@ router.all(/(.*)/, proxyAuthMiddleware, async (req, res) => {
     try {
         const targetPath = req.params[0] || req.path.replace('/api/geosurepath', '');
         
+        // --- SECURE ROUTING OVERRIDE (S99-STABLE) ---
+        // For session hydration, return the SaaS user directly to prevent Admin-leak
+        if (targetPath === '/session' && req.method === 'GET' && req.user) {
+            return res.json({
+                ...req.user,
+                id: req.user.geosurepathUserId || req.user.userId,
+                administrator: req.user.role === 'ADMIN',
+                name: req.user.name || 'User',
+                email: req.user.email || 'user@example.com'
+            });
+        }
+
+        // --- SECURE ROUTING OVERRIDE (S99-STABLE) ---
+        // For device creation, use the validated service layer to ensure perfect payload formatting.
+        if (targetPath === '/devices' && req.method === 'POST') {
+            const { name, uniqueId } = req.body;
+            if (!name || !uniqueId) return res.status(400).json({ error: 'Name and uniqueId are required' });
+            
+            const device = await geosurepathService.createDevice(name, uniqueId);
+            
+            // If the user is NOT an admin, we must also link the device to them
+            if (req.user.role !== 'ADMIN' && req.user.geosurepathUserId) {
+                await geosurepathService.linkDeviceToUser(req.user.geosurepathUserId, device.id);
+            }
+            
+            return res.status(200).json(device);
+        }
+
         // 1. Determine Scope & Authority
         const isSecure = process.env.SECURE_COOKIES === 'true';
         let useMasterAuthority = false;
@@ -202,14 +230,18 @@ router.all(/(.*)/, proxyAuthMiddleware, async (req, res) => {
 
         // 4. Relay Request to Tracking Engine
         const isBodyless = ['GET', 'HEAD', 'DELETE'].includes(req.method);
-        const response = await fetch(targetUrl, {
+        const fetchOptions = {
             method: req.method,
             headers: relayHeaders,
-            body: isBodyless ? undefined : JSON.stringify(req.body),
-            redirect: 'manual',
-            // Explicitly prevent any auto-generated content-type or length issues
-            duplex: isBodyless ? undefined : 'half'
-        });
+            redirect: 'manual'
+        };
+
+        if (!isBodyless) {
+            // ✅ S99-STABLE: Use rawBody buffer if available to prevent JSON re-serialization issues (Jackson Column 9 error)
+            fetchOptions.body = req.rawBody || JSON.stringify(req.body);
+        }
+
+        const response = await fetch(targetUrl, fetchOptions);
 
         // 5. Build Response
         const responseHeaders = {};
@@ -226,7 +258,10 @@ router.all(/(.*)/, proxyAuthMiddleware, async (req, res) => {
         res.status(response.status).send(data);
 
         if (response.status >= 400) {
+            const errorText = data.toString();
             console.warn(`[Sovereign Proxy] ${req.method} ${targetUrl} -> ${response.status}`);
+            console.warn(`[Sovereign Proxy] Request Body:`, JSON.stringify(req.body));
+            console.warn(`[Sovereign Proxy] Response Body:`, errorText);
         }
     } catch (err) {
         console.error('[Sovereign Proxy] Critical Failure:', err);

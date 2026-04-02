@@ -330,10 +330,20 @@ exports.updateUserSubscription = async (req, res) => {
     });
 
     if (subscription) {
+      // ✅ PLAN TRANSITION LOGIC: If plan is changing, log specifically
+      const oldPlanId = subscription.planId;
       await prisma.subscription.update({
         where: { id: subscription.id },
-        data: updateData
+        data: { 
+            ...updateData,
+            // If plan changed manually by admin, reset any trial flags
+            isTrial: false 
+        }
       });
+      
+      if (planId && planId !== oldPlanId) {
+          console.log(`[Admin] Plan transition for ${userId}: ${oldPlanId} -> ${planId}`);
+      }
     } else if (planId || isActive !== undefined) {
       // Create new if none exists
       await prisma.subscription.create({
@@ -342,7 +352,8 @@ exports.updateUserSubscription = async (req, res) => {
           planId: planId || 'BASIC_MONTHLY',
           status: status || (isActive === false ? 'EXPIRED' : 'ACTIVE'),
           expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          price: 0 // Manual override
+          price: 0, // Manual override
+          isTrial: false
         }
       });
     }

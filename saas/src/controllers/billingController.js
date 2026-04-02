@@ -218,9 +218,9 @@ const getGracePeriod = (days) => {
   return 7;                       // Yearly/Others: 7 days
 };
 
-const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputedSubCount = null, shouldSync = false, injectedTaxRate = null, selectedPlanId = null, preloadedSettings = null) => {
+const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputedSubCount = null, shouldSync = false, injectedTaxRate = null, selectedPlanId = null, preloadedSettings = null, preloadedPlans = null) => {
   const settings = preloadedSettings || await getSettings();
-  const taxRate = injectedTaxRate !== null ? injectedTaxRate : settings?.taxRate || 18;
+  const taxRate = injectedTaxRate !== null ? injectedTaxRate : (settings?.taxRate || 18.0);
   const taxInclusive = settings?.taxInclusive || false;
   if (shouldSync) {
     const user = preloadedUser || await prisma.user.findUnique({ where: { id: userId } });
@@ -245,7 +245,7 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
   const activeSub = user.subscriptions?.[0];
   const activeDeviceCount = activeSub?.status === 'ACTIVE' ? activeSub.deviceCount : 0;
 
-  const plans = await getPlans();
+  const plans = preloadedPlans || await getPlans();
   const activePlan = plans.find((p) => p.id === activeSub?.planId);
   
   // Use plan price if available, otherwise fallback to env or 6.66
@@ -279,10 +279,11 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
   
   // ✅ TRIPLE CENTURION (S231-240): Regional Tax Variance Logic
   // Different tax rates based on user region (GST, VAT, etc.)
-  let regionTaxRate = settings.taxRate;
+  let regionTaxRate = taxRate; // Default to global/injected rate (18%)
   if (user.region === 'MH' || user.region === 'IN_GST') regionTaxRate = 18.0;
   else if (user.region === 'UAE_VAT') regionTaxRate = 5.0;
   else if (user.region === 'EXEMPT') regionTaxRate = 0.0;
+  // If no region override, it remains at the default 18% (as requested for future plans)
   
   const taxMultiplier = settings.taxInclusive ? 1 : (1 + regionTaxRate / 100);
     
@@ -304,13 +305,17 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
   }).filter(d => !d.deleted || d.amount > 0); // ✅ GAP FIX: Only show deleted devices if they have unpaid debt.
 
   const totalServicesCost = (user.userServices || []).reduce((sum, us) => sum + us.amount, 0);
-  const totalDue = deviceDetails.reduce((sum, d) => sum + d.amount, 0) + totalServicesCost;
+  const totalDue = Math.max(0, parseFloat((deviceDetails.reduce((sum, d) => sum + d.amount, 0) + totalServicesCost).toFixed(2)));
   // Guard against empty array spread — Math.max with no args returns -Infinity
   const maxUnpaidDays =
     deviceDetails.length > 0 ? Math.max(...deviceDetails.map((d) => d.unpaidDays)) : 0;
   const gracePeriod = getGracePeriod(planDays);
-  const accessStatus =
-    maxUnpaidDays <= 0 ? 'PAID' : maxUnpaidDays <= gracePeriod ? 'GRACE' : 'OVERDUE';
+  
+  // ✅ FIX: Determine access status more precisely
+  let accessStatus = 'PAID';
+  if (user.hardlockBypass) accessStatus = 'PAID';
+  else if (maxUnpaidDays > gracePeriod) accessStatus = 'OVERDUE';
+  else if (maxUnpaidDays > 0) accessStatus = 'GRACE';
 
   let daysRemaining = 0;
   if (activeSub?.expiresAt) {
@@ -335,15 +340,16 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
   });
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId) || activePlan || plans[0];
-  const fleetSize = user.vehicles?.length || 0;
+  const fleetSize = user.vehicles?.filter(v => !v.deletedAt)?.length || 0;
   const rawSubscriptionAmount = (selectedPlan?.price || 0) * fleetSize;
   const subscriptionBreakdown = calculateBreakdown(rawSubscriptionAmount, taxRate, taxInclusive);
   
   const unpaidDebt = totalDue;
-  const totalPayable = unpaidDebt + subscriptionBreakdown.total;
+  const totalPayable = parseFloat((unpaidDebt + subscriptionBreakdown.total).toFixed(2));
 
   const orderSummary = {
     planName: selectedPlan?.name,
+    planId: selectedPlan?.id,
     billingCycle: selectedPlan?.billingCycle,
     fleetSize,
     subscription: {
@@ -360,23 +366,23 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
       items: (user.userServices || []).map(us => ({ name: us.service?.name, amount: us.amount })),
       total: parseFloat(totalServicesCost.toFixed(2))
     },
-    grandTotal: parseFloat(totalPayable.toFixed(2))
+    grandTotal: totalPayable
   };
 
   return {
     userId: user.id,
     userEmail: user.email,
     userName: user.name,
-    totalDue: parseFloat(totalDue.toFixed(2)), // Legacy field support (shows debt only)
-    unpaidDebt: parseFloat(unpaidDebt.toFixed(2)),
+    totalDue, 
+    unpaidDebt,
     subscriptionAmount: subscriptionBreakdown.total,
-    totalPayable: parseFloat(totalPayable.toFixed(2)),
+    totalPayable,
     orderSummary,
     currency: 'INR',
     status: accessStatus,
     daysRemaining,
     activePlan: selectedPlan?.id || 'NONE',
-    fleetSize: deviceDetails.length,
+    fleetSize,
     plans: plans.map((p) => ({
       ...p,
       costPerDay: parseFloat((p.price / p.days).toFixed(2)),
@@ -393,7 +399,7 @@ const calculateBillForAnyUser = async (userId, preloadedUser = null, precomputed
     sentry: {
       status: accessStatus,
       unpaidDays: maxUnpaidDays,
-      graceDaysRemaining: Math.max(0, 7 - maxUnpaidDays),
+      graceDaysRemaining: Math.max(0, gracePeriod - maxUnpaidDays),
       isHardLock: accessStatus === 'OVERDUE'
     }
   };
@@ -488,27 +494,28 @@ const getAllUsersLedger = async (req, res) => {
           name: u.name || u.email.split('@')[0],
           email: u.email,
           role: u.role,
-          isActive: u.isActive,
-          fleetSize: u.vehicles.length,
-          planId: latestSub?.planId || null,
-          planName: latestSub?.plan?.name || 'No Plan',
-          billingCycle: latestSub?.plan?.billingCycle || null,
-          subStatus: latestSub?.status || 'NONE',
-          expiresAt: latestSub?.expiresAt || null,
-          lastPaymentDate: latestPayment?.createdAt || null,
-          lastPaymentAmount: latestPayment?.amount || 0,
-          status: bill?.sentry?.status || (u.isActive ? 'ACTIVE' : 'SUSPENDED'),
-          totalDue: bill?.totalDue || 0,
-          unpaidDays: bill?.sentry?.unpaidDays || 0,
-          graceDaysRemaining: bill?.sentry?.graceDaysRemaining || 0,
-          isVIP: !!u.graceExtensionUntil && new Date(u.graceExtensionUntil) > new Date(),
-          hardlockBypass: u.hardlockBypass || false,
-          isLinkedToEngine: !!u.geosurepathUserId, // ✅ NEW: Track engine link status
-          mfaEnabled: u.mfaEnabled || false,
-          createdAt: u.createdAt,
-        };
-      })
-    );
+           isActive: u.isActive,
+           fleetSize: u.vehicles.length,
+           ais140Count: u.vehicles.filter(v => v.isAIS140).length,
+           planId: latestSub?.planId || null,
+           planName: latestSub?.plan?.name || 'No Plan',
+           billingCycle: latestSub?.plan?.billingCycle || null,
+           subStatus: latestSub?.status || 'NONE',
+           expiresAt: latestSub?.expiresAt || null,
+           lastPaymentDate: latestPayment?.createdAt || null,
+           lastPaymentAmount: latestPayment?.amount || 0,
+           status: bill?.sentry?.status || (u.isActive ? 'ACTIVE' : 'SUSPENDED'),
+           totalDue: bill?.totalDue || 0,
+           unpaidDays: bill?.sentry?.unpaidDays || 0,
+           graceDaysRemaining: bill?.sentry?.graceDaysRemaining || 0,
+           isVIP: !!u.graceExtensionUntil && new Date(u.graceExtensionUntil) > new Date(),
+           hardlockBypass: u.hardlockBypass || false,
+           isLinkedToEngine: !!u.geosurepathUserId, // ✅ NEW: Track engine link status
+           mfaEnabled: u.mfaEnabled || false,
+           createdAt: u.createdAt,
+         };
+       })
+     );
 
     res.json({
       data: ledger,
@@ -529,6 +536,8 @@ const getAdminAnalytics = async (req, res) => {
   try {
     const stats = await analyticsService.getSummaryStats();
     const config = await prisma.adminSetting.findUnique({ where: { id: 'GLOBAL' } });
+    const detailed = await analyticsService.getDetailedLedgerStats();
+    const sync = await analyticsService.getEngineSyncHealth();
     
     res.json({
       summary: {
@@ -538,9 +547,14 @@ const getAdminAnalytics = async (req, res) => {
         totalUsers: stats.totalClients,
         totalDevices: stats.totalVehicles,
         approxCollection: stats.totalVehicles * (parseFloat(process.env.AVG_REVENUE_PER_DEVICE) || 200),
-        churnRate: stats.churnRate
+        churnRate: stats.churnRate,
+        mrr: stats.mrr,
+        activeSubscriptions: stats.activeSubscriptions,
+        orphanedInSaas: stats.orphanedInSaas
       },
       monthlyBreakdown: stats.monthlyBreakdown,
+      detailed,
+      sync,
       config: config || { paymentLink: process.env.DEFAULT_PAYMENT_LINK || '#' }
     });
   } catch (err) {
@@ -1418,12 +1432,13 @@ const getDashboardOverview = async (req, res) => {
       overdueCount,
       nearlyExpiredCount,
       revenueThisMonth,
-      recentPayments
+      recentPayments,
+      syncHealth,
+      detailedStats
     ] = await Promise.all([
       prisma.user.count({ where: { deletedAt: null } }),
       prisma.user.count({ where: { deletedAt: null, isActive: true } }),
       prisma.vehicle.count({ where: { deletedAt: null } }),
-      // ✅ FIX: Use status field, not isActive (doesn't exist on Subscription)
       prisma.subscription.count({
         where: { status: { not: 'ACTIVE' }, expiresAt: { lt: now } }
       }),
@@ -1439,7 +1454,9 @@ const getDashboardOverview = async (req, res) => {
         include: { user: { select: { name: true, email: true } } },
         orderBy: { createdAt: 'desc' },
         take: 10
-      })
+      }),
+      analyticsService.getEngineSyncHealth(),
+      analyticsService.getDetailedLedgerStats()
     ]);
 
     let dbStatus = 'Connected';
@@ -1448,21 +1465,53 @@ const getDashboardOverview = async (req, res) => {
     const os = require('os');
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
+    const cpus = os.cpus();
+
+    // Critical users (overdue) with calculated debt
+    const overdueUsers = await prisma.user.findMany({
+        where: { isActive: false, deletedAt: null },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: { vehicles: { where: { deletedAt: null } }, subscriptions: { orderBy: { createdAt: 'desc' }, take: 1 } }
+    });
+
+    const criticalUsers = await Promise.all(overdueUsers.map(async (u) => {
+      const bill = await calculateBillForAnyUser(u.id, u, null, false);
+      return {
+        id: u.id,
+        email: u.email,
+        totalDue: bill?.totalDue || 0,
+        unpaidDays: bill?.sentry?.unpaidDays || 0
+      };
+    }));
 
     res.json({
       system: {
         db: dbStatus,
         cpu: os.loadavg(),
+        cpuModel: cpus[0]?.model,
         memoryUsedPct: (((totalMem - freeMem) / totalMem) * 100).toFixed(1),
-        uptime: os.uptime()
+        uptime: os.uptime(),
+        platform: os.platform(),
+        arch: os.arch(),
+        sync: syncHealth
       },
-      users: { total: totalUsers, active: activeUsers, inactive: totalUsers - activeUsers },
-      devices: { total: totalDevices },
+      users: { 
+        total: totalUsers, 
+        active: activeUsers, 
+        inactive: totalUsers - activeUsers,
+        byRegion: detailedStats.regions
+      },
+      devices: { total: totalDevices, drift: syncHealth.driftDevices },
       billing: {
         overdueAccounts: overdueCount,
         nearlyExpiredAccounts: nearlyExpiredCount,
         revenueThisMonth: revenueThisMonth._sum.amount || 0,
         recentPayments
+      },
+      alerts: {
+        overdueCount,
+        criticalUsers: criticalUsers.sort((a, b) => b.totalDue - a.totalDue)
       }
     });
   } catch (err) {

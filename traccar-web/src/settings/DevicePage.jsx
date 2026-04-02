@@ -192,6 +192,30 @@ const DevicePage = () => {
                     InputLabelProps={{ shrink: true }}
                     fullWidth
                   />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={item.attributes?.forwardingEnabled || false}
+                        onChange={(event) => setItem({ 
+                            ...item, 
+                            attributes: { ...item.attributes, forwardingEnabled: event.target.checked } 
+                        })}
+                      />
+                    }
+                    label="Enable Real-Time Port Forwarding"
+                  />
+                  {item.attributes?.forwardingEnabled && (
+                    <TextField
+                      value={item.attributes?.governmentEndpoint || ''}
+                      onChange={(event) => setItem({ 
+                        ...item, 
+                        attributes: { ...item.attributes, governmentEndpoint: event.target.value } 
+                      })}
+                      label="Government Endpoint URL"
+                      helperText="Data will be forwarded here in real-time"
+                      fullWidth
+                    />
+                  )}
                 </>
               )}
               <Button variant="outlined" color="primary" onClick={() => setShowQr(true)}>

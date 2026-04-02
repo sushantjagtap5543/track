@@ -86,8 +86,9 @@ app.use(express.json({
   verify: (req, res, buf) => {
     // Hidden character detection for debugging
     const rawBody = buf.toString();
-    if (rawBody.includes('\r\n')) {
-       // Optional: Log or handle CRLF issues
+    req.rawBody = buf; // ✅ S99-STABLE: Store raw buffer for proxy relaying
+    if (rawBody.startsWith('{') && process.env.NODE_ENV !== 'production') {
+      console.log(`[RawBody Audit] Content (Hex): ${buf.toString('hex').slice(0, 40)}...`);
     }
   }
 }));
@@ -145,6 +146,15 @@ app.use('/api/reports', require('./src/routes/reports'));
 app.use('/api/geosurepath', require('./src/routes/geosurepath'));
 app.use('/api/notifications', require('./src/routes/notifications'));
 app.use('/api/webhooks', require('./src/routes/webhooks'));
+
+// ✅ SOVEREIGN REDIRECTOR: Catch all unhandled /api calls and funnel them to the Traccar Proxy
+// This ensures that the Traccar-Web frontend works perfectly without manual URL prefixing.
+app.all('/api/*', (req, res, next) => {
+  // If it reached here, it means no native SaaS route matched it.
+  // We rewrite the URL internally so the geosurepath router can handle it.
+  req.url = req.url.replace('/api/', '/');
+  return require('./src/routes/geosurepath')(req, res, next);
+});
 
 // --- Global Error Handler ---
 // eslint-disable-next-line no-unused-vars

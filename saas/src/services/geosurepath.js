@@ -355,7 +355,7 @@ const getAllLatestPositions = async () => {
     if (!response.ok) return [];
     const data = await response.json();
     
-    await redis.setex(CACHE_KEY, 5, JSON.stringify(data));
+    await redis.setex(CACHE_KEY, 10, JSON.stringify(data));
     return data;
 
   } catch (error) {
@@ -414,9 +414,29 @@ const getEvents = async (deviceId, from, to) => {
     return response.json();
 };
 
+const syncDeviceAttributes = async (deviceId, attributes) => {
+  await ensureSession();
+  const device = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/devices/${deviceId}`, {
+    headers: getAuthHeaders()
+  }).then(res => res.json());
+
+  const updatedAttributes = { ...device.attributes, ...attributes };
+  return updateDevice(deviceId, { attributes: updatedAttributes });
+};
+
+const getAllUsers = async () => {
+  await ensureSession();
+  const response = await fetchWithSessionRefresh(`${GEOSUREPATH_URL}/api/users`, {
+    headers: getAuthHeaders()
+  });
+  if (!response.ok) return [];
+  return response.json();
+};
+
 module.exports = {
   createUser,
   getUser,
+  getAllUsers, // ✅ NEW
   getUserByEmail,
   getEvents,
   updateUser,
@@ -432,6 +452,7 @@ module.exports = {
   getAllLatestPositions,
   loginUser,
   updateDevice,
+  syncDeviceAttributes,
   setSession,
   getAuthHeaders,
   ensureSession,

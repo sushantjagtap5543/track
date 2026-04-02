@@ -24,10 +24,6 @@ import {
   TableRow,
   Paper,
 } from '@mui/material';
-import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
-import GppBadIcon from '@mui/icons-material/GppBad';
-import LockPersonIcon from '@mui/icons-material/LockPerson';
-import PaymentIcon from '@mui/icons-material/Payment';
 import { motion } from 'framer-motion';
 import CountryFlag from 'react-country-flag';
 import { makeStyles } from 'tss-react/mui';
@@ -50,7 +46,6 @@ import {
 } from '../common/components/NativeInterface';
 import { useCatch } from '../reactHelper';
 import fetchOrThrow from '../common/util/fetchOrThrow';
-import HardlockPaymentView from './HardlockPaymentView';
 import QrCodeDialog from '../common/components/QrCodeDialog';
 
 const useStyles = makeStyles()((theme) => ({
@@ -238,7 +233,6 @@ const LoginPage = () => {
   const [mfaRequired, setMfaRequired] = useState(false);
   const [mfaToken, setMfaToken] = useState('');
   const [mfaLoading, setMfaLoading] = useState(false);
-  const [hardlocked, setHardlocked] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' });
 
   // Registration explicitly enabled as per user request to restore functionality
@@ -257,12 +251,6 @@ const LoginPage = () => {
 
   const [announcementShown, setAnnouncementShown] = useState(false);
   const [bill, setBill] = useState(null);
-
-  useEffect(() => {
-    if (location.state?.hardlocked) {
-        setHardlocked(true);
-    }
-  }, [location]);
 
   const announcement = useSelector((state) => state.session.server.announcement);
 
@@ -294,14 +282,6 @@ const LoginPage = () => {
           localStorage.setItem('saas_role', saasData.user.role);
           localStorage.setItem('saas_user', JSON.stringify(saasData.user));
         }
-
-        /* 
-        if (saasData.isHardlocked) {
-            setHardlocked(true);
-            setLoading(false);
-            return;
-        }
-        */
 
         const traccarRes = await fetch('/api/session');
         if (traccarRes.ok) {
@@ -348,14 +328,6 @@ const LoginPage = () => {
           localStorage.setItem('saas_role', saasData.user.role);
           localStorage.setItem('saas_user', JSON.stringify(saasData.user));
         }
-
-        /*
-        if (saasData.isHardlocked) {
-            setHardlocked(true);
-            setMfaLoading(false);
-            return;
-        }
-        */
 
         const traccarRes = await fetch('/api/session');
         if (traccarRes.ok) {
@@ -465,166 +437,149 @@ const LoginPage = () => {
         )}
       </div>
 
-      {hardlocked ? (
-        <HardlockPaymentView 
-          onLogout={() => {
-            setHardlocked(false);
-            localStorage.clear();
-          }}
-          onSuccess={() => {
-            setHardlocked(false);
-            navigate('/', { replace: true });
-          }}
-        />
-      ) : (
-        <>
-          <motion.div 
-            className={classes.titleSection}
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Typography className={classes.welcomeText} sx={{ fontSize: '3rem', mb: 1 }}>GeoSurePath Enterprise</Typography>
-            <Typography className={classes.subText} sx={{ fontSize: '1.2rem', opacity: 0.8, letterSpacing: '0.5px' }}>
-              Advanced Fleet Intelligence  Global Access Portal
-            </Typography>
+      <motion.div 
+        className={classes.titleSection}
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
+        <Typography className={classes.welcomeText} sx={{ fontSize: '3rem', mb: 1 }}>GeoSurePath Enterprise</Typography>
+        <Typography className={classes.subText} sx={{ fontSize: '1.2rem', opacity: 0.8, letterSpacing: '0.5px' }}>
+          Advanced Fleet Intelligence  Global Access Portal
+        </Typography>
+      </motion.div>
+
+      <form className={classes.container} onSubmit={(e) => handleLogin(e)}>
+          <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
+            <TextField
+              required
+              fullWidth
+              error={failed}
+              label="Email Address"
+              name="email"
+              value={email}
+              autoComplete="email"
+              autoFocus={!email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={classes.input}
+            />
           </motion.div>
 
-          <form className={classes.container} onSubmit={(e) => handleLogin(e)}>
-              <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
-                <TextField
-                  required
-                  fullWidth
-                  error={failed}
-                  label="Email Address"
-                  name="email"
-                  value={email}
-                  autoComplete="email"
-                  autoFocus={!email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={classes.input}
-                />
-              </motion.div>
-
-              <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
-                <TextField
-                  required
-                  fullWidth
-                  error={failed}
-                  label={t('loginPassword')}
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  autoComplete="current-password"
-                  className={classes.input}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowPassword(!showPassword)}
-                          edge="end"
-                          size="small"
-                          sx={{ color: '#ffffff' }}
-                        >
-                          {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-                {password && (
-                  <Box sx={{ mt: 1, mb: 1, px: 2 }}>
-                      <Box sx={{ display: 'flex', gap: 0.5, height: 4 }}>
-                          {[1, 2, 3, 4].map((i) => (
-                              <Box key={i} sx={{ flex: 1, bgcolor: i <= (password.length / 3) ? (password.length >= 8 ? '#10b981' : '#f59e0b') : 'rgba(255,255,255,0.1)', borderRadius: 2 }} />
-                          ))}
-                      </Box>
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.65rem', display: 'block', mt: 0.5 }}>
-                          {password.length < 8 ? 'Weak Security Profile' : 'Enterprise Strength Verified'}
-                      </Typography>
-                  </Box>
-                )}
-              </motion.div>
-
-              {codeEnabled && (
-                <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.6 }}>
-                  <TextField
-                    required
-                    fullWidth
-                    error={failed}
-                    label={t('loginTotpCode')}
-                    name="code"
-                    value={code}
-                    type="number"
-                    onChange={(e) => setCode(e.target.value)}
-                    className={classes.input}
-                  />
-                </motion.div>
-              )}
-
-              <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.65 }}>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  fullWidth
-                  disabled={loading}
-                  className={classes.loginButton}
-                >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Enter Platform Dashboard'}
-                </Button>
-              </motion.div>
-
-              {mfaRequired && (
-                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring' }}>
-                  <Box sx={{ mt: 2, p: 3, background: 'rgba(59, 130, 246, 0.1)', backdropFilter: 'blur(10px)', borderRadius: '24px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-                    <Typography variant="subtitle2" sx={{ color: '#fff', mb: 2, fontWeight: 800, textAlign: 'center' }}>
-                      Two-Factor Authentication Required
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      label="6-Digit Verification Code"
-                      value={mfaToken}
-                      onChange={(e) => setMfaToken(e.target.value)}
-                      className={classes.input}
-                      sx={{ mb: 2 }}
-                    />
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      onClick={handleVerifyMfa}
-                      disabled={mfaLoading || mfaToken.length < 6}
-                      sx={{ height: 56, borderRadius: '16px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', fontWeight: 800, boxShadow: '0 10px 25px rgba(16, 185, 129, 0.4)' }}
+          <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
+            <TextField
+              required
+              fullWidth
+              error={failed}
+              label={t('loginPassword')}
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              className={classes.input}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                      size="small"
+                      sx={{ color: '#ffffff' }}
                     >
-                      {mfaLoading ? <CircularProgress size={24} color="inherit" /> : 'Verify & Continue'}
-                    </Button>
+                      {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+            {password && (
+              <Box sx={{ mt: 1, mb: 1, px: 2 }}>
+                  <Box sx={{ display: 'flex', gap: 0.5, height: 4 }}>
+                      {[1, 2, 3, 4].map((i) => (
+                          <Box key={i} sx={{ flex: 1, bgcolor: i <= (password.length / 3) ? (password.length >= 8 ? '#10b981' : '#f59e0b') : 'rgba(255,255,255,0.1)', borderRadius: 2 }} />
+                      ))}
                   </Box>
-                </motion.div>
-              )}
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.65rem', display: 'block', mt: 0.5 }}>
+                      {password.length < 8 ? 'Weak Security Profile' : 'Enterprise Strength Verified'}
+                  </Typography>
+              </Box>
+            )}
+          </motion.div>
 
-              {/* Billing button removed as per user request to simplify login flow */}
+          {codeEnabled && (
+            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.6 }}>
+              <TextField
+                required
+                fullWidth
+                error={failed}
+                label={t('loginTotpCode')}
+                name="code"
+                value={code}
+                type="number"
+                onChange={(e) => setCode(e.target.value)}
+                className={classes.input}
+              />
+            </motion.div>
+          )}
 
-              {registrationEnabled && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }} style={{ textAlign: 'center', marginTop: '16px' }}>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
-                        Need an account? <Box component="span" sx={{ color: '#3b82f6', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => navigate('/register')}>Request Enterprise Provisioning</Box>
-                    </Typography>
-                </motion.div>
-              )}
-              
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }} style={{ textAlign: 'center', marginTop: '8px' }}>
-                <Link
-                    onClick={() => navigate('/reset-password')}
-                    sx={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'none', '&:hover': { color: '#fff' } }}
-                    component="button"
-                  >
-                    Forgot Password? Reset securely
-                  </Link>
-              </motion.div>
+          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.65 }}>
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              disabled={loading}
+              className={classes.loginButton}
+            >
+              {loading ? <CircularProgress size={24} color="inherit" /> : 'Enter Platform Dashboard'}
+            </Button>
+          </motion.div>
 
+          {mfaRequired && (
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring' }}>
+              <Box sx={{ mt: 2, p: 3, background: 'rgba(59, 130, 246, 0.1)', backdropFilter: 'blur(10px)', borderRadius: '24px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ color: '#fff', mb: 2, fontWeight: 800, textAlign: 'center' }}>
+                  Two-Factor Authentication Required
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="6-Digit Verification Code"
+                  value={mfaToken}
+                  onChange={(e) => setMfaToken(e.target.value)}
+                  className={classes.input}
+                  sx={{ mb: 2 }}
+                />
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={handleVerifyMfa}
+                  disabled={mfaLoading || mfaToken.length < 6}
+                  sx={{ height: 56, borderRadius: '16px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', fontWeight: 800, boxShadow: '0 10px 25px rgba(16, 185, 129, 0.4)' }}
+                >
+                  {mfaLoading ? <CircularProgress size={24} color="inherit" /> : 'Verify & Continue'}
+                </Button>
+              </Box>
+            </motion.div>
+          )}
 
-          </form>
-        </>
-      )}
+          {/* Billing button removed as per user request to simplify login flow */}
+
+          {registrationEnabled && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }} style={{ textAlign: 'center', marginTop: '16px' }}>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
+                    Need an account? <Box component="span" sx={{ color: '#3b82f6', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => navigate('/register')}>Request Enterprise Provisioning</Box>
+                </Typography>
+            </motion.div>
+          )}
+          
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }} style={{ textAlign: 'center', marginTop: '8px' }}>
+            <Link
+                onClick={() => navigate('/reset-password')}
+                sx={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'none', '&:hover': { color: '#fff' } }}
+                component="button"
+              >
+                Forgot Password? Reset securely
+              </Link>
+          </motion.div>
+      </form>
 
       <QrCodeDialog open={showQr} onClose={() => setShowQr(false)} />
 

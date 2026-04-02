@@ -5,9 +5,10 @@
 // ✅ FIX 2: Use shared Prisma singleton to avoid connection pool exhaustion.
 
 const prisma = require('../lib/prisma');
+const geosurepathService = require('../services/geosurepath');
 
-// Fetch trip reports for a device from GeoSurePath
-exports.getTrips = async (req, res) => {
+// Helper for proxying report requests with security check
+const proxyReport = async (req, res, reportType) => {
   const { deviceId, from, to } = req.query;
 
   if (!deviceId || !from || !to) {
@@ -19,63 +20,28 @@ exports.getTrips = async (req, res) => {
     const vehicle = await prisma.vehicle.findFirst({
       where: { geosurepathDeviceId: parseInt(deviceId), userId: req.user.userId }
     });
-    if (!vehicle) return res.status(403).json({ error: 'Access denied to this device' });
+    if (!vehicle && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Access denied to this device' });
+    }
 
-    const response = await fetch(
-      `${process.env.GEOSUREPATH_URL}/api/reports/trips?deviceId=${deviceId}&from=${from}&to=${to}`,
-      {
-        headers: {
-          'Authorization':
-            'Basic ' +
-            Buffer.from(
-              `${process.env.GEOSUREPATH_ADMIN_EMAIL}:${process.env.GEOSUREPATH_ADMIN_PASSWORD}`
-            ).toString('base64')
-        }
-      }
-    );
-
-    if (!response.ok) throw new Error(`GeoSurePath returned ${response.status}`);
-
-    const trips = await response.json();
-    res.json(trips);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to generate trip report', details: error.message });
-  }
-};
-
-// Fetch summary report for a device from GeoSurePath
-exports.getSummary = async (req, res) => {
-  const { deviceId, from, to } = req.query;
-
-  if (!deviceId || !from || !to) {
-    return res.status(400).json({ error: 'deviceId, from, and to query parameters are required.' });
-  }
-
-  try {
-    // Security check: ensure deviceId belongs to the requesting user
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { geosurepathDeviceId: parseInt(deviceId), userId: req.user.userId }
+    const url = `${process.env.GEOSUREPATH_URL}/api/reports/${reportType}?deviceId=${deviceId}&from=${from}&to=${to}`;
+    const response = await geosurepathService.fetchWithSessionRefresh(url, {
+      headers: geosurepathService.getAuthHeaders()
     });
-    if (!vehicle) return res.status(403).json({ error: 'Access denied to this device' });
-
-    const response = await fetch(
-      `${process.env.GEOSUREPATH_URL}/api/reports/summary?deviceId=${deviceId}&from=${from}&to=${to}`,
-      {
-        headers: {
-          'Authorization':
-            'Basic ' +
-            Buffer.from(
-              `${process.env.GEOSUREPATH_ADMIN_EMAIL}:${process.env.GEOSUREPATH_ADMIN_PASSWORD}`
-            ).toString('base64')
-        }
-      }
-    );
 
     if (!response.ok) throw new Error(`GeoSurePath returned ${response.status}`);
 
-    const summary = await response.json();
-    res.json(summary);
+    const data = await response.json();
+    res.json(data);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to generate summary report', details: error.message });
+    res.status(500).json({ error: `Failed to generate ${reportType} report`, details: error.message });
   }
 };
+
+exports.getTrips = (req, res) => proxyReport(req, res, 'trips');
+
+exports.getSummary = (req, res) => proxyReport(req, res, 'summary');
+exports.getCombined = (req, res) => proxyReport(req, res, 'combined');
+exports.getEvents = (req, res) => proxyReport(req, res, 'events');
+exports.getStops = (req, res) => proxyReport(req, res, 'stops');
+exports.getRoute = (req, res) => proxyReport(req, res, 'route');

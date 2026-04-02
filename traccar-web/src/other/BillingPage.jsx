@@ -67,6 +67,11 @@ const BillingPage = () => {
   const [ledger, setLedger] = useState([]);
   const [payments, setPayments] = useState([]);
   const [dashboardOverview, setDashboardOverview] = useState(null);
+  const [analytics, setAnalytics] = useState({});
+  const [systemHealth, setSystemHealth] = useState({});
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [tabLoading, setTabLoading] = useState({});
+  
   const [adminSettings, setAdminSettings] = useState({
     razorpayId: '',
     razorpaySecret: '',
@@ -78,21 +83,39 @@ const BillingPage = () => {
   });
 
   const fetchAdminData = useCallback(async (targetTab = tab) => {
+    setTabLoading(prev => ({ ...prev, [targetTab]: true }));
     try {
         if (targetTab === 0) {
-            const res = await API('/api/admin/overview');
-            if (res.ok) setDashboardOverview(await res.json());
+            const res = await API('/api/billing/dashboard-overview');
+            if (res.ok) {
+                const data = await res.json();
+                setDashboardOverview(data);
+                setSystemHealth(data.system);
+            }
         } else if (targetTab === 1) {
-            const res = await API('/api/admin/ledger');
-            if (res.ok) setLedger((await res.json()).users);
+            const res = await API('/api/billing/ledger');
+            if (res.ok) setLedger((await res.json()).data);
         } else if (targetTab === 2) {
-            const res = await API('/api/admin/payments');
-            if (res.ok) setPayments((await res.json()).payments);
+            const res = await API('/api/billing/admin/payments');
+            if (res.ok) setPayments((await res.json()).data);
+        } else if (targetTab === 3) {
+            const res = await API('/api/admin/audit-logs');
+            if (res.ok) setAuditLogs((await res.json()).logs);
+        } else if (targetTab === 4) {
+            const res = await API('/api/billing/admin-analytics');
+            if (res.ok) setAnalytics(await res.json());
+        } else if (targetTab === 5 || targetTab === 9) {
+            const res = await API('/api/billing/dashboard-overview');
+            if (res.ok) {
+                const data = await res.json();
+                setSystemHealth(data.system);
+            }
         }
     } catch (e) {
         console.error('Sync error', e);
     } finally {
         setLastSync(new Date());
+        setTabLoading(prev => ({ ...prev, [targetTab]: false }));
     }
   }, [tab]);
 
@@ -150,13 +173,13 @@ const BillingPage = () => {
         {admin && !mirroringUser ? (
           <AdminBillingView 
             {...{
-              tab, setTab, fetchAdminData, user, ADMIN_TABS, analytics: {}, fmtCurrency, fmtDate,
+              tab, setTab, fetchAdminData, user, ADMIN_TABS, analytics, fmtCurrency, fmtDate,
               payments, ledgerPage: 1, setLedgerPage: () => {}, ledgerMeta: {}, paymentSearch: '',
-              setPaymentSearch: () => {}, auditLogs: [], filteredAudit: [], systemHealth: {},
+              setPaymentSearch: () => {}, auditLogs, filteredAudit: auditLogs, systemHealth,
               adminSettings, setAdminSettings, showFeedback: (m) => alert(m), 
               setSelectedInvoice: (i) => setSelectedInvoice(i), setPlanDialog: (p) => {},
-              setOnboardDialog: (o) => {}, handleSyncAll: () => {}, handleLogout, lastSync, 
-              exportToCsv, filteredLedger: ledger, tabLoading: {}
+              setOnboardDialog: (o) => {}, handleSyncAll: () => fetchAdminData(0), handleLogout, lastSync, 
+              exportToCsv, filteredLedger: ledger, tabLoading, dashboardOverview
             }} 
           />
         ) : (

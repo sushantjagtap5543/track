@@ -102,6 +102,13 @@ const MainPage = () => {
     setFilteredPositions,
   );
 
+  // ✅ PLATINUM PERFECTION: Auto-select first device for default popup
+  useEffect(() => {
+    if (!selectedDeviceId && filteredDevices.length > 0) {
+      dispatch(devicesActions.selectId(filteredDevices[0].id));
+    }
+  }, [selectedDeviceId, filteredDevices, dispatch]);
+
   return (
     <div className={classes.root} style={{ overflow: 'hidden', height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {desktop && (

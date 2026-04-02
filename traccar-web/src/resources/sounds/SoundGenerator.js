@@ -4,11 +4,13 @@
  * Generates distinct, professional notification tones using the Web Audio API.
  * Each sound is carefully designed for its purpose:
  *
- *   - notification:  Gentle two-note chime for general events (geofence, ignition, etc.)
- *   - alert:         Urgent triple-pulse for alarms (SOS, overspeed, vibration, etc.)
- *   - warning:       Descending tone for warnings (low battery, power off, fault, etc.)
- *   - success:       Ascending major-third for positive events (device online, geofence enter)
- *   - info:          Single soft ping for informational events (status, maintenance, etc.)
+ *   - notification:  Gentle two-note chime for general events
+ *   - alert:         Urgent triple-pulse for alarms
+ *   - warning:       Descending tone for warnings
+ *   - success:       Ascending major-third for positive events
+ *   - info:          Single soft ping for info
+ *   - ignitionOn:    Bright ascending pulse (C5 -> G5)
+ *   - ignitionOff:   Deep descending pulse (G4 -> C4)
  */
 
 let audioContext = null;
@@ -123,6 +125,26 @@ export const playInfo = () => {
   playTone(ctx, ctx.destination, 783.99, now, 0.25, 'sine', 0.18); // G5
 };
 
+/**
+ *  Ignition ON  Bright ascending pulse (C5 -> G5)
+ */
+export const playIgnitionOn = () => {
+  const ctx = getAudioContext();
+  const now = ctx.currentTime;
+  playTone(ctx, ctx.destination, 523.25, now, 0.1, 'sine', 0.25); // C5
+  playTone(ctx, ctx.destination, 783.99, now + 0.1, 0.2, 'sine', 0.2); // G5
+};
+
+/**
+ *  Ignition OFF  Deep descending pulse (G4 -> C4)
+ */
+export const playIgnitionOff = () => {
+  const ctx = getAudioContext();
+  const now = ctx.currentTime;
+  playTone(ctx, ctx.destination, 392.00, now, 0.12, 'sine', 0.25); // G4
+  playTone(ctx, ctx.destination, 261.63, now + 0.12, 0.25, 'sine', 0.2); // C4
+};
+
 //  Event-to-Sound Mapping 
 
 const ALERT_EVENTS = new Set(['alarm']);
@@ -211,7 +233,17 @@ export const playEventSound = (event) => {
     return;
   }
 
-  // 3. Status level
+  // 3. Ignition status
+  if (type === 'ignitionOn') {
+    playIgnitionOn();
+    return;
+  }
+  if (type === 'ignitionOff') {
+    playIgnitionOff();
+    return;
+  }
+
+  // 4. Status level
   if (type === 'deviceOnline' || type === 'deviceOffline') {
     playDigitalChime();
     return;

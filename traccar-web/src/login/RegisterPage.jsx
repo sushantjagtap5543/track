@@ -23,6 +23,9 @@ import { useCatch, useEffectAsync } from '../reactHelper';
 import { sessionActions } from '../store';
 import BackIcon from '@mui/icons-material/ArrowBack';
 import fetchOrThrow from '../common/util/fetchOrThrow';
+import { motion } from 'framer-motion';
+import VolumeUpIcon from '@mui/icons-material/VolumeUp';
+import { playDigitalChime } from '../resources/sounds/SoundGenerator';
 
 const useStyles = makeStyles()((theme) => ({
   container: {
@@ -139,6 +142,8 @@ const RegisterPage = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  const [soundChecked, setSoundChecked] = useState(false);
+
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   // eslint-disable-next-line no-unused-vars
@@ -213,7 +218,13 @@ const RegisterPage = () => {
         <BackIcon />
       </IconButton>
 
-      <form className={classes.container} onSubmit={handleSubmit}>
+      <motion.form 
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className={classes.container} 
+        onSubmit={handleSubmit}
+      >
         <div className={classes.header}>
           <Typography className={classes.title}>{t('loginRegister')}</Typography>
           <Typography className={classes.subText}>
@@ -289,7 +300,7 @@ const RegisterPage = () => {
             autoComplete="new-password"
             onChange={(event) => setPassword(event.target.value)}
             className={classes.input}
-            helperText="Min. 8 chars, must include a number"
+            helperText="Min. 8 chars"
             FormHelperTextProps={{ sx: { color: 'rgba(255,255,255,0.5)', fontWeight: 600 } }}
           />
           <TextField
@@ -304,6 +315,30 @@ const RegisterPage = () => {
             onChange={(event) => setConfirmPassword(event.target.value)}
             className={classes.input}
           />
+        </Box>
+
+        {/* Platinum Sound Check */}
+        <Box 
+          sx={{ 
+            p: 2, borderRadius: '16px', background: 'rgba(255,255,255,0.05)', 
+            border: `1px solid ${soundChecked ? '#10b981' : 'rgba(255,255,255,0.1)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+          }}
+        >
+          <Box>
+            <Typography variant="body2" sx={{ color: '#fff', fontWeight: 800 }}>Enable High-Fidelity Alerts</Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>One-tap to unlock premium security tones</Typography>
+          </Box>
+          <Button 
+            size="small" 
+            variant="contained" 
+            color={soundChecked ? 'success' : 'primary'}
+            onClick={() => { playDigitalChime(); setSoundChecked(true); }}
+            startIcon={<VolumeUpIcon />}
+            sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 800 }}
+          >
+            {soundChecked ? 'Ready' : 'Click to Test'}
+          </Button>
         </Box>
 
         <FormControlLabel
@@ -359,7 +394,7 @@ const RegisterPage = () => {
             </Link>
           </Typography>
         </div>
-      </form>
+      </motion.form>
 
       <Snackbar
         open={snackbarOpen}

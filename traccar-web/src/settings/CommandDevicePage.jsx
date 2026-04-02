@@ -14,8 +14,13 @@ import BaseCommandView from './components/BaseCommandView';
 import PageLayout from '../common/components/PageLayout';
 import SettingsMenu from './components/SettingsMenu';
 import { useCatch } from '../reactHelper';
-import useSettingsStyles from './common/useSettingsStyles';
 import fetchOrThrow from '../common/util/fetchOrThrow';
+import { useSelector } from 'react-redux';
+import { getSmartIgnitionCommand } from '../common/util/smartCommands';
+import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import BlockIcon from '@mui/icons-material/Block';
+import FlashOnIcon from '@mui/icons-material/FlashOn';
 
 const CommandDevicePage = () => {
   const navigate = useNavigate();
@@ -26,6 +31,18 @@ const CommandDevicePage = () => {
 
   const [savedId, setSavedId] = useState(0);
   const [item, setItem] = useState({});
+
+  const device = useSelector((state) => state.devices.items[id]);
+
+  const handleIgnition = useCatch(async (stop = true) => {
+    const command = getSmartIgnitionCommand(device, stop);
+    await fetchOrThrow('/api/commands/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(command),
+    });
+    navigate(-1);
+  });
 
   const handleSend = useCatch(async () => {
     let command;
@@ -53,7 +70,37 @@ const CommandDevicePage = () => {
       <Container maxWidth="xs" className={classes.container}>
         <Accordion defaultExpanded>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1">{t('sharedRequired')}</Typography>
+            <Typography variant="subtitle1" fontWeight={800} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <FlashOnIcon color="primary" /> One-Tap Ignition Control
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ display: 'flex', gap: 2, pb: 3 }}>
+            <Button
+              fullWidth
+              variant="contained"
+              color="error"
+              startIcon={<BlockIcon />}
+              onClick={() => handleIgnition(true)}
+              sx={{ borderRadius: '12px', fontWeight: 900, py: 1.5 }}
+            >
+              Stop Engine
+            </Button>
+            <Button
+              fullWidth
+              variant="contained"
+              color="success"
+              startIcon={<PlayArrowIcon />}
+              onClick={() => handleIgnition(false)}
+              sx={{ borderRadius: '12px', fontWeight: 900, py: 1.5 }}
+            >
+              Resume
+            </Button>
+          </AccordionDetails>
+        </Accordion>
+
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+             <Typography variant="subtitle1">{t('sharedRequired')}</Typography>
           </AccordionSummary>
           <AccordionDetails className={classes.details}>
             <BaseCommandView

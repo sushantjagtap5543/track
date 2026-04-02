@@ -185,6 +185,25 @@ const getAIInsights = async () => {
   };
 };
 
+const getDetailedLedgerStats = async () => {
+  const [regionDistribution, planCategoryDistribution] = await Promise.all([
+    prisma.user.groupBy({ by: ['region'], _count: { _all: true } }),
+    prisma.plan.groupBy({ by: ['category'], _count: { _all: true } })
+  ]);
+
+  const activeByRegion = await Promise.all(
+    regionDistribution.map(async (r) => {
+      const count = await prisma.user.count({ where: { region: r.region, isActive: true } });
+      return { region: r.region || 'GLOBAL', count };
+    })
+  );
+
+  return {
+    regions: activeByRegion,
+    categories: planCategoryDistribution.map(c => ({ category: c.category, count: c._count._all }))
+  };
+};
+
 /**
  * ✅ NEW: Engine Heartbeat & Latency Monitoring (Enterprise Sync)
  * Measures real-time synchronization health between SaaS and Tracking Engine.
@@ -199,19 +218,26 @@ const getEngineSyncHealth = async () => {
         const latency = Date.now() - start;
         
         // Check for "Orphaned" SaaS users (Users in SaaS but not in Engine)
-        const totalSaasUsers = await prisma.user.count();
-        const usersWithEngineId = await prisma.user.count({ where: { geosurepathUserId: { not: null } } });
+        const totalSaasUsers = await prisma.user.count({ where: { deletedAt: null } });
+        const usersWithEngineId = await prisma.user.count({ where: { geosurepathUserId: { not: null }, deletedAt: null } });
         const driftUsers = totalSaasUsers - usersWithEngineId;
+
+        // Check for IMEI drift
+        const saasVehicles = await prisma.vehicle.count({ where: { deletedAt: null } });
+        const traccarDevices = await geosurepathService.getAllDevices().catch(() => []);
+        const driftDevices = Math.abs(saasVehicles - traccarDevices.length);
 
         return {
             status: latency < 1000 ? 'EXCELLENT' : latency < 3000 ? 'DEGRADED' : 'CRITICAL',
             latency: `${latency}ms`,
             driftUsers,
-            isHealthy: response.ok
+            driftDevices,
+            isHealthy: response.ok,
+            engineTime: new Date().toISOString()
         };
     } catch (error) {
         return { status: 'OFFLINE', latency: 'N/A', driftUsers: -1, isHealthy: false };
     }
 };
 
-module.exports = { calculateMRR, calculateChurnRate, getSummaryStats, getAIInsights, getEngineSyncHealth };
+module.exports = { calculateMRR, calculateChurnRate, getSummaryStats, getAIInsights, getEngineSyncHealth, getDetailedLedgerStats };

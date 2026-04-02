@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container, Typography, Box, Paper, Grid, Button, Chip, CircularProgress,
   Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Tabs, Tab, TextField, InputAdornment, Tooltip, IconButton, 
-  LinearProgress, Switch, Badge
+  LinearProgress, Switch, Badge, FormControl, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, InputLabel
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ReceiptIcon from '@mui/icons-material/Receipt';
@@ -32,30 +32,67 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ContactSupportIcon from '@mui/icons-material/ContactSupport';
 import SendIcon from '@mui/icons-material/Send';
 import Skeleton from '@mui/material/Skeleton';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, 
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, PieChart, Pie 
+} from 'recharts';
 
 const STATUS_COLOR = { PAID: '#10b981', GRACE: '#f59e0b', OVERDUE: '#ef4444', ACTIVE: '#10b981', SUSPENDED: '#ef4444' };
 
-const StatCard = ({ title, value, sub, icon, color = '#3b82f6' }) => (
+const StatCard = ({ title, value, sub, icon, color = '#3b82f6', trend }) => (
   <motion.div whileHover={{ scale: 1.02, translateY: -5 }} transition={{ type: 'spring', stiffness: 300 }}>
     <Paper sx={{ 
       p: 3, 
       borderRadius: '24px', 
-      border: `1px solid ${color}22`, 
+      border: `1px solid ${color}33`, 
       position: 'relative', 
       overflow: 'hidden', 
-      background: `linear-gradient(135deg, #fff 0%, ${color}05 100%)`,
-      boxShadow: `0 10px 30px ${color}11` 
+      background: `linear-gradient(135deg, rgba(255,255,255,0.9) 0%, ${color}10 100%)`,
+      backdropFilter: 'blur(10px)',
+      boxShadow: `0 10px 40px ${color}15`,
+      transition: 'all 0.3s ease'
     }}>
-      <Box sx={{ position: 'absolute', top: -10, right: -10, fontSize: 100, opacity: 0.08, color, transform: 'rotate(-10deg)' }}>{icon}</Box>
-      <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: `${color}15`, color, display: 'inline-flex', mb: 2, boxShadow: `0 4px 12px ${color}22` }}>
-        {icon}
+      <Box sx={{ position: 'absolute', top: -15, right: -15, fontSize: 110, opacity: 0.1, color, transform: 'rotate(-15deg)' }}>{icon}</Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+        <Box sx={{ p: 1.5, borderRadius: '16px', bgcolor: `${color}20`, color, display: 'inline-flex', boxShadow: `0 8px 16px ${color}15` }}>
+          {icon}
+        </Box>
+        {trend && (
+           <Chip 
+             label={trend} 
+             size="small" 
+             sx={{ 
+               fontWeight: 900, 
+               fontSize: '0.7rem', 
+               bgcolor: trend.includes('+') ? '#dcfce7' : '#fee2e2', 
+               color: trend.includes('+') ? '#15803d' : '#b91c1c',
+               border: 'none'
+             }} 
+           />
+        )}
       </Box>
-      <Typography variant="h4" fontWeight={950} sx={{ color, mb: 0.5, letterSpacing: '-1px' }}>{value}</Typography>
-      <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#64748b' }}>{title}</Typography>
-      {sub && <Typography variant="caption" sx={{ opacity: 0.6, fontWeight: 700, display: 'block', mt: 1 }}>{sub}</Typography>}
+      <Typography variant="h4" fontWeight={950} sx={{ color, mb: 0.5, letterSpacing: '-1.5px', textShadow: `0 2px 4px ${color}10` }}>{value}</Typography>
+      <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#475569', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.7rem' }}>{title}</Typography>
+      {sub && <Typography variant="caption" sx={{ opacity: 0.7, fontWeight: 700, display: 'block', mt: 1, color: '#64748b' }}>{sub}</Typography>}
     </Paper>
   </motion.div>
+);
+
+const ChartCard = ({ title, children, icon, color = '#3b82f6' }) => (
+  <Paper sx={{ p: 4, borderRadius: '32px', height: '100%', boxShadow: '0 10px 50px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9' }}>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+      <Typography variant="h6" fontWeight={950} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: '#1e293b' }}>
+        <Box sx={{ color }}>{icon}</Box> {title}
+      </Typography>
+      <IconButton size="small" sx={{ bgcolor: '#f8fafc' }}><RefreshIcon fontSize="small" /></IconButton>
+    </Box>
+    <Box sx={{ height: 320, width: '100%' }}>
+      <ResponsiveContainer width="100%" height="100%">
+        {children}
+      </ResponsiveContainer>
+    </Box>
+  </Paper>
 );
 
 const AdminBillingView = (props) => {
@@ -68,17 +105,50 @@ const AdminBillingView = (props) => {
     handleSyncAll = () => {}, handleToggleBypass = () => {}, handleImpersonate = () => {}, handleSyncUser = () => {}, 
     handleAdjustExpiry = () => {}, handleToggleStatus = () => {}, handleDeleteUser = () => {}, tabLoading = {}, 
     filteredLedger = [], statusFilter = 'ALL', setStatusFilter = () => {}, setEditingUser = () => {}, setEditForm = () => {}, 
-    dashboardOverview = {}, setOnboardWizardOpen = () => {}, plans = [], handleSaveSettings = () => {}, 
+    dashboardOverview = {}, setOnboardWizardOpen = () => {}, handleSaveSettings = () => {}, 
     setMaintenanceMode = () => {}, maintenanceMode = false, paymentsMeta = {}, paymentsPage = 1, setPaymentsPage = () => {}, 
     pendingUpgrades = [], filteredPayments = [], searchQuery = '', setSearchQuery = () => {}, exportToCsv = () => {}, handleBulkSettle = () => {}, handleSettleCash = () => {}, supportMessage = '', setSupportMessage = () => {}
   } = props;
 
-  // Internal UI state for search/filters if parent doesn't provide them
-  const [localSearch, setLocalSearch] = React.useState('');
-  const [localStatus, setLocalStatus] = React.useState('ALL');
-  
-  const displaySearch = searchQuery || localSearch;
-  const setDisplaySearch = setSearchQuery || setLocalSearch;
+  // New states for Plan Management
+  const [plans, setPlans] = useState([]);
+  const [planChangeDialog, setPlanChangeDialog] = useState(false);
+  const [selectedUserForPlan, setSelectedUserForPlan] = useState(null);
+  const [newPlanId, setNewPlanId] = useState('');
+
+  const fetchPlans = async () => {
+    try {
+      const resp = await fetch('/api/admin/plans');
+      const data = await resp.json();
+      setPlans(data);
+    } catch (e) {
+      console.error('Failed to fetch plans', e);
+    }
+  };
+
+  const handlePlanChange = async () => {
+    if (!selectedUserForPlan || !newPlanId) return;
+    try {
+      const resp = await fetch('/api/admin/user-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: selectedUserForPlan.id, planId: newPlanId })
+      });
+      if (resp.ok) {
+        showFeedback('Plan updated successfully. Future bills will include 18% GST.', 'success');
+        setPlanChangeDialog(false);
+        fetchAdminData(1); // Refresh ledger
+      } else {
+        showFeedback('Failed to adjust subscription tier.', 'error');
+      }
+    } catch (e) {
+      showFeedback('Network error during plan transition.', 'error');
+    }
+  };
+
+  useEffect(() => {
+    if (tab === 1) fetchPlans();
+  }, [tab]);
 
   return (
     <Box>
@@ -93,55 +163,6 @@ const AdminBillingView = (props) => {
         </Tabs>
       </Paper>
 
-      {tab === 4 && (
-          <Box>
-            <Grid container spacing={3} sx={{ mb: 4 }}>
-              <Grid item xs={12} md={3}><StatCard title="ARPD Index" value={fmtCurrency(analytics?.arpd || 0)} sub="Avg Revenue Per Device" icon={<AttachMoneyIcon />} color="#8b5cf6" /></Grid>
-              <Grid item xs={12} md={3}><StatCard title="Churn Density" value="1.2%" sub="Subscriber Retention" icon={<PeopleIcon />} color="#ec4899" /></Grid>
-              <Grid item xs={12} md={3}><StatCard title="Collection Pulse" value="98.4%" sub="SaaS Ledger Sync Rate" icon={<SyncIcon />} color="#06b6d4" /></Grid>
-              <Grid item xs={12} md={3}><StatCard title="Projected LTV" value={fmtCurrency(45000)} sub="Client Lifetime Value" icon={<TrendingUpIcon />} color="#10b981" /></Grid>
-            </Grid>
-
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={8}>
-                  <Paper sx={{ p: 4, borderRadius: '24px', height: '100%', boxShadow: '0 10px 40px rgba(0,0,0,0.05)' }}>
-                      <Typography variant="h6" fontWeight={950} sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1.5 }}><BarChartIcon color="primary" /> Plan Popularity & Distribution</Typography>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
-                          {[
-                              { name: 'Elite Enterprise', count: 45, color: '#3b82f6', percent: 65 },
-                              { name: 'Pro Fleet', count: 22, color: '#8b5cf6', percent: 45 },
-                              { name: 'Standard Tracker', count: 12, color: '#06b6d4', percent: 25 },
-                              { name: 'Basic (Legacy)', count: 5, color: '#64748b', percent: 12 }
-                          ].map((p, i) => (
-                              <Box key={i}>
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                      <Typography variant="body2" fontWeight={800}>{p.name}</Typography>
-                                      <Typography variant="body2" fontWeight={900}>{p.count} Units</Typography>
-                                  </Box>
-                                  <LinearProgress variant="determinate" value={p.percent} sx={{ height: 8, borderRadius: 4, bgcolor: `${p.color}15`, '& .MuiLinearProgress-bar': { bgcolor: p.color, borderRadius: 4 } }} />
-                              </Box>
-                          ))}
-                      </Box>
-                  </Paper>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                  <Paper sx={{ p: 4, borderRadius: '24px', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
-                      <Typography variant="h6" fontWeight={950} sx={{ mb: 2 }}>Growth Analysis</Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.6, mb: 3 }}>Based on current trajectory, your revenue is expected to grow by 14% next month.</Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                          <TrendingUpIcon sx={{ color: '#10b981', fontSize: 40 }} />
-                          <Box>
-                              <Typography variant="h4" fontWeight={900}>+12.4k</Typography>
-                              <Typography variant="caption" sx={{ opacity: 0.5 }}>Estimated Monthly Delta</Typography>
-                          </Box>
-                      </Box>
-                  </Paper>
-              </Grid>
-            </Grid>
-          </Box>
-      )}
-
-      {/* Overview, Ledger, Payments Tabs... */}
       <Box sx={{ position: 'relative', minHeight: '400px' }}>
         {tabLoading[tab] && (
           <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(241, 245, 249, 0.7)', borderRadius: '20px', backdropFilter: 'blur(2px)' }}>
@@ -158,12 +179,39 @@ const AdminBillingView = (props) => {
               <Grid item xs={12} sm={6} md={3}><StatCard title="Pending Upgrades" value={dashboardOverview?.alerts?.overdueCount || 0} sub="Immediate action required" icon={<WarningIcon />} color="#ef4444" /></Grid>
             </Grid>
             
-            <Box sx={{ mb: 4, p: 3, borderRadius: '24px', bgcolor: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #3b82f622', boxShadow: '0 4px 12px #3b82f608' }}>
+            <Box sx={{ 
+              mb: 4, p: 4, borderRadius: '32px', 
+              background: 'linear-gradient(90deg, #f8fafc 0%, #eff6ff 100%)', 
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+              border: '1px solid #3b82f622', boxShadow: '0 10px 30px rgba(59,130,246,0.05)',
+              position: 'relative', overflow: 'hidden'
+            }}>
+              <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 6, bgcolor: '#3b82f6' }} />
               <Box>
-                <Typography variant="subtitle1" fontWeight={900}>Universal Synchronization Engine</Typography>
-                <Typography variant="caption" sx={{ opacity: 0.6 }}>Force a bit-perfect reconciliation between the SaaS Ledger and the GPS Tracking Engine.</Typography>
+                <Typography variant="h6" fontWeight={950} sx={{ color: '#1e293b', mb: 0.5 }}>Universal Synchronization Pulse</Typography>
+                <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <SyncIcon sx={{ fontSize: 14 }} /> Engine Drift: <Box component="span" sx={{ color: (dashboardOverview?.system?.sync?.driftUsers || 0) > 0 ? '#ef4444' : '#10b981' }}>{dashboardOverview?.system?.sync?.driftUsers || 0} Users</Box>
+                  </Typography>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <DirectionsCarIcon sx={{ fontSize: 14 }} /> Device Drift: <Box component="span" sx={{ color: (dashboardOverview?.system?.sync?.driftDevices || 0) > 0 ? '#ef4444' : '#10b981' }}>{dashboardOverview?.system?.sync?.driftDevices || 0} IMEIs</Box>
+                  </Typography>
+                </Box>
               </Box>
-              <Button variant="contained" startIcon={<SyncIcon />} onClick={handleSyncAll} sx={{ borderRadius: '12px', fontWeight: 900 }}>Master Platform Sync</Button>
+              <Button 
+                variant="contained" 
+                startIcon={<SyncIcon />} 
+                onClick={handleSyncAll} 
+                sx={{ 
+                  borderRadius: '16px', 
+                  fontWeight: 900, 
+                  px: 4, py: 1.5,
+                  boxShadow: '0 8px 20px rgba(59,130,246,0.2)',
+                  '&:hover': { boxShadow: '0 12px 25px rgba(59,130,246,0.3)' }
+                }}
+              >
+                Master Sync
+              </Button>
             </Box>
 
             <Grid container spacing={3}>
@@ -242,7 +290,7 @@ const AdminBillingView = (props) => {
                 <Table stickyHeader size="small">
                   <TableHead>
                     <TableRow sx={{ bgcolor: '#f8fafc' }}>
-                      {['Client', 'Devices', 'Plan / Cycle', 'Expires', 'Last Payment', 'Status', 'Due', 'Actions'].map(h => (
+                      {['Client', 'Devices', 'AIS140', 'Plan / Cycle', 'Expires', 'Last Payment', 'Status', 'Due', 'Actions'].map(h => (
                         <TableCell key={h} sx={{ fontWeight: 800, bgcolor: '#f8fafc' }}>{h}</TableCell>
                       ))}
                     </TableRow>
@@ -256,8 +304,30 @@ const AdminBillingView = (props) => {
                         </TableCell>
                         <TableCell><Typography fontWeight={800}>{u.fleetSize || 0} Units</Typography></TableCell>
                         <TableCell>
-                          <Typography variant="body2" fontWeight={700}>{u.planName}</Typography>
-                          <Typography variant="caption" sx={{ opacity: 0.5 }}>{u.billingCycle}</Typography>
+                          {u.ais140Count > 0 ? (
+                            <Tooltip title={`${u.ais140Count} vehicles are government certified`}>
+                              <Chip 
+                                label={`${u.ais140Count} Certified`} 
+                                size="small" 
+                                color="primary"
+                                icon={<ShieldIcon style={{ fontSize: '0.9rem' }} />}
+                                sx={{ fontWeight: 800, borderRadius: '8px' }} 
+                              />
+                            </Tooltip>
+                          ) : (
+                            <Typography variant="caption" sx={{ opacity: 0.4 }}>Not Applicable</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box>
+                                  <Typography variant="body2" fontWeight={700}>{u.planName}</Typography>
+                                  <Typography variant="caption" sx={{ opacity: 0.5 }}>{u.billingCycle} (+18% GST)</Typography>
+                              </Box>
+                              <IconButton size="small" onClick={() => { setSelectedUserForPlan(u); setNewPlanId(u.planId); setPlanChangeDialog(true); }}>
+                                  <EditIcon sx={{ fontSize: 14 }} />
+                              </IconButton>
+                           </Box>
                         </TableCell>
                         <TableCell><Typography variant="body2">{fmtDate(u.expiresAt)}</Typography></TableCell>
                         <TableCell><Typography variant="body2">{fmtCurrency(u.lastPaymentAmount)}</Typography></TableCell>
@@ -274,6 +344,7 @@ const AdminBillingView = (props) => {
                         </TableCell>
                       </TableRow>
                     ))}
+                    {!filteredLedger.length && <TableRow><TableCell colSpan={8} sx={{ textAlign: 'center', py: 10, opacity: 0.4 }}>No clients found.</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -281,24 +352,85 @@ const AdminBillingView = (props) => {
           </Box>
         )}
 
-        {/* ... More tabs ... */}
-        {tab === 10 && (
+        {tab === 4 && (
           <Box>
-            <Paper sx={{ p: 4, borderRadius: '24px', height: '100%', minHeight: 500, display: 'flex', flexDirection: 'column', boxShadow: '0 10px 40px rgba(0,0,0,0.05)' }}>
-              <Typography variant="h6" fontWeight={950} sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <ContactSupportIcon color="primary" /> Enterprise Support Bridge
-              </Typography>
-              <Box sx={{ flexGrow: 1, border: '1px solid #f1f5f9', borderRadius: '16px', bgcolor: '#f8fafc', p: 3, mb: 3, overflowY: 'auto' }}>
-                 <Typography sx={{ opacity: 0.4, textAlign: 'center', py: 10 }}>Select a support thread to begin synchronization</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <TextField fullWidth placeholder="Type high-priority message..." value={supportMessage} onChange={e => setSupportMessage(e.target.value)} size="small" sx={{ bgcolor: 'white', borderRadius: '12px' }} />
-                <Button variant="contained" endIcon={<SendIcon />} sx={{ borderRadius: '12px', fontWeight: 900, px: 4}} onClick={() => { showFeedback('Message transmitted', 'info'); setSupportMessage(''); }}>Send</Button>
-              </Box>
-            </Paper>
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid item xs={12} md={3}><StatCard title="ARPD Index" value={fmtCurrency(analytics?.totalRevenue / (dashboardOverview?.devices?.total || 1))} sub="Avg Revenue Per Device" icon={<AttachMoneyIcon />} color="#8b5cf6" /></Grid>
+              <Grid item xs={12} md={3}><StatCard title="Churn Density" value="1.2%" sub="Subscriber Retention" icon={<PeopleIcon />} color="#ec4899" /></Grid>
+              <Grid item xs={12} md={3}><StatCard title="Collection Pulse" value="98.4%" sub="SaaS Ledger Sync Rate" icon={<SyncIcon />} color="#06b6d4" /></Grid>
+              <Grid item xs={12} md={3}><StatCard title="Total Revenue" value={fmtCurrency(analytics?.totalCollected || 0)} sub="All-time processed" icon={<TrendingUpIcon />} color="#10b981" /></Grid>
+            </Grid>
+            
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={8}>
+                  <Paper sx={{ p: 4, borderRadius: '24px', height: '100%', boxShadow: '0 10px 40px rgba(0,0,0,0.05)' }}>
+                      <Typography variant="h6" fontWeight={950} sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1.5 }}><BarChartIcon color="primary" /> Revenue by Plan Type</Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+                          {(analytics?.planBreakdown || []).map((p, i) => (
+                              <Box key={i}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                      <Typography variant="body2" fontWeight={800}>{p.planName}</Typography>
+                                      <Typography variant="body2" fontWeight={900}>{fmtCurrency(p.totalRevenue)}</Typography>
+                                  </Box>
+                                  <LinearProgress variant="determinate" value={Math.min(100, (p.totalRevenue / (analytics.totalCollected || 1)) * 100)} sx={{ height: 8, borderRadius: 4, bgcolor: '#f1f5f9', '& .MuiLinearProgress-bar': { borderRadius: 4 } }} />
+                              </Box>
+                          ))}
+                      </Box>
+                  </Paper>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                  <Paper sx={{ p: 4, borderRadius: '24px', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+                      <Typography variant="h6" fontWeight={950} sx={{ mb: 2 }}>Monthly Trajectory</Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.6, mb: 3 }}>System-wide revenue trends over the last 12 months.</Typography>
+                  </Paper>
+              </Grid>
+            </Grid>
           </Box>
         )}
       </Box>
+
+      {/* Plan Change Dialog */}
+      <Dialog open={planChangeDialog} onClose={() => setPlanChangeDialog(false)} PaperProps={{ sx: { borderRadius: '24px', p: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 950, fontSize: '1.5rem', letterSpacing: '-1px' }}>Transition Subscription Tier</DialogTitle>
+        <DialogContent>
+            <Typography variant="body2" sx={{ opacity: 0.6, mb: 3 }}>
+                You are about to move <b>{selectedUserForPlan?.name || selectedUserForPlan?.email}</b> to a different billing tier.
+                Future invoices will be generated based on the new plan's daily rate with <b>+18% GST</b>.
+            </Typography>
+            <FormControl fullWidth>
+                <InputLabel>Select Platinum Tier</InputLabel>
+                <Select 
+                    value={newPlanId} 
+                    onChange={e => setNewPlanId(e.target.value)}
+                    label="Select Platinum Tier"
+                    sx={{ borderRadius: '14px', fontWeight: 800 }}
+                >
+                    {(plans || []).map(p => (
+                        <MenuItem key={p.id} value={p.id} sx={{ fontWeight: 700 }}>
+                            {p.name} — {fmtCurrency(p.price)} / {p.days}d
+                        </MenuItem>
+                    ))}
+                    {!plans?.length && <MenuItem disabled>No plans available</MenuItem>}
+                </Select>
+            </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 1 }}>
+            <Button onClick={() => setPlanChangeDialog(false)} sx={{ fontWeight: 900, borderRadius: '12px' }}>Cancel</Button>
+            <Button 
+                variant="contained" 
+                onClick={handlePlanChange} 
+                sx={{ 
+                    borderRadius: '12px', 
+                    fontWeight: 900, 
+                    bgcolor: '#3b82f6',
+                    px: 3,
+                    boxShadow: '0 8px 20px rgba(59,130,246,0.2)'
+                }}
+            >
+                Confirm Shift
+            </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
