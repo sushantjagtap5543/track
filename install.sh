@@ -89,7 +89,7 @@ fi
 if [ -d saas/firebase-service-account.json ] || [ ! -f saas/firebase-service-account.json ]; then
     echo "🔑 Provisioning Firebase Identity Placeholder..."
     sudo rm -rf saas/firebase-service-account.json
-    echo "{}" > saas/firebase-service-account.json
+    echo '{"project_id": "geosurepath-placeholder"}' > saas/firebase-service-account.json
 fi
 
 # Detect Public IP and patch Nginx
