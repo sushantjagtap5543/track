@@ -1,6 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 
 async function seed() {
   const email = process.env.GEOSUREPATH_ADMIN_EMAIL || 'admin@geosurepath.com';
