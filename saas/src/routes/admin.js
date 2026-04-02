@@ -17,8 +17,8 @@ router.get('/db-health',         adminController.checkDbHealth);     // ✅ NEW:
 
 // ─── STATISTICS & ANALYTICS ──────────────────────────────────────────────────
 router.get('/stats',             adminController.getStats);
-router.get('/overview',          getDashboardOverview); // ✅ ALIAS for frontend
-router.get('/dashboard-overview', getDashboardOverview); // ✅ Clean path
+router.get('/overview',          billingController.getDashboardOverview); // ✅ ALIAS for frontend
+router.get('/dashboard-overview', billingController.getDashboardOverview); // ✅ Clean path
 router.get('/advanced-stats',    adminController.getAdvancedStats);
 router.get('/payments',          billingController.getAllPayments);
 router.get('/pending-upgrades',  adminController.getPendingUpgrades);
