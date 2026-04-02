@@ -129,6 +129,7 @@ router.post('/events', async (req, res) => {
   }
 });
 
+const { authenticateToken, authenticateTokenOptional } = require('../middleware/authMiddleware');
 const geosurepathService = require('../services/geosurepath');
 
 /**
@@ -138,12 +139,18 @@ const geosurepathService = require('../services/geosurepath');
  */
 const proxyAuthMiddleware = (req, res, next) => {
     const targetPath = req.params[0] || req.path.replace('/api/geosurepath', '');
-    const publicPaths = ['/server', '/session', '/password'];
-    const isPublic = publicPaths.some(p => targetPath === p || targetPath.startsWith(p + '?') || targetPath.startsWith(p + '/'));
+    const explicitlyPublicPaths = ['/server', '/password'];
+    const isExplicitlyPublic = explicitlyPublicPaths.some(p => targetPath === p || targetPath.startsWith(p + '?') || targetPath.startsWith(p + '/'));
     
-    if (isPublic) {
+    if (isExplicitlyPublic) {
         return next();
     }
+    
+    // For /session and others, we try to authenticate but don't hard-block yet if it's a known semi-public path
+    if (targetPath === '/session' || targetPath.startsWith('/session/')) {
+        return authenticateTokenOptional(req, res, next);
+    }
+
     return authenticateToken(req, res, next);
 };
 

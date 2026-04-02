@@ -104,8 +104,54 @@ const requireAnyRole = (...roles) => {
   };
 };
 
+const authenticateTokenOptional = async (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = (authHeader && authHeader.split(' ')[1]) || req.cookies.token;
+
+  if (!token) {
+    return next();
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
+    if (err) {
+      // If token is invalid, we treat it as no user in optional mode
+      return next();
+    }
+
+    try {
+      const redis = require('../lib/redis');
+      let cachedUser = await redis.get(`user_session:${decoded.userId}`);
+      let user;
+
+      if (cachedUser) {
+        user = JSON.parse(cachedUser);
+      } else {
+        user = await prisma.user.findUnique({
+          where: { id: decoded.userId }
+        });
+        if (user) {
+          await redis.set(`user_session:${decoded.userId}`, JSON.stringify(user), 'EX', 300);
+        }
+      }
+
+      if (user && user.isActive) {
+        req.user = { 
+          ...decoded, 
+          role: user.role,
+          isGhost: decoded.isGhost || false,
+          impersonatedBy: decoded.impersonatedBy || null
+        };
+      }
+      next();
+    } catch (dbErr) {
+      next(); // Fail silenty to unauthenticated mode
+    }
+  });
+};
+
 module.exports = {
   authenticateToken,
+  authenticateTokenOptional,
   requireRole,
   requireAnyRole
 };
