@@ -30,6 +30,7 @@ const { billingLimiter } = require('../middleware/rateLimiter');
 
 // ─── CLIENT ROUTES (any authenticated user) ──────────────────────────────────
 router.get('/my-bill', authenticateToken, getMyBill);
+router.get('/status',  authenticateToken, getMyBill); // ✅ ALIAS for frontend
 router.post('/demo-settle', authenticateToken, demoSettle);
 router.post('/create-order', authenticateToken, billingLimiter, createOrder);
 router.post('/verify', authenticateToken, billingLimiter, verifyPayment);
@@ -39,10 +40,10 @@ router.post('/webhook', handleWebhook);
 
 // ─── ADMIN ROUTES — protected by token AND ADMIN role ────────────────────────
 router.get('/admin-analytics',              authenticateToken, requireRole('ADMIN'), getAdminAnalytics);
-router.get('/admin/ledger',                 authenticateToken, requireRole('ADMIN'), getAllUsersLedger);
-router.get('/admin/dashboard-overview',     authenticateToken, requireRole('ADMIN'), getDashboardOverview);
-router.get('/admin/revenue-report',         authenticateToken, requireRole('ADMIN'), getRevenueReport);
-router.get('/admin/ai-insights',            authenticateToken, requireRole('ADMIN'), getAIInsights);
+router.get('/ledger',                       authenticateToken, requireRole('ADMIN'), getAllUsersLedger);
+router.get('/dashboard-overview',           authenticateToken, requireRole('ADMIN'), getDashboardOverview);
+router.get('/revenue-report',               authenticateToken, requireRole('ADMIN'), getRevenueReport);
+router.get('/ai-insights',                  authenticateToken, requireRole('ADMIN'), getAIInsights);
 
 // Payments — paginated + filterable
 router.get('/admin/payments',               authenticateToken, requireRole('ADMIN'), getAllPaymentsAdmin);
