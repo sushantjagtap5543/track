@@ -221,6 +221,7 @@ model LoginHistory {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   ipAddress String?
   device    String?
+  fingerprint String?  // ✅ NEW: Sentinel identification hash
   success   Boolean
   createdAt DateTime @default(now())
 
