@@ -3,7 +3,7 @@ FROM ubuntu:noble AS build
 WORKDIR /app
 RUN apt-get update && apt-get install -y openjdk-21-jdk curl git && rm -rf /var/lib/apt/lists/*
 COPY . .
-RUN chmod +x gradlew && ./gradlew assemble && find /app -name "*.jar" && find /app -name "lib"
+RUN chmod +x gradlew && ./gradlew assemble
 
 # Stage 2: Build Traccar Frontend (React)
 FROM node:22-alpine AS web-build
@@ -20,9 +20,9 @@ WORKDIR /opt/traccar
 RUN apt-get update && apt-get install -y openjdk-21-jre-headless curl && rm -rf /var/lib/apt/lists/* && mkdir logs
 
 # Copy backend
-# build.gradle explicitly sets jar output to build/target/ and libs to build/target/lib/
-COPY --from=build /app/build/target/*.jar ./tracker-server.jar
-COPY --from=build /app/build/target/lib ./lib
+# build.gradle has been confirmed to put artifacts in /app/target/
+COPY --from=build /app/target/*.jar ./tracker-server.jar
+COPY --from=build /app/target/lib ./lib
 COPY --from=build /app/schema ./schema
 COPY --from=build /app/templates ./templates
 
