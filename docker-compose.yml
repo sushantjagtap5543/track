@@ -86,7 +86,7 @@ services:
       - ./logs:/app/logs:rw
       - ./saas/data:/app/data:rw
     environment:
-      - DATABASE_URL=postgresql://${DB_USER:-traccar}:${DB_PASSWORD}@db:5432/${DB_NAME:-traccar_db}?schema=saas
+      - DATABASE_URL=postgresql://${DB_USER:-traccar}:${DB_PASSWORD}@db:5432/${DB_NAME:-traccar_db}
       - REDIS_HOST=redis
       - TRACCAR_URL=http://traccar:8082
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
