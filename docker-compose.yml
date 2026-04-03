@@ -39,10 +39,10 @@ services:
     container_name: traccar_engine
     restart: always
     environment:
-      - DATABASE_URL=jdbc:postgresql://db:5432/${DB_NAME:-traccar_db}
-      - DATABASE_USER=${DB_USER:-traccar}
-      - DATABASE_PASSWORD=${DB_PASSWORD}
-      - CONFIG_USE_ENVIRONMENT_VARIABLES=true
+      - TRACCAR_DATABASE_URL=jdbc:postgresql://db:5432/${DB_NAME:-traccar_db}
+      - TRACCAR_DATABASE_USER=${DB_USER:-traccar}
+      - TRACCAR_DATABASE_PASSWORD=${DB_PASSWORD}
+      - TRACCAR_CONFIG_USEENVIRONMENTVARIABLES=true
       - JAVA_OPTS=-Xms512m -Xmx2g
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/api/health"]
