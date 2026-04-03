@@ -43,7 +43,7 @@ services:
       - DATABASE_USER=traccar
       - DATABASE_PASSWORD=${DB_PASSWORD}
       - CONFIG_USE_ENVIRONMENT_VARIABLES=true
-      - JAVA_OPTS=-Xms512m -Xmx3g -XX:MaxGCPauseMillis=200
+      - JAVA_OPTS=-Xms512m -Xmx2g
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/api/health"]
       interval: 20s

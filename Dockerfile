@@ -14,7 +14,7 @@ ENV NODE_OPTIONS="--max_old_space_size=1536"
 RUN npm run build
 
 # Stage 3: Run Traccar
-FROM eclipse-temurin:21-jre-alpine
+FROM amazoncorretto:21-alpine
 WORKDIR /opt/traccar
 RUN apk add --no-cache curl && mkdir logs
 
