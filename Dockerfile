@@ -14,9 +14,9 @@ ENV NODE_OPTIONS="--max_old_space_size=1536"
 RUN npm run build
 
 # Stage 3: Run Traccar
-FROM openjdk:21-slim
+FROM debian:bookworm-slim
 WORKDIR /opt/traccar
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/* && mkdir logs
+RUN apt-get update && apt-get install -y openjdk-21-jre-headless curl && rm -rf /var/lib/apt/lists/* && mkdir logs
 
 # Copy backend
 # build.gradle explicitly sets jar output to target/ (line 20) and libs to target/lib/
