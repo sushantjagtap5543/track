@@ -64,6 +64,25 @@ async function initAdmin() {
       } else {
           console.log('[Init] Traccar Admin validated (pre-existing or authorized).');
       }
+
+      // 3. IDENTITY RECONCILIATION
+      console.log(`[Init] Reconciling Sovereign Identities for ${email}...`);
+      const auth = Buffer.from(`${email}:${password}`).toString('base64');
+      const userRes = await fetch(`${baseURL}/api/users?email=${encodeURIComponent(email)}`, {
+          headers: { 'Authorization': `Basic ${auth}` }
+      });
+      
+      if (userRes.ok) {
+          const tcUsers = await userRes.json();
+          const tcAdmin = tcUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+          if (tcAdmin) {
+              await prisma.user.update({
+                  where: { email: email },
+                  data: { traccarUserId: tcAdmin.id }
+              });
+              console.log(`✨ Identity Link verified: SaaS(admin) -> Traccar(id:${tcAdmin.id})`);
+          }
+      }
       
       console.log("✅ SYSTEM SOVEREIGNTY RESTORED.");
       console.log(`📧 Login Identity: ${email}`);
