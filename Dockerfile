@@ -3,7 +3,7 @@ FROM ubuntu:noble AS build
 WORKDIR /app
 RUN apt-get update && apt-get install -y openjdk-21-jdk curl git && rm -rf /var/lib/apt/lists/*
 COPY . .
-RUN chmod +x gradlew && ./gradlew assemble
+RUN chmod +x gradlew && ./gradlew assemble && find /app -name "*.jar" && find /app -name "lib"
 
 # Stage 2: Build Traccar Frontend (React)
 FROM node:22-alpine AS web-build
