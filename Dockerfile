@@ -14,9 +14,9 @@ ENV NODE_OPTIONS="--max_old_space_size=1536"
 RUN npm run build
 
 # Stage 3: Run Traccar
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /opt/traccar
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/* && mkdir logs
+RUN apk add --no-cache curl && mkdir logs
 
 # Copy backend
 # build.gradle explicitly sets jar output to target/ (line 20) and libs to target/lib/
