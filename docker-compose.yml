@@ -39,8 +39,8 @@ services:
     container_name: traccar_engine
     restart: always
     environment:
-      - DATABASE_URL=jdbc:postgresql://db:5432/traccar_db
-      - DATABASE_USER=traccar
+      - DATABASE_URL=jdbc:postgresql://db:5432/${DB_NAME:-traccar_db}
+      - DATABASE_USER=${DB_USER:-traccar}
       - DATABASE_PASSWORD=${DB_PASSWORD}
       - CONFIG_USE_ENVIRONMENT_VARIABLES=true
       - JAVA_OPTS=-Xms512m -Xmx2g
