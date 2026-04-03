@@ -36,6 +36,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: traccar_engine
+    restart: always
     command: ["sh", "-c", "cat /opt/traccar/conf/traccar.xml.template | sed \"s/DATABASE_PASSWORD_PLACEHOLDER/${DB_PASSWORD}/g\" > /opt/traccar/conf/traccar.xml && java -Xms512m -Xmx2g -Djava.net.preferIPv4Stack=true -jar tracker-server.jar conf/traccar.xml"]
     environment:
       - JAVA_OPTS=-Xms512m -Xmx2g
