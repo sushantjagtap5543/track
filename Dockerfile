@@ -1,6 +1,7 @@
 # GeoSurePath Dockerfile v1.2.0
-FROM eclipse-temurin:21-jdk-jammy AS build
+FROM ubuntu:noble AS build
 WORKDIR /app
+RUN apt-get update && apt-get install -y openjdk-21-jdk curl git && rm -rf /var/lib/apt/lists/*
 COPY . .
 RUN chmod +x gradlew && ./gradlew assemble
 
@@ -14,7 +15,7 @@ ENV NODE_OPTIONS="--max_old_space_size=1536"
 RUN npm run build
 
 # Stage 3: Run Traccar
-FROM debian:bookworm-slim
+FROM ubuntu:noble
 WORKDIR /opt/traccar
 RUN apt-get update && apt-get install -y openjdk-21-jre-headless curl && rm -rf /var/lib/apt/lists/* && mkdir logs
 
