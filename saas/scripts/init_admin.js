@@ -6,7 +6,7 @@ const nodeFetch = require('node-fetch');
 async function initAdmin() {
   const baseURL = process.env.TRACCAR_URL || 'http://traccar:8082';
   const email = process.env.TRACCAR_ADMIN_EMAIL || 'admin@traccar.com';
-  const password = process.env.TRACCAR_ADMIN_PASSWORD || 'admin123';
+  const password = process.env.TRACCAR_ADMIN_PASSWORD || 'AdminTestPassword123!';
 
   console.log(`🚀 [Sovereign Reset] Initializing System-Wide Master Reset...`);
 

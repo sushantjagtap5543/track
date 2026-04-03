@@ -2,9 +2,9 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function repair() {
-  const email = process.env.GEOSUREPATH_ADMIN_EMAIL || 'admin@geosurepath.com';
+  const email = process.env.GEOSUREPATH_ADMIN_EMAIL || 'admin@traccar.com';
   const password = process.env.GEOSUREPATH_ADMIN_PASSWORD || 'AdminTestPassword123!';
-  const baseURL = process.env.GEOSUREPATH_URL || 'http://geosurepath:8082';
+  const baseURL = process.env.GEOSUREPATH_URL || 'http://traccar:8082';
 
   console.log(`Starting Repair for ${email}...`);
 
