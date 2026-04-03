@@ -20,9 +20,9 @@ WORKDIR /opt/traccar
 RUN apt-get update && apt-get install -y openjdk-21-jre-headless curl && rm -rf /var/lib/apt/lists/* && mkdir logs
 
 # Copy backend
-# build.gradle explicitly sets jar output to target/ (line 20) and libs to target/lib/
-COPY --from=build /app/target/*.jar ./tracker-server.jar
-COPY --from=build /app/target/lib ./lib
+# build.gradle explicitly sets jar output to build/target/ and libs to build/target/lib/
+COPY --from=build /app/build/target/*.jar ./tracker-server.jar
+COPY --from=build /app/build/target/lib ./lib
 COPY --from=build /app/schema ./schema
 COPY --from=build /app/templates ./templates
 
@@ -34,4 +34,5 @@ COPY docker/traccar.xml ./conf/traccar.xml
 
 EXPOSE 8082
 # Use environment variable for Java Options to support performance tuning
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -XX:+UseG1GC -Djava.net.preferIPv4Stack=true -jar tracker-server.jar conf/traccar.xml"]
+# Use exec form for better signal handling and reliability
+ENTRYPOINT ["java", "-Xms512m", "-Xmx2g", "-Djava.net.preferIPv4Stack=true", "-jar", "tracker-server.jar", "conf/traccar.xml"]
