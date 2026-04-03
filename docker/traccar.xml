@@ -3,9 +3,9 @@
 <properties>
 
     <entry key='database.driver'>org.postgresql.Driver</entry>
-    <entry key='database.url'>${env.TRACCAR_DATABASE_URL}</entry>
-    <entry key='database.user'>${env.TRACCAR_DATABASE_USER}</entry>
-    <entry key='database.password'>${env.TRACCAR_DATABASE_PASSWORD}</entry>
+    <entry key='database.url'>jdbc:postgresql://db:5432/traccar_db</entry>
+    <entry key='database.user'>traccar</entry>
+    <entry key='database.password'>DATABASE_PASSWORD_PLACEHOLDER</entry>
     <entry key='config.useEnvironmentVariables'>true</entry>
 
     <entry key='web.path'>./modern</entry>

@@ -36,13 +36,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: traccar_engine
-    restart: always
+    command: ["sh", "-c", "cat /opt/traccar/conf/traccar.xml.template | sed \"s/DATABASE_PASSWORD_PLACEHOLDER/${DB_PASSWORD}/g\" > /opt/traccar/conf/traccar.xml && java -Xms512m -Xmx2g -Djava.net.preferIPv4Stack=true -jar tracker-server.jar conf/traccar.xml"]
     environment:
-      - TRACCAR_DATABASE_URL=jdbc:postgresql://db:5432/${DB_NAME:-traccar_db}
-      - TRACCAR_DATABASE_USER=${DB_USER:-traccar}
-      - TRACCAR_DATABASE_PASSWORD=${DB_PASSWORD}
-      - TRACCAR_CONFIG_USEENVIRONMENTVARIABLES=true
       - JAVA_OPTS=-Xms512m -Xmx2g
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/api/health"]
@@ -59,7 +54,7 @@ services:
     volumes:
       - ./logs:/opt/traccar/logs:rw
       - ./data:/opt/traccar/data:rw
-      - ./docker/traccar.xml:/opt/traccar/conf/traccar.xml:ro
+      - ./docker/traccar.xml:/opt/traccar/conf/traccar.xml.template:ro
 
   saas-api:
     build: ./saas
