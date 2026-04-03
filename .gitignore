@@ -1,40 +1,21 @@
-target
-nbactions.xml
-.classpath
-.project
-.settings
-.idea
-*.iml
-.DS_Store
-.checkstyle
-.gradle
-out
-build
-.vscode
-bin
-11111.pem
-# Environment files - NEVER commit secrets
-*.env
-.env
-.env.local
-.env.production
-saas/.env
-# node modules
+# See https://help.github.com/ignore-files/ for more about ignoring files.
+
+# dependencies
 node_modules
-**/node_modules
-dist
-logs
-data
-track.tar.gz
-deploy.tar.gz
-setup_saas.sql
-traccar_error.log
-unified_schema.prisma
-*.log
-*.pem
-# Firebase Secrets
-firebase-service-account.json
-geosurepath-*.json
-saas/firebase-service-account.json
-traccar-web/build
-traccar-web/node_modules
+
+# testing
+/coverage
+
+# production
+/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
