@@ -24,6 +24,7 @@ import { sessionActions } from '../store';
 import BackIcon from '@mui/icons-material/ArrowBack';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 import { motion } from 'framer-motion';
+import PsychologyIcon from '@mui/icons-material/Psychology';
 
 
 const useStyles = makeStyles()((theme) => ({
@@ -187,13 +188,16 @@ const RegisterPage = () => {
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        setErrorText('Registration Successful! Redirecting to login...');
+        setErrorText('Registration Successful! Your enterprise account is being provisioned.');
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
+        
+        // Wait for snackbar to show, then redirect
         setTimeout(() => {
             dispatch(sessionActions.updateServer({ ...server, newServer: false }));
-            navigate('/login');
-        }, 2000);
+            // Smooth transition to login
+            navigate('/login', { state: { registered: true, email } });
+        }, 2500);
       } else {
         // Detailed error mapping
         console.log('[Register] Server Error Data:', data);
@@ -357,6 +361,13 @@ const RegisterPage = () => {
         >
           {loading ? t('loginRegistering') || 'Finalizing Setup...' : t('loginRegister')}
         </Button>
+
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, alignItems: 'center', gap: 1 }}>
+          <PsychologyIcon sx={{ color: '#3b82f6', fontSize: '1rem' }} />
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
+            AI-POWERED SECURITY VERIFICATION ACTIVE
+          </Typography>
+        </Box>
 
         <div className={classes.footer}>
           <Typography variant="body1" sx={{ color: '#ffffff', fontSize: '1rem', fontWeight: 500 }}>

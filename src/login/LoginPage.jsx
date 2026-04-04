@@ -47,6 +47,7 @@ import {
 import { useCatch } from '../reactHelper';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 import QrCodeDialog from '../common/components/QrCodeDialog';
+import HardlockPaymentView from './HardlockPaymentView';
 
 const useStyles = makeStyles()((theme) => ({
   options: {
@@ -253,6 +254,7 @@ const LoginPage = () => {
 
   const [announcementShown, setAnnouncementShown] = useState(false);
   const [bill, setBill] = useState(null);
+  const [isHardlocked, setIsHardlocked] = useState(false);
 
   const announcement = useSelector((state) => state.session.server.announcement);
 
@@ -285,17 +287,43 @@ const LoginPage = () => {
           localStorage.setItem('saas_user', JSON.stringify(saasData.user));
         }
 
-        const traccarRes = await fetch('/api/session');
-        if (traccarRes.ok) {
-          const user = await traccarRes.json();
-          dispatch(sessionActions.updateUser(user));
+        let userFetched = false;
+        try {
+          const traccarRes = await fetch('/api/session');
+          if (traccarRes.ok) {
+            const user = await traccarRes.json();
+            dispatch(sessionActions.updateUser(user));
+            userFetched = true;
+          }
+        } catch (sessionError) {
+          console.error('Traccar session sync failed:', sessionError);
         }
 
-        generateLoginToken();
-        const defaultTarget = target || '/';
-        const finalTarget = window.sessionStorage.getItem('postLogin') || defaultTarget;
-        window.sessionStorage.removeItem('postLogin');
-        window.location.href = finalTarget;
+        if (userFetched) {
+          try {
+            const billingRes = await fetch('/api/billing/my-bill');
+            if (billingRes.ok) {
+              const billingData = await billingRes.ok ? await billingRes.json() : null;
+              if (billingData && billingData.unpaidDebt > 0) {
+                setBill(billingData);
+                setIsHardlocked(true);
+                setLoading(false);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error('Billing sync failed:', e);
+          }
+
+          generateLoginToken();
+          const defaultTarget = target || '/';
+          const finalTarget = window.sessionStorage.getItem('postLogin') || defaultTarget;
+          window.sessionStorage.removeItem('postLogin');
+          window.location.href = finalTarget;
+        } else {
+          setErrorText('Platform synchronization failed. Please try again.');
+          setFailed(true);
+        }
       } else {
         const data = await response.json().catch(() => ({}));
         setErrorText(data.error || 'Invalid username or password');
@@ -393,6 +421,23 @@ const LoginPage = () => {
   }, []);
 
   useEffect(() => {
+    if (location.state?.registered) {
+      setSnackbar({ 
+        open: true, 
+        message: 'Account provisioned successfully. Welcome to GeoSurePath Enterprise!', 
+        severity: 'success' 
+      });
+      if (location.state?.email) {
+        setEmail(location.state.email);
+      }
+      // Clean up state
+      const newState = { ...location.state };
+      delete newState.registered;
+      navigate(location.pathname, { state: newState, replace: true });
+    }
+  }, [location.state, navigate, setEmail]);
+
+  useEffect(() => {
     if (window.localStorage.getItem('hostname') !== window.location.hostname) {
       window.localStorage.setItem('hostname', window.location.hostname);
       setShowServerTooltip(true);
@@ -450,8 +495,22 @@ const LoginPage = () => {
           {t('loginSubtext') || 'World Class GPS Tracking & Fleet Intelligence'}
         </Typography>
       </motion.div>
-
-      <form className={classes.container} onSubmit={(e) => handleLogin(e)}>
+      
+      {isHardlocked ? (
+        <HardlockPaymentView 
+          onLogout={() => {
+            setIsHardlocked(false);
+            setBill(null);
+            setEmail('');
+            setPassword('');
+          }}
+          onSuccess={() => {
+            setIsHardlocked(false);
+            window.location.reload();
+          }}
+        />
+      ) : (
+        <form className={classes.container} onSubmit={(e) => handleLogin(e)}>
           <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
             <TextField
               required
@@ -576,6 +635,7 @@ const LoginPage = () => {
             </Typography>
           </motion.div>
       </form>
+      )}
 
       <QrCodeDialog open={showQr} onClose={() => setShowQr(false)} />
 

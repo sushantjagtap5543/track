@@ -21,7 +21,7 @@ export default defineConfig(() => ({
         server.middlewares.use((req, res, next) => {
           if (req.url === '/api/server') {
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ name: 'Track Elite', version: '6.12.2', attributes: { theme_color: '#3b82f6' } }));
+            res.end(JSON.stringify({ name: 'GeoSurePath', version: '6.12.2', attributes: { theme_color: '#3b82f6' } }));
             return;
           }
           if (req.url === '/api/session' && req.method === 'GET') {
@@ -74,8 +74,8 @@ export default defineConfig(() => ({
           if (req.url.startsWith('/manifest.webmanifest')) {
             res.setHeader('Content-Type', 'application/manifest+json');
             res.end(JSON.stringify({
-              short_name: 'Track Elite',
-              name: 'Track Elite Enterprise',
+              short_name: 'GeoSurePath',
+              name: 'GeoSurePath Enterprise',
               theme_color: '#3b82f6',
               icons: [
                 { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
@@ -97,8 +97,8 @@ export default defineConfig(() => ({
         globPatterns: ['**/*.{js,css,html,woff,woff2,mp3}'],
       },
       manifest: {
-        short_name: 'Track Elite',
-        name: 'Track Elite Enterprise',
+        short_name: 'GeoSurePath',
+        name: 'GeoSurePath Enterprise',
         theme_color: '#3b82f6',
         icons: [
           {

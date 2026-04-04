@@ -10,7 +10,7 @@ const useStyles = makeStyles()((theme) => ({
     display: 'flex',
     height: '100vh',
     width: '100vw',
-    backgroundImage: 'url(/traccar_login_bg.png)',
+    backgroundImage: 'url(/geosure_bg.png)',
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',

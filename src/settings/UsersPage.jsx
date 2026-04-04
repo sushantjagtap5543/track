@@ -76,7 +76,7 @@ const UsersPage = () => {
             <TableCell>{t('sharedName')}</TableCell>
             <TableCell>{t('userEmail')}</TableCell>
             <TableCell>{t('userAdmin')}</TableCell>
-            <TableCell>Plan</TableCell>
+            <TableCell>{t('settingsPlan') || 'Subscription Plan'}</TableCell>
             <TableCell>{t('sharedDisabled')}</TableCell>
             <TableCell>{t('userExpirationTime')}</TableCell>
             <TableCell className={classes.columnAction} />
