@@ -17,6 +17,7 @@ import { useAttributePreference } from '../common/util/preferences';
 import { Drawer, Box, CircularProgress, Alert, AlertTitle, Typography } from '@mui/material';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import { useAI } from '../common/components/AIProvider';
+import GlobalSearch from '../common/components/GlobalSearch';
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -30,27 +31,33 @@ const useStyles = makeStyles()((theme) => ({
       position: 'fixed',
       left: 0,
       top: 0,
-      height: `calc(100% - ${theme.spacing(3)})`,
+      height: `calc(100% - ${theme.spacing(4)})`,
       width: theme.dimensions.drawerWidthDesktop,
-      margin: theme.spacing(1.5),
+      margin: theme.spacing(2),
       zIndex: 3,
-      borderRadius: '24px',
+      borderRadius: '28px',
       overflow: 'hidden',
-      boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
-      border: '1px solid rgba(255,255,255,0.05)',
+      background: 'rgba(15, 23, 42, 0.4)',
+      backdropFilter: 'blur(30px) saturate(180%)',
+      border: '1px solid rgba(255, 255, 255, 0.08)',
+      boxShadow: '0 25px 60px -15px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1)',
     },
     [theme.breakpoints.down('md')]: {
       height: '100%',
       width: '100%',
+      background: 'rgba(15, 23, 42, 0.95)',
     },
   },
   header: {
     pointerEvents: 'auto',
     zIndex: 6,
+    background: 'transparent !important',
+    boxShadow: 'none !important',
   },
   footer: {
     pointerEvents: 'auto',
     zIndex: 5,
+    background: 'transparent !important',
   },
   middle: {
     flex: 1,
@@ -67,6 +74,7 @@ const useStyles = makeStyles()((theme) => ({
     zIndex: 4,
     display: 'flex',
     minHeight: 0,
+    background: 'transparent !important',
   },
 }));
 
@@ -93,6 +101,7 @@ const MainPage = () => {
   const [devicesOpen, setDevicesOpen] = useState(desktop);
   const [eventsOpen, setEventsOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const onEventsClick = useCallback(() => setEventsOpen(true), [setEventsOpen]);
 
@@ -101,6 +110,17 @@ const MainPage = () => {
       setDevicesOpen(false);
     }
   }, [desktop, mapOnSelect, selectedDeviceId]);
+
+  useEffect(() => {
+    const down = (e) => {
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', down);
+    return () => window.removeEventListener('keydown', down);
+  }, []);
 
   const { filteredDevices, filteredPositions } = useFilter(
     keyword,
@@ -138,6 +158,7 @@ const MainPage = () => {
             filterMap={filterMap}
             setFilterMap={setFilterMap}
             onAIButtonClick={() => setAiOpen(true)}
+            onSearchClick={() => setSearchOpen(true)}
           />
         </Paper>
         <div className={classes.middle}>
@@ -195,6 +216,7 @@ const MainPage = () => {
           </Box>
         )}
       </Drawer>
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       {selectedDeviceId && (
         <StatusCard
           deviceId={selectedDeviceId}

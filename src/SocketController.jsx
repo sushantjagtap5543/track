@@ -14,15 +14,34 @@ import {
   nativePostMessage,
 } from './common/components/NativeInterface';
 import fetchOrThrow from './common/util/fetchOrThrow';
+import { useTranslation } from './common/components/LocalizationProvider';
+import { prefixString } from './common/util/stringUtils';
 
 const logoutCode = 4000;
+
+const getDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371e3; // metres
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2)
+          + Math.cos(φ1) * Math.cos(φ2)
+          * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+};
 
 const SocketController = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const t = useTranslation();
 
   const authenticated = useSelector((state) => Boolean(state.session.user));
   const includeLogs = useSelector((state) => state.session.includeLogs);
+  const devices = useSelector((state) => state.devices.items);
 
   const socketRef = useRef();
   const reconnectTimeoutRef = useRef();
@@ -41,11 +60,26 @@ const SocketController = () => {
 
   const features = useFeatures();
 
+  const lastSoundTime = useRef(0);
+
+  const speak = (text) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   const handleEvents = useCallback(
     (events) => {
       if (!features.disableEvents) {
         dispatch(eventsActions.add(events));
       }
+
+      const now = Date.now();
+      const criticalAlarm = events.find((e) => e.type === 'alarm' && ['sos', 'theft', 'vibration'].includes(e.attributes.alarm));
+      
       if (
         events.some(
           (e) =>
@@ -53,22 +87,33 @@ const SocketController = () => {
             (e.type === 'alarm' && soundAlarms.includes(e.attributes.alarm)),
         )
       ) {
-        new Audio(alarm).play();
+        if (now - lastSoundTime.current > 2000) {
+          new Audio(alarm).play().catch(() => {});
+          lastSoundTime.current = now;
+        }
       }
+
+      if (criticalAlarm) {
+        speak(`Alert: ${criticalAlarm.attributes.alarm} detected on ${devices[criticalAlarm.deviceId]?.name || 'unknown vehicle'}`);
+      }
+
       setNotifications(
         events.map((event) => ({
           id: event.id,
-          message: event.attributes.message,
+          message: event.attributes.message || t(prefixString('event', event.type)),
           show: true,
         })),
       );
     },
-    [features, dispatch, soundEvents, soundAlarms],
+    [features, dispatch, soundEvents, soundAlarms, devices, t],
   );
 
   const connectSocket = () => {
     clearReconnectTimeout();
-    if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) {
+    if (socketRef.current) {
+      if (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING) {
+        return;
+      }
       socketRef.current.close();
     }
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -110,7 +155,32 @@ const SocketController = () => {
 
     const flush = () => {
       if (buffer.devices.length) dispatch(devicesActions.update(buffer.devices));
-      if (buffer.positions.length) dispatch(sessionActions.updatePositions(buffer.positions));
+      if (buffer.positions.length) {
+        dispatch(sessionActions.updatePositions(buffer.positions));
+        
+        // Persist for Safe Parking Lock
+        const lastPositions = JSON.parse(localStorage.getItem('last_positions') || '{}');
+        buffer.positions.forEach(p => {
+            lastPositions[p.deviceId] = p;
+        });
+        localStorage.setItem('last_positions', JSON.stringify(lastPositions));
+
+        // Proactive Safe Parking Check
+        buffer.positions.forEach(p => {
+          const device = devices[p.deviceId];
+          if (device?.attributes?.safeParkingEnabled && device?.attributes?.safeParkingLat) {
+            const dist = getDistance(p.latitude, p.longitude, device.attributes.safeParkingLat, device.attributes.safeParkingLon);
+            if (dist > (device.attributes.safeParkingRadius || 50)) { // 50m default
+               handleEvents([{
+                  id: `safe-parking-${p.id}`,
+                  type: 'alarm',
+                  deviceId: p.deviceId,
+                  attributes: { alarm: 'theft', message: `SAFE PARKING BREACH: ${device.name} has moved ${Math.round(dist)} meters from locked position!` }
+               }]);
+            }
+          }
+        });
+      }
       if (buffer.events.length) handleEvents(buffer.events);
       if (buffer.logs.length) dispatch(sessionActions.updateLogs(buffer.logs));
       buffer.devices = [];

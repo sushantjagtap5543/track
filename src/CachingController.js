@@ -15,36 +15,24 @@ const CachingController = () => {
 
   useEffectAsync(async () => {
     if (authenticated) {
-      const response = await fetchOrThrow('/api/geofences');
-      dispatch(geofencesActions.refresh(await response.json()));
-    }
-  }, [authenticated]);
+      const fetchSilent = async (url, action) => {
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            dispatch(action(await response.json()));
+          }
+        } catch (e) {
+          console.warn(`Sync failed for ${url}:`, e);
+        }
+      };
 
-  useEffectAsync(async () => {
-    if (authenticated) {
-      const response = await fetchOrThrow('/api/groups');
-      dispatch(groupsActions.refresh(await response.json()));
-    }
-  }, [authenticated]);
-
-  useEffectAsync(async () => {
-    if (authenticated) {
-      const response = await fetchOrThrow('/api/drivers');
-      dispatch(driversActions.refresh(await response.json()));
-    }
-  }, [authenticated]);
-
-  useEffectAsync(async () => {
-    if (authenticated) {
-      const response = await fetchOrThrow('/api/maintenance');
-      dispatch(maintenancesActions.refresh(await response.json()));
-    }
-  }, [authenticated]);
-
-  useEffectAsync(async () => {
-    if (authenticated) {
-      const response = await fetchOrThrow('/api/calendars');
-      dispatch(calendarsActions.refresh(await response.json()));
+      await Promise.all([
+        fetchSilent('/api/geofences', geofencesActions.refresh),
+        fetchSilent('/api/groups', groupsActions.refresh),
+        fetchSilent('/api/drivers', driversActions.refresh),
+        fetchSilent('/api/maintenance', maintenancesActions.refresh),
+        fetchSilent('/api/calendars', calendarsActions.refresh),
+      ]);
     }
   }, [authenticated]);
 

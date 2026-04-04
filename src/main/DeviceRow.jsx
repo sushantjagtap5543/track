@@ -67,8 +67,25 @@ const useStyles = makeStyles()((theme) => ({
     color: theme.palette.neutral.main,
   },
   selected: {
-    backgroundColor: theme.palette.action.selected,
+    background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%) !important',
+    borderLeft: '4px solid #3b82f6',
   },
+  row: {
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    '&:hover': {
+      background: 'rgba(255, 255, 255, 0.05)',
+      transform: 'translateX(4px)',
+    },
+  },
+  primaryText: {
+    fontWeight: 800,
+    color: '#fff',
+    letterSpacing: '0.3px',
+  },
+  secondaryText: {
+    fontWeight: 500,
+    opacity: 0.7,
+  }
 }));
 
 const DeviceRow = ({ devices, index, style }) => {
@@ -142,7 +159,7 @@ const DeviceRow = ({ devices, index, style }) => {
         onClick={() => dispatch(devicesActions.selectId(item.id))}
         disabled={!admin && item.disabled}
         selected={selectedDeviceId === item.id}
-        className={selectedDeviceId === item.id ? classes.selected : null}
+        className={`${classes.row} ${selectedDeviceId === item.id ? classes.selected : ''}`}
       >
         <ListItemAvatar>
           <Avatar>

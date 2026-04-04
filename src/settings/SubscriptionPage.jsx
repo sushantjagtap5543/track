@@ -18,7 +18,12 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
+  Alert,
+  Chip,
 } from '@mui/material';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import CheckIcon from '@mui/icons-material/Check';
 import StarIcon from '@mui/icons-material/Star';
 import { makeStyles } from 'tss-react/mui';
@@ -66,6 +71,11 @@ const SubscriptionPage = () => {
   const user = useSelector((state) => state.session.user);
   const currentPlanId = user.attributes.plan || 'basic';
 
+  const devices = useSelector((state) => Object.values(state.devices.items));
+  const compliantCount = devices.filter(d => d.attributes.ais140).length;
+  const totalDevices = devices.length;
+  const complianceRate = totalDevices > 0 ? Math.round((compliantCount / totalDevices) * 100) : 100;
+
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -109,8 +119,53 @@ const SubscriptionPage = () => {
   return (
     <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'userBilling']}>
       <Box sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom align="center" sx={{ mb: 4, fontWeight: 700 }}>
-          Choose Your GeoSurePath Plan
+        <Typography variant="h4" gutterBottom align="center" sx={{ mb: 2, fontWeight: 700 }}>
+          Manage Your GeoSurePath Fleet Tier
+        </Typography>
+
+        {/* Compliance Ledger Card */}
+        <Card sx={{ mb: 6, borderRadius: '24px', background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <CardContent sx={{ p: 4 }}>
+            <Grid container spacing={4} alignItems="center">
+              <Grid item xs={12} md={6}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                  <WorkspacePremiumIcon color="primary" sx={{ fontSize: 40 }} />
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: '#fff' }}>FLEET COMPLIANCE LEDGER</Typography>
+                </Box>
+                <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.7)', mb: 3 }}>
+                  Official AIS140 Regulatory Status for your active fleet.
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 4 }}>
+                  <Box>
+                    <Typography variant="h3" sx={{ fontWeight: 900, color: '#4caf50' }}>{compliantCount}</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>COMPLIANT DEVICES</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="h3" sx={{ fontWeight: 900, color: totalDevices > compliantCount ? '#ff9800' : '#4caf50' }}>{totalDevices - compliantCount}</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>ACTION REQUIRED</Typography>
+                  </Box>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={6} sx={{ textAlign: 'center' }}>
+                <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                   <CircularProgress variant="determinate" value={complianceRate} size={140} thickness={6} sx={{ color: complianceRate > 80 ? '#4caf50' : '#ff9800' }} />
+                   <Box sx={{ top: 0, left: 0, bottom: 0, right: 0, position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Typography variant="h4" component="div" sx={{ fontWeight: 900, color: '#fff' }}>{complianceRate}%</Typography>
+                   </Box>
+                </Box>
+                <Typography variant="subtitle2" sx={{ mt: 2, color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>Total AIS140 Compliance Rating</Typography>
+                {complianceRate < 100 && (
+                   <Alert severity="warning" variant="outlined" sx={{ mt: 2, borderRadius: '12px', border: '1px solid rgba(255, 152, 0, 0.3)', color: '#ffb74d' }}>
+                      Certification Gap Detected. Upgrade non-compliant units to maintain fleet integrity.
+                   </Alert>
+                )}
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
+        <Typography variant="h5" gutterBottom align="center" sx={{ mb: 4, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>
+          UPGRADE INFRASTRUCTURE TIER
         </Typography>
         <Grid container spacing={3} justifyContent="center">
           {PLANS.map((plan) => (

@@ -9,11 +9,11 @@ export default (server, darkMode) => ({
   },
   primary: {
     main:
-      validatedColor(server?.attributes?.colorPrimary) || (darkMode ? indigo[200] : indigo[900]),
+      validatedColor(server?.attributes?.colorPrimary) || (darkMode ? '#3b82f6' : '#1d4ed8'),
   },
   secondary: {
     main:
-      validatedColor(server?.attributes?.colorSecondary) || (darkMode ? green[200] : green[800]),
+      validatedColor(server?.attributes?.colorSecondary) || (darkMode ? '#10b981' : '#059669'),
   },
   neutral: {
     main: grey[500],

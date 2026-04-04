@@ -111,10 +111,17 @@ const HardlockPaymentView = ({ onLogout, onSuccess }) => {
   const summary = bill?.orderSummary;
 
   return (
-    <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-      <Box sx={{ p: 4, background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(20px)', borderRadius: '32px', border: '1px solid rgba(239, 68, 68, 0.4)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-         <Typography variant="h5" sx={{ color: '#ef4444', fontWeight: 900, mb: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            Critical Access Suspension
+    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', damping: 20 }}>
+      <Box sx={{ 
+        p: 5, 
+        background: 'rgba(15, 23, 42, 0.6)', 
+        backdropFilter: 'blur(40px) saturate(200%)', 
+        borderRadius: '40px', 
+        border: '1px solid rgba(239, 68, 68, 0.3)', 
+        boxShadow: '0 40px 100px -30px rgba(0, 0, 0, 0.8), 0 0 40px rgba(239, 68, 68, 0.1)' 
+      }}>
+         <Typography variant="h4" sx={{ color: '#f87171', fontWeight: 900, mb: 1, display: 'flex', alignItems: 'center', gap: 2, letterSpacing: '-1px' }}>
+            Account Restricted
          </Typography>
          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 3 }}>
             Your Track Elite enterprise account requires immediate billing reconciliation. All vehicle tracking services are currently restricted.

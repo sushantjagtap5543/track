@@ -55,6 +55,35 @@ export default makeStyles()((theme) => ({
     flexGrow: 1,
     overflow: 'hidden',
   },
+  summarySection: {
+    padding: theme.spacing(3),
+    background: 'rgba(15, 23, 42, 0.5)',
+    backdropFilter: 'blur(30px) saturate(180%)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+  },
+  premiumTable: {
+    '& .MuiTableCell-head': {
+      backgroundColor: 'rgba(30, 41, 59, 0.3)',
+      color: 'rgba(255, 255, 255, 1)',
+      fontWeight: 900,
+      textTransform: 'uppercase',
+      letterSpacing: '1.5px',
+      fontSize: '0.7rem',
+      borderBottom: '2px solid rgba(59, 130, 246, 0.3)',
+      backdropFilter: 'blur(10px)',
+    },
+    '& .MuiTableCell-body': {
+      color: 'rgba(255, 255, 255, 0.9)',
+      borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+      fontWeight: 500,
+      fontSize: '0.875rem',
+    },
+    '& .MuiTableRow-root:hover': {
+      backgroundColor: 'rgba(59, 130, 246, 0.08) !important',
+      backdropFilter: 'blur(5px)',
+    },
+  },
   actionCellPadding: {
     '&.MuiTableCell-body': {
       paddingTop: 0,

@@ -34,6 +34,9 @@ import scheduleReport from './common/scheduleReport';
 import MapScale from '../map/MapScale';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 import exportExcel from '../common/util/exportExcel';
+import ReportSummary, { DirectionsCarIcon, SpeedIcon, TimerIcon } from './components/ReportSummary';
+import { useMemo } from 'react';
+import TimelineIcon from '@mui/icons-material/Timeline';
 
 const columnsArray = [
   ['startTime', 'reportStartTime'],
@@ -209,6 +212,22 @@ const TripReportPage = () => {
     }
   };
 
+  const summaryData = useMemo(() => {
+    if (items.length === 0) return [];
+    
+    const totalDistance = items.reduce((acc, it) => acc + it.distance, 0);
+    const totalDuration = items.reduce((acc, it) => acc + it.duration, 0);
+    const maxSpeed = Math.max(...items.map(it => it.maxSpeed));
+    const avgSpeed = items.length > 0 ? items.reduce((acc, it) => acc + it.averageSpeed, 0) / items.length : 0;
+
+    return [
+      { icon: DirectionsCarIcon, label: 'Total Distance', value: formatDistance(totalDistance, distanceUnit, t), color: theme.palette.primary.main },
+      { icon: TimerIcon, label: 'Total Duration', value: formatNumericHours(totalDuration, t), color: '#4db6ac' },
+      { icon: SpeedIcon, label: 'Top Speed', value: formatSpeed(maxSpeed, speedUnit, t), color: '#ff7043' },
+      { icon: TimelineIcon, label: 'Avg Speed', value: formatSpeed(avgSpeed, speedUnit, t), color: '#9575cd' },
+    ];
+  }, [items, theme, distanceUnit, speedUnit, t]);
+
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportTrips']}>
       <div className={classes.container}>
@@ -239,7 +258,8 @@ const TripReportPage = () => {
               <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
             </ReportFilter>
           </div>
-          <Table>
+          {items.length > 0 && <ReportSummary data={summaryData} />}
+          <Table className={classes.premiumTable}>
             <TableHead>
               <TableRow>
                 <TableCell className={classes.columnAction} />

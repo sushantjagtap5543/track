@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 
 const AIContext = createContext();
 
 export const useAI = () => useContext(AIContext);
 
-const OPENROUTER_API_KEY = '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';
+// [SECURITY] API Key should be moved to backend proxy for production
+const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY || 'REPLACE_WITH_BACKEND_PROXY';
 
 export const AIProvider = ({ children }) => {
   const [insights, setInsights] = useState(null);

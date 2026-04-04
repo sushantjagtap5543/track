@@ -25,6 +25,7 @@ import MapIcon from '@mui/icons-material/Map';
 import DnsIcon from '@mui/icons-material/Dns';
 import AddIcon from '@mui/icons-material/Add';
 import TuneIcon from '@mui/icons-material/Tune';
+import SearchIcon from '@mui/icons-material/Search';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import { useAI } from '../common/components/AIProvider';
 import { useTranslation } from '../common/components/LocalizationProvider';
@@ -58,6 +59,7 @@ const MainToolbar = ({
   filterMap,
   setFilterMap,
   onAIButtonClick,
+  onSearchClick,
 }) => {
   const { getFleetAnalysis } = useAI();
   const { classes } = useStyles();
@@ -197,6 +199,14 @@ const MainToolbar = ({
           </FormGroup>
         </div>
       </Popover>
+      <IconButton
+        edge="end"
+        onClick={onSearchClick}
+      >
+        <Tooltip title="Command Center (⌘K)">
+          <SearchIcon sx={{ color: '#fff' }} />
+        </Tooltip>
+      </IconButton>
       <IconButton
         edge="end"
         onClick={() => {

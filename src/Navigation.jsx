@@ -1,25 +1,30 @@
 import { Route, Routes, useSearchParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
+import { useEffectAsync } from './reactHelper';
+import { devicesActions } from './store';
+import { generateLoginToken } from './common/components/NativeInterface';
+import { useLocalization } from './common/components/LocalizationProvider';
+import fetchOrThrow from './common/util/fetchOrThrow';
+
+// Core Pages
+import App from './App';
 import MainPage from './main/MainPage';
-import CombinedReportPage from './reports/CombinedReportPage';
-import PositionsReportPage from './reports/PositionsReportPage';
+import LoginPage from './login/LoginPage';
+import RegisterPage from './login/RegisterPage';
+import ResetPasswordPage from './login/ResetPasswordPage';
+import ChangeServerPage from './login/ChangeServerPage';
+import Loader from './common/components/Loader';
+
+// Settings Pages
 import ServerPage from './settings/ServerPage';
 import UsersPage from './settings/UsersPage';
-import DevicePage from './settings/DevicePage';
 import UserPage from './settings/UserPage';
-import NotificationsPage from './settings/NotificationsPage';
-import NotificationPage from './settings/NotificationPage';
+import DevicePage from './settings/DevicePage';
+import DevicesPage from './settings/DevicesPage';
 import GroupsPage from './settings/GroupsPage';
 import GroupPage from './settings/GroupPage';
-import PositionPage from './other/PositionPage';
-import NetworkPage from './other/NetworkPage';
-import EventReportPage from './reports/EventReportPage';
-import GeofenceReportPage from './reports/GeofenceReportPage';
-import ReplayPage from './other/ReplayPage';
-import TripReportPage from './reports/TripReportPage';
-import StopReportPage from './reports/StopReportPage';
-import SummaryReportPage from './reports/SummaryReportPage';
-import ChartReportPage from './reports/ChartReportPage';
+import NotificationsPage from './settings/NotificationsPage';
+import NotificationPage from './settings/NotificationPage';
 import DriversPage from './settings/DriversPage';
 import DriverPage from './settings/DriverPage';
 import CalendarsPage from './settings/CalendarsPage';
@@ -30,36 +35,43 @@ import MaintenancesPage from './settings/MaintenancesPage';
 import MaintenancePage from './settings/MaintenancePage';
 import CommandsPage from './settings/CommandsPage';
 import CommandPage from './settings/CommandPage';
-import StatisticsPage from './reports/StatisticsPage';
-import LoginPage from './login/LoginPage';
-import RegisterPage from './login/RegisterPage';
-import ResetPasswordPage from './login/ResetPasswordPage';
-import GeofencesPage from './other/GeofencesPage';
-import GeofencePage from './settings/GeofencePage';
-import { useEffectAsync } from './reactHelper';
-import { devicesActions } from './store';
-import EventPage from './other/EventPage';
-import PreferencesPage from './settings/PreferencesPage';
 import AccumulatorsPage from './settings/AccumulatorsPage';
 import CommandDevicePage from './settings/CommandDevicePage';
 import CommandGroupPage from './settings/CommandGroupPage';
-import App from './App';
-import ChangeServerPage from './login/ChangeServerPage';
-import DevicesPage from './settings/DevicesPage';
-import logsPage from './reports/LogsPage';
+import PreferencesPage from './settings/PreferencesPage';
+import GeofencePage from './settings/GeofencePage';
 import SharePage from './settings/SharePage';
 import AnnouncementPage from './settings/AnnouncementPage';
 import SubscriptionPage from './settings/SubscriptionPage';
-import Loader from './common/components/Loader';
-import { generateLoginToken } from './common/components/NativeInterface';
-import { useLocalization } from './common/components/LocalizationProvider';
-import fetchOrThrow from './common/util/fetchOrThrow';
+
+// Connection Pages
+import DeviceConnectionsPage from './settings/DeviceConnectionsPage';
+import GroupConnectionsPage from './settings/GroupConnectionsPage';
+import UserConnectionsPage from './settings/UserConnectionsPage';
+
+// Report Pages
+import CombinedReportPage from './reports/CombinedReportPage';
+import PositionsReportPage from './reports/PositionsReportPage';
+import EventReportPage from './reports/EventReportPage';
+import GeofenceReportPage from './reports/GeofenceReportPage';
+import TripReportPage from './reports/TripReportPage';
+import StopReportPage from './reports/StopReportPage';
+import SummaryReportPage from './reports/SummaryReportPage';
+import ChartReportPage from './reports/ChartReportPage';
+import StatisticsPage from './reports/StatisticsPage';
 import AuditPage from './reports/AuditPage';
+import LogsPage from './reports/LogsPage';
+
+// Other Pages
+import PositionPage from './other/PositionPage';
+import NetworkPage from './other/NetworkPage';
+import EventPage from './other/EventPage';
+import ReplayPage from './other/ReplayPage';
+import GeofencesPage from './other/GeofencesPage';
 
 const Navigation = () => {
   const dispatch = useDispatch();
   const { setLocalLanguage } = useLocalization();
-
   const [searchParams, setSearchParams] = useSearchParams();
 
   const hasQueryParams = ['locale', 'token', 'uniqueId', 'openid'].some((key) =>
@@ -67,9 +79,7 @@ const Navigation = () => {
   );
 
   useEffectAsync(async () => {
-    if (!hasQueryParams) {
-      return;
-    }
+    if (!hasQueryParams) return;
 
     const newParams = new URLSearchParams(searchParams);
 
@@ -106,6 +116,7 @@ const Navigation = () => {
   if (hasQueryParams) {
     return <Loader />;
   }
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
@@ -114,7 +125,6 @@ const Navigation = () => {
       <Route path="/change-server" element={<ChangeServerPage />} />
       <Route path="/" element={<App />}>
         <Route index element={<MainPage />} />
-
         <Route path="position/:id" element={<PositionPage />} />
         <Route path="network/:positionId" element={<NetworkPage />} />
         <Route path="event/:id" element={<EventPage />} />
@@ -161,6 +171,7 @@ const Navigation = () => {
           <Route path="user/:id" element={<UserPage />} />
           <Route path="user" element={<UserPage />} />
           <Route path="subscription" element={<SubscriptionPage />} />
+          <Route path="server" element={<ServerPage />} />
         </Route>
 
         <Route path="reports">
@@ -172,6 +183,7 @@ const Navigation = () => {
           <Route path="stops" element={<StopReportPage />} />
           <Route path="summary" element={<SummaryReportPage />} />
           <Route path="trips" element={<TripReportPage />} />
+          <Route path="statistics" element={<StatisticsPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="logs" element={<LogsPage />} />
         </Route>

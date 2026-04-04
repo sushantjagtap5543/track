@@ -14,6 +14,9 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { MuiFileInput } from 'mui-file-input';
 import EditItemView from './components/EditItemView';
 import EditAttributesAccordion from './components/EditAttributesAccordion';
+import LockIcon from '@mui/icons-material/Lock';
+import GpsFixedIcon from '@mui/icons-material/GpsFixed';
+import { Switch, Divider, Box, Alert } from '@mui/material';
 import SelectField from '../common/components/SelectField';
 import deviceCategories from '../common/util/deviceCategories';
 import { useTranslation } from '../common/components/LocalizationProvider';
@@ -156,6 +159,60 @@ const DevicePage = () => {
               <Button variant="outlined" color="primary" onClick={() => setShowQr(true)}>
                 {t('sharedQrCode')}
               </Button>
+            </AccordionDetails>
+          </Accordion>
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle1" sx={{ color: 'primary.main', fontWeight: 800 }}>
+                GEOSUREPATH ADVANCED SECURITY
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails className={classes.details}>
+              <Alert severity="info" sx={{ mb: 2, borderRadius: '12px' }}>
+                Safe Parking Mode monitors unauthorized movement from the locked position and triggers high-priority alerts with speech synthesis.
+              </Alert>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={item.attributes?.safeParkingEnabled || false}
+                    onChange={(event) => setItem({
+                      ...item,
+                      attributes: { ...item.attributes, safeParkingEnabled: event.target.checked }
+                    })}
+                  />
+                }
+                label="Enable Safe Parking Mode"
+              />
+              <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<LockIcon />}
+                  fullWidth
+                  onClick={() => {
+                    const positions = JSON.parse(localStorage.getItem('last_positions') || '{}');
+                    const pos = positions[item.id];
+                    if (pos) {
+                      setItem({
+                        ...item,
+                        attributes: {
+                          ...item.attributes,
+                          safeParkingLat: pos.latitude,
+                          safeParkingLon: pos.longitude,
+                          safeParkingLockedAt: new Date().toISOString()
+                        }
+                      });
+                    }
+                  }}
+                  sx={{ borderRadius: '12px', background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)' }}
+                >
+                  Lock Current Position
+                </Button>
+              </Box>
+              {item.attributes?.safeParkingLat && (
+                <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'success.main', fontWeight: 700 }}>
+                  Locked at: {item.attributes.safeParkingLat.toFixed(5)}, {item.attributes.safeParkingLon.toFixed(5)}
+                </Typography>
+              )}
             </AccordionDetails>
           </Accordion>
           {item.id && (

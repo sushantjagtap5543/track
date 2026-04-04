@@ -1,20 +1,33 @@
 import { Box, Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
-import SatelliteAltIcon from '@mui/icons-material/SatelliteAlt';
+import { motion } from 'framer-motion';
 
 const useStyles = makeStyles()((theme) => ({
   root: {
     display: 'flex',
     alignItems: 'center',
-    gap: theme.spacing(1.5),
+    gap: theme.spacing(2),
     userSelect: 'none',
+    marginBottom: theme.spacing(4),
+  },
+  logoWrapper: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoIcon: {
-    fontSize: '2.5rem',
-    background: 'linear-gradient(135deg, #2563eb 0%, #10b981 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+    width: '56px',
+    height: '56px',
+    filter: 'drop-shadow(0 0 15px rgba(59, 130, 246, 0.5))',
+  },
+  glow: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    background: 'radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, transparent 70%)',
+    filter: 'blur(10px)',
+    zIndex: -1,
   },
   textContainer: {
     display: 'flex',
@@ -22,20 +35,23 @@ const useStyles = makeStyles()((theme) => ({
     lineHeight: 1,
   },
   brandName: {
-    fontWeight: 800,
-    fontSize: '1.8rem',
-    letterSpacing: '-0.5px',
-    background: 'linear-gradient(to right, #fff 0%, #cbd5e1 100%)',
+    fontWeight: 900,
+    fontSize: '2.4rem',
+    letterSpacing: '-1.5px',
+    background: 'linear-gradient(to right, #ffffff 0%, #94a3b8 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
+    textShadow: '0 4px 12px rgba(0,0,0,0.3)',
   },
   brandSlogan: {
-    fontSize: '0.65rem',
-    fontWeight: 600,
+    fontSize: '0.75rem',
+    fontWeight: 800,
     textTransform: 'uppercase',
-    letterSpacing: '2px',
-    color: theme.palette.primary.light,
-    marginTop: '2px',
+    letterSpacing: '3px',
+    background: 'linear-gradient(to right, #3b82f6, #10b981)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    marginTop: '4px',
   },
 }));
 
@@ -44,12 +60,26 @@ const LogoImage = () => {
 
   return (
     <Box className={classes.root}>
-      <img src="/logo.svg" alt="Logo" className={classes.logoIcon} />
+      <motion.div 
+        className={classes.logoWrapper}
+        animate={{ 
+          scale: [1, 1.05, 1],
+          rotate: [0, 2, -2, 0]
+        }}
+        transition={{ 
+          duration: 4, 
+          repeat: Infinity,
+          ease: "easeInOut" 
+        }}
+      >
+        <div className={classes.glow} />
+        <img src="/logo.svg" alt="Logo" className={classes.logoIcon} />
+      </motion.div>
       <div className={classes.textContainer}>
         <Typography variant="h1" className={classes.brandName}>
           GeoSurePath
         </Typography>
-        <Typography className={classes.brandSlogan}>SaaS Tracking Platform</Typography>
+        <Typography className={classes.brandSlogan}>Elite Fleet Intelligence</Typography>
       </div>
     </Box>
   );

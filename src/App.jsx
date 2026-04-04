@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { useMediaQuery, useTheme } from '@mui/material';
+import { useMediaQuery, useTheme, Box } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import BottomMenu from './common/components/BottomMenu';
 import SocketController from './SocketController';
@@ -26,6 +27,8 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
+import HardlockPaymentView from './login/HardlockPaymentView';
+
 const App = () => {
   const { classes } = useStyles();
   const theme = useTheme();
@@ -38,6 +41,8 @@ const App = () => {
   const newServer = useSelector((state) => state.session.server.newServer);
   const termsUrl = useSelector((state) => state.session.server.attributes.termsUrl);
   const user = useSelector((state) => state.session.user);
+
+  const [isHardlocked, setIsHardlocked] = useState(false);
 
   const acceptTerms = useCatch(async () => {
     const response = await fetchOrThrow(`/api/users/${user.id}`, {
@@ -52,7 +57,21 @@ const App = () => {
     if (!user) {
       const response = await fetch('/api/session');
       if (response.ok) {
-        dispatch(sessionActions.updateUser(await response.json()));
+        const userData = await response.json();
+        dispatch(sessionActions.updateUser(userData));
+        
+        // Immediate Billing Check for existing sessions
+        try {
+          const billingRes = await fetch('/api/billing/my-bill');
+          if (billingRes.ok) {
+            const billingData = await billingRes.json().catch(() => null);
+            if (billingData && billingData.unpaidDebt > 0) {
+              setIsHardlocked(true);
+            }
+          }
+        } catch (e) {
+          console.error('Initial billing verification failed');
+        }
       } else {
         window.sessionStorage.setItem('postLogin', pathname + search);
         navigate(newServer ? '/register' : '/login', { replace: true });
@@ -64,6 +83,37 @@ const App = () => {
   if (user == null) {
     return <Loader />;
   }
+
+  // Global Hardlock Enforcement
+  if (isHardlocked) {
+    return (
+      <Box sx={{ 
+        height: '100vh', 
+        width: '100vw', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        background: 'radial-gradient(circle at center, #0f172a 0%, #020617 100%)',
+        position: 'fixed',
+        zIndex: 9999
+      }}>
+        <Box sx={{ maxWidth: '500px', width: '90%' }}>
+          <HardlockPaymentView 
+            onLogout={() => {
+              setIsHardlocked(false);
+              dispatch(sessionActions.updateUser(null));
+              navigate('/login');
+            }}
+            onSuccess={() => {
+              setIsHardlocked(false);
+              window.location.reload();
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
   if (termsUrl && !user.attributes.termsAccepted) {
     return <TermsDialog open onCancel={() => navigate('/login')} onAccept={() => acceptTerms()} />;
   }
