@@ -71,7 +71,7 @@
     "vite-plugin-pwa": "^1.2.0",
     "vite-plugin-static-copy": "^3.2.0",
     "vite-plugin-svgr": "^4.5.0",
-    "cross-env": "^10.1.0"
+    "cross-env": "^7.0.3"
   },
   "overrides": {
     "immer": "11.1.3"

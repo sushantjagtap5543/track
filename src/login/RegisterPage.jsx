@@ -227,7 +227,7 @@ const RegisterPage = () => {
         <div className={classes.header}>
           <Typography className={classes.title}>{t('loginRegister')}</Typography>
           <Typography className={classes.subText}>
-            Join Track Elite today and start tracking with precision
+            {t('registerSubtext') || 'Join GeoSurePath today and start tracking with precision'}
           </Typography>
         </div>
 
@@ -272,7 +272,7 @@ const RegisterPage = () => {
         />
         <TextField
           fullWidth
-          label="Phone Number"
+          label={t('sharedPhone') || 'Phone Number'}
           name="phone"
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
@@ -305,7 +305,7 @@ const RegisterPage = () => {
           <TextField
             required
             fullWidth
-            label="Confirm"
+            label={t('sharedConfirmPassword') || 'Confirm Password'}
             name="confirmPassword"
             value={confirmPassword}
             type="password"
@@ -355,7 +355,7 @@ const RegisterPage = () => {
           fullWidth
           startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
         >
-          {loading ? 'Finalizing Setup...' : 'Complete Registration'}
+          {loading ? t('loginRegistering') || 'Finalizing Setup...' : t('loginRegister')}
         </Button>
 
         <div className={classes.footer}>

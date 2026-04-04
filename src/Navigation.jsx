@@ -46,14 +46,10 @@ import CommandGroupPage from './settings/CommandGroupPage';
 import App from './App';
 import ChangeServerPage from './login/ChangeServerPage';
 import DevicesPage from './settings/DevicesPage';
-import ScheduledPage from './reports/ScheduledPage';
-import DeviceConnectionsPage from './settings/DeviceConnectionsPage';
-import GroupConnectionsPage from './settings/GroupConnectionsPage';
-import UserConnectionsPage from './settings/UserConnectionsPage';
-import LogsPage from './reports/LogsPage';
+import logsPage from './reports/LogsPage';
 import SharePage from './settings/SharePage';
 import AnnouncementPage from './settings/AnnouncementPage';
-import EmulatorPage from './other/EmulatorPage';
+import SubscriptionPage from './settings/SubscriptionPage';
 import Loader from './common/components/Loader';
 import { generateLoginToken } from './common/components/NativeInterface';
 import { useLocalization } from './common/components/LocalizationProvider';
@@ -124,7 +120,6 @@ const Navigation = () => {
         <Route path="event/:id" element={<EventPage />} />
         <Route path="replay" element={<ReplayPage />} />
         <Route path="geofences" element={<GeofencesPage />} />
-        <Route path="emulator" element={<EmulatorPage />} />
 
         <Route path="settings">
           <Route path="accumulators/:deviceId" element={<AccumulatorsPage />} />
@@ -161,11 +156,11 @@ const Navigation = () => {
           <Route path="notification/:id" element={<NotificationPage />} />
           <Route path="notification" element={<NotificationPage />} />
           <Route path="preferences" element={<PreferencesPage />} />
-          <Route path="server" element={<ServerPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="user/:id/connections" element={<UserConnectionsPage />} />
           <Route path="user/:id" element={<UserPage />} />
           <Route path="user" element={<UserPage />} />
+          <Route path="subscription" element={<SubscriptionPage />} />
         </Route>
 
         <Route path="reports">
@@ -177,8 +172,6 @@ const Navigation = () => {
           <Route path="stops" element={<StopReportPage />} />
           <Route path="summary" element={<SummaryReportPage />} />
           <Route path="trips" element={<TripReportPage />} />
-          <Route path="scheduled" element={<ScheduledPage />} />
-          <Route path="statistics" element={<StatisticsPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="logs" element={<LogsPage />} />
         </Route>

@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import CloseIcon from '@mui/icons-material/Close';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import RouteIcon from '@mui/icons-material/Route';
 import SendIcon from '@mui/icons-material/Send';
 import EditIcon from '@mui/icons-material/Edit';
@@ -202,6 +203,40 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                     <CloseIcon fontSize="small" />
                   </IconButton>
                 </div>
+              )}
+              {device?.attributes.ais140 && (
+                <Alert 
+                  icon={<VerifiedUserIcon />} 
+                  severity="success" 
+                  sx={{ 
+                    mx: 2, 
+                    mt: 1, 
+                    borderRadius: '12px', 
+                    py: 1,
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                    color: '#10b981'
+                  }}
+                >
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>AIS140 Government Certified</Typography>
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                      <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        ● Power: {position?.attributes.power ? 'Main' : 'Battery'}
+                      </Typography>
+                      {position?.attributes.tamper && (
+                        <Typography variant="caption" sx={{ color: '#ef4444', fontWeight: 700 }}>
+                          ● TAMPER ALERT
+                        </Typography>
+                      )}
+                      {position?.attributes.panic && (
+                        <Typography variant="caption" sx={{ color: '#ef4444', fontWeight: 700 }}>
+                          ● EMERGENCY ACTIVE
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Alert>
               )}
               {position && (
                 <CardContent className={classes.content}>

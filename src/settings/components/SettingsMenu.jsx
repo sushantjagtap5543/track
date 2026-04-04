@@ -119,9 +119,12 @@ const SettingsMenu = () => {
             )}
           </>
         )}
-        {billingLink && (
-          <MenuItem title={t('userBilling')} link={billingLink} icon={<PaymentIcon />} />
-        )}
+        <MenuItem
+          title={t('userBilling')}
+          link="/settings/subscription"
+          icon={<PaymentIcon />}
+          selected={location.pathname === '/settings/subscription'}
+        />
         {supportLink && (
           <MenuItem title={t('settingsSupport')} link={supportLink} icon={<HelpIcon />} />
         )}

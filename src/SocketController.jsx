@@ -105,19 +105,34 @@ const SocketController = () => {
       }
     };
 
+    const buffer = { devices: [], positions: [], events: [], logs: [] };
+    let flushTimeout = null;
+
+    const flush = () => {
+      if (buffer.devices.length) dispatch(devicesActions.update(buffer.devices));
+      if (buffer.positions.length) dispatch(sessionActions.updatePositions(buffer.positions));
+      if (buffer.events.length) handleEvents(buffer.events);
+      if (buffer.logs.length) dispatch(sessionActions.updateLogs(buffer.logs));
+      buffer.devices = [];
+      buffer.positions = [];
+      buffer.events = [];
+      buffer.logs = [];
+      flushTimeout = null;
+    };
+
     socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.devices) {
-        dispatch(devicesActions.update(data.devices));
-      }
-      if (data.positions) {
-        dispatch(sessionActions.updatePositions(data.positions));
-      }
-      if (data.events) {
-        handleEvents(data.events);
-      }
-      if (data.logs) {
-        dispatch(sessionActions.updateLogs(data.logs));
+      try {
+        const data = JSON.parse(event.data);
+        if (data.devices) buffer.devices.push(...data.devices);
+        if (data.positions) buffer.positions.push(...data.positions);
+        if (data.events) buffer.events.push(...data.events);
+        if (data.logs) buffer.logs.push(...data.logs);
+
+        if (!flushTimeout) {
+          flushTimeout = setTimeout(flush, 250);
+        }
+      } catch (e) {
+        // ignore errors
       }
     };
   };

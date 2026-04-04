@@ -39,6 +39,7 @@ import { sessionActions } from '../store';
 import { useAdministrator, useRestriction } from '../common/util/permissions';
 import useSettingsStyles from './common/useSettingsStyles';
 import fetchOrThrow from '../common/util/fetchOrThrow';
+import { saveBackup, restoreBackup } from '../common/util/BackupService';
 
 const deviceFields = [
   { id: 'name', name: 'sharedName' },
@@ -107,6 +108,22 @@ const PreferencesPage = () => {
     const response = await fetch('/api/server/reboot', { method: 'POST' });
     throw Error(response.statusText);
   });
+
+  const handleBackup = () => {
+    saveBackup({ session: { user, server: useSelector((state) => state.session.server) } });
+  };
+
+  const handleRestore = async (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      try {
+        await restoreBackup(file);
+        alert('Backup loaded. Please save preferences to apply changes.');
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+  };
 
   return (
     <PageLayout menu={<SettingsMenu />} breadcrumbs={['settingsTitle', 'sharedPreferences']}>
@@ -405,6 +422,25 @@ const PreferencesPage = () => {
                 }
               />
             </FormControl>
+          </AccordionDetails>
+        </Accordion>
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1">System Data (Cloud Sync & Backup)</Typography>
+          </AccordionSummary>
+          <AccordionDetails className={classes.details}>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+              Maintain your GeoSurePath platform state by exporting a secure backup or restoring from a previous configuration.
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button variant="contained" color="secondary" onClick={handleBackup} fullWidth>
+                Export Backup
+              </Button>
+              <Button variant="outlined" component="label" color="secondary" fullWidth>
+                Import Backup
+                <input type="file" hidden accept=".json" onChange={handleRestore} />
+              </Button>
+            </Box>
           </AccordionDetails>
         </Accordion>
         {!readonly && (

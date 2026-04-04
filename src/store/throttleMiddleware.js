@@ -1,10 +1,10 @@
 import { sessionActions } from './session';
 import { devicesActions } from './devices';
 
-const threshold = 3; // per second
-const minInterval = 1500;
-const maxInterval = 30000;
-const scaleFactor = 1000;
+const threshold = 10; // more events before throttling
+const minInterval = 100; // faster updates for "on-time speed"
+const maxInterval = 2000; // tighter bound for UI consistency
+const scaleFactor = 300; // smoother adjustment speed
 
 // eslint-disable-next-line no-undef
 const debugMode = process.env.NODE_ENV === 'development';

@@ -179,12 +179,12 @@ const ResetPasswordPage = () => {
            transition={{ delay: 0.2 }}
         >
           <Typography className={classes.title}>
-            {!token ? 'Recovery' : 'New Security'}
+            {!token ? t('loginReset') || 'Recovery' : t('userPassword') || 'New Security'}
           </Typography>
           <Typography className={classes.subText}>
             {!token
-              ? 'Securely reset your fleet dashboard access'
-              : 'Establish your new encrypted credentials'}
+              ? t('resetSubtext') || 'Securely reset your fleet dashboard access'
+              : t('resetConfirmSubtext') || 'Establish your new encrypted credentials'}
           </Typography>
         </motion.div>
 
@@ -202,7 +202,7 @@ const ResetPasswordPage = () => {
               required
               fullWidth
               type="email"
-              label="Account Email"
+              label={t('userEmail')}
               name="email"
               value={email}
               autoComplete="email"

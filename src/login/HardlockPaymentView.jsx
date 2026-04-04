@@ -85,6 +85,8 @@ const HardlockPaymentView = ({ onLogout, onSuccess }) => {
 
                 if (verifyRes.ok) {
                     onSuccess();
+                    // Force a full session refresh to immediately unlock the platform
+                    window.location.reload();
                 } else {
                     alert('Payment verification failed. Please contact support.');
                 }

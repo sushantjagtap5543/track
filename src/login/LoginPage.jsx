@@ -59,12 +59,14 @@ const useStyles = makeStyles()((theme) => ({
     textAlign: 'center',
   },
   welcomeText: {
-    color: '#fff',
+    background: 'linear-gradient(to right, #ffffff, #94a3b8)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
     fontWeight: 900,
-    fontSize: '2.8rem',
-    letterSpacing: '-1.5px',
+    fontSize: '3.2rem',
+    letterSpacing: '-2px',
     lineHeight: 1.1,
-    textShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))',
   },
   subText: {
     color: 'rgba(255, 255, 255, 0.7)',
@@ -100,19 +102,19 @@ const useStyles = makeStyles()((theme) => ({
     '& .MuiOutlinedInput-notchedOutline': { border: 'none' }
   },
   loginButton: {
-    borderRadius: '18px',
-    padding: theme.spacing(2, 0),
-    fontSize: '1.15rem',
+    borderRadius: '20px',
+    padding: theme.spacing(2.2, 0),
+    fontSize: '1.2rem',
     fontWeight: 900,
     textTransform: 'uppercase',
-    letterSpacing: '1.5px',
-    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-    boxShadow: '0 12px 35px rgba(59, 130, 246, 0.45)',
-    transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+    letterSpacing: '2px',
+    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+    boxShadow: '0 15px 40px rgba(37, 99, 235, 0.5)',
+    transition: 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
     '&:hover': {
-      background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
-      transform: 'translateY(-4px) scale(1.02)',
-      boxShadow: '0 18px 45px rgba(59, 130, 246, 0.6)',
+      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+      transform: 'translateY(-5px) scale(1.03)',
+      boxShadow: '0 25px 55px rgba(37, 99, 235, 0.7)',
     },
   },
   secondaryButton: {
@@ -443,9 +445,9 @@ const LoginPage = () => {
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
       >
-        <Typography className={classes.welcomeText} sx={{ fontSize: '3rem', mb: 1 }}>Track Elite Enterprise</Typography>
+        <Typography className={classes.welcomeText} sx={{ fontSize: '3rem', mb: 1 }}>{t('loginTitle') || 'GeoSurePath Enterprise'}</Typography>
         <Typography className={classes.subText} sx={{ fontSize: '1.2rem', opacity: 0.8, letterSpacing: '0.5px' }}>
-          World Class GPS Tracking & Fleet Intelligence
+          {t('loginSubtext') || 'World Class GPS Tracking & Fleet Intelligence'}
         </Typography>
       </motion.div>
 
@@ -455,7 +457,7 @@ const LoginPage = () => {
               required
               fullWidth
               error={failed}
-              label="Email Address"
+              label={t('userEmail')}
               name="email"
               value={email}
               autoComplete="email"
@@ -529,7 +531,7 @@ const LoginPage = () => {
               disabled={loading}
               className={classes.loginButton}
             >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Enter Platform Dashboard'}
+              {loading ? <CircularProgress size={24} color="inherit" /> : t('loginLogin')}
             </Button>
           </motion.div>
 
@@ -564,20 +566,14 @@ const LoginPage = () => {
 
           {registrationEnabled && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.85 }} style={{ textAlign: 'center', marginTop: '16px' }}>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
-                    Need an account? <Box component="span" sx={{ color: '#3b82f6', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => navigate('/register')}>Request Enterprise Provisioning</Box>
-                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{t('loginNoAccount') || 'Need an account?'} <Box component="span" sx={{ color: '#3b82f6', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => navigate('/register')}>{t('loginRegister')}</Box></Typography>
             </motion.div>
           )}
           
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }} style={{ textAlign: 'center', marginTop: '8px' }}>
-            <Link
-                onClick={() => navigate('/reset-password')}
-                sx={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'none', '&:hover': { color: '#fff' } }}
-                component="button"
-              >
-                Forgot Password? Reset securely
-              </Link>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
+              {t('loginPasswordReset') || 'Forgot Password?'} <Box component="span" sx={{ color: '#64748b', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => navigate('/reset-password')}>Reset securely</Box>
+            </Typography>
           </motion.div>
       </form>
 

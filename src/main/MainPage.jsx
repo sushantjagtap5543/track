@@ -14,6 +14,9 @@ import useFilter from './useFilter';
 import MainToolbar from './MainToolbar';
 import MainMap from './MainMap';
 import { useAttributePreference } from '../common/util/preferences';
+import { Drawer, Box, CircularProgress, Alert, AlertTitle, Typography } from '@mui/material';
+import PsychologyIcon from '@mui/icons-material/Psychology';
+import { useAI } from '../common/components/AIProvider';
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -31,6 +34,10 @@ const useStyles = makeStyles()((theme) => ({
       width: theme.dimensions.drawerWidthDesktop,
       margin: theme.spacing(1.5),
       zIndex: 3,
+      borderRadius: '24px',
+      overflow: 'hidden',
+      boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+      border: '1px solid rgba(255,255,255,0.05)',
     },
     [theme.breakpoints.down('md')]: {
       height: '100%',
@@ -64,6 +71,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const MainPage = () => {
+  const { insights, loading: aiLoading, error: aiError } = useAI();
   const { classes } = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
@@ -74,13 +82,6 @@ const MainPage = () => {
 
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const positions = useSelector((state) => state.session.positions);
-  const [filteredPositions, setFilteredPositions] = useState([]);
-  const selectedPosition = filteredPositions.find(
-    (position) => selectedDeviceId && position.deviceId === selectedDeviceId,
-  );
-
-  const [filteredDevices, setFilteredDevices] = useState([]);
-
   const [keyword, setKeyword] = useState('');
   const [filter, setFilter] = usePersistedState('filter', {
     statuses: [],
@@ -91,6 +92,7 @@ const MainPage = () => {
 
   const [devicesOpen, setDevicesOpen] = useState(desktop);
   const [eventsOpen, setEventsOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const onEventsClick = useCallback(() => setEventsOpen(true), [setEventsOpen]);
 
@@ -100,14 +102,16 @@ const MainPage = () => {
     }
   }, [desktop, mapOnSelect, selectedDeviceId]);
 
-  useFilter(
+  const { filteredDevices, filteredPositions } = useFilter(
     keyword,
     filter,
     filterSort,
     filterMap,
     positions,
-    setFilteredDevices,
-    setFilteredPositions,
+  );
+
+  const selectedPosition = filteredPositions.find(
+    (position) => selectedDeviceId && position.deviceId === selectedDeviceId,
   );
 
   return (
@@ -133,6 +137,7 @@ const MainPage = () => {
             setFilterSort={setFilterSort}
             filterMap={filterMap}
             setFilterMap={setFilterMap}
+            onAIButtonClick={() => setAiOpen(true)}
           />
         </Paper>
         <div className={classes.middle}>
@@ -160,6 +165,36 @@ const MainPage = () => {
         )}
       </div>
       <EventsDrawer open={eventsOpen} onClose={() => setEventsOpen(false)} />
+      <Drawer
+        anchor="right"
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        PaperProps={{ sx: { width:  desktop ? 400 : '100%', p: 3, background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(10px)', borderLeft: '1px solid rgba(255,255,255,0.1)' } }}
+      >
+        <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PsychologyIcon /> AI Fleet Insights
+        </Typography>
+        {aiLoading ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 10, gap: 2 }}>
+            <CircularProgress size={60} thickness={2} sx={{ color: '#3b82f6' }} />
+            <Typography sx={{ color: 'rgba(255,255,255,0.7)' }}>Analyzing Fleet Behavior...</Typography>
+          </Box>
+        ) : aiError ? (
+          <Box>
+            <Alert severity="warning" sx={{ mb: 2, background: 'rgba(153, 27, 27, 0.2)', color: '#f87171', border: '1px solid rgba(248, 113, 113, 0.2)' }}>
+              <AlertTitle sx={{ fontWeight: 700 }}>AI Failover Active</AlertTitle>
+              {aiError}
+            </Alert>
+            <Box sx={{ color: 'rgba(255,255,255,0.9)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+              {insights}
+            </Box>
+          </Box>
+        ) : (
+          <Box sx={{ color: 'rgba(255,255,255,0.9)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+            {insights || 'No analysis data available. Click the AI icon to start analysis.'}
+          </Box>
+        )}
+      </Drawer>
       {selectedDeviceId && (
         <StatusCard
           deviceId={selectedDeviceId}

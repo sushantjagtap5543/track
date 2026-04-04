@@ -60,7 +60,7 @@ const UsersPage = () => {
   useEffectAsync(async () => {
     setLoading(true);
     try {
-      const response = await fetchOrThrow('/api/users?excludeAttributes=true');
+      const response = await fetchOrThrow('/api/users');
       setItems(await response.json());
     } finally {
       setLoading(false);
@@ -76,6 +76,7 @@ const UsersPage = () => {
             <TableCell>{t('sharedName')}</TableCell>
             <TableCell>{t('userEmail')}</TableCell>
             <TableCell>{t('userAdmin')}</TableCell>
+            <TableCell>Plan</TableCell>
             <TableCell>{t('sharedDisabled')}</TableCell>
             <TableCell>{t('userExpirationTime')}</TableCell>
             <TableCell className={classes.columnAction} />
@@ -91,6 +92,9 @@ const UsersPage = () => {
                   <TableCell>{item.name}</TableCell>
                   <TableCell>{item.email}</TableCell>
                   <TableCell>{formatBoolean(item.administrator, t)}</TableCell>
+                  <TableCell sx={{ textTransform: 'capitalize', fontWeight: 700, color: '#3b82f6' }}>
+                    {item.attributes.plan || 'Basic'}
+                  </TableCell>
                   <TableCell>{formatBoolean(item.disabled, t)}</TableCell>
                   <TableCell>{formatTime(item.expirationTime, 'date')}</TableCell>
                   <TableCell className={classes.columnAction} padding="none">
@@ -112,7 +116,7 @@ const UsersPage = () => {
         </TableBody>
         <TableFooter>
           <TableRow>
-            <TableCell colSpan={6} align="right">
+            <TableCell colSpan={8} align="right">
               <FormControlLabel
                 control={
                   <Switch

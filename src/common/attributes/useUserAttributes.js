@@ -67,6 +67,15 @@ export default (t) =>
         name: t('userBilling'),
         type: 'string',
       },
+      plan: {
+        name: 'Subscription Plan',
+        type: 'select',
+        options: [
+          { key: 'basic', value: 'Basic Tracking' },
+          { key: 'premium', value: 'Premium Compliance' },
+          { key: 'enterprise', value: 'Enterprise AI' },
+        ],
+      },
     }),
     [t],
   );

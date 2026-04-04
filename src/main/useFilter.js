@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
@@ -8,35 +8,35 @@ export default (
   filterSort,
   filterMap,
   positions,
-  setFilteredDevices,
-  setFilteredPositions,
 ) => {
   const groups = useSelector((state) => state.groups.items);
   const devices = useSelector((state) => state.devices.items);
 
-  useEffect(() => {
+  return useMemo(() => {
     const deviceGroups = (device) => {
       const groupIds = [];
       let { groupId } = device;
-      while (groupId) {
+      while (groupId && groups[groupId]) {
         groupIds.push(groupId);
-        groupId = groups[groupId]?.groupId || 0;
+        groupId = groups[groupId].groupId;
       }
       return groupIds;
     };
 
     const filtered = Object.values(devices)
       .filter((device) => !filter.statuses.length || filter.statuses.includes(device.status))
-      .filter(
-        (device) =>
-          !filter.groups.length || deviceGroups(device).some((id) => filter.groups.includes(id)),
-      )
       .filter((device) => {
+        if (!filter.groups.length) return true;
+        const groupIds = deviceGroups(device);
+        return groupIds.some((id) => filter.groups.includes(id));
+      })
+      .filter((device) => {
+        if (!keyword) return true;
         const lowerCaseKeyword = keyword.toLowerCase();
-        return [device.name, device.uniqueId, device.phone, device.model, device.contact].some(
-          (s) => s && s.toLowerCase().includes(lowerCaseKeyword),
-        );
+        return (device.name && device.name.toLowerCase().includes(lowerCaseKeyword)) ||
+               (device.uniqueId && device.uniqueId.toLowerCase().includes(lowerCaseKeyword));
       });
+
     switch (filterSort) {
       case 'name':
         filtered.sort((device1, device2) => device1.name.localeCompare(device2.name));
@@ -51,21 +51,11 @@ export default (
       default:
         break;
     }
-    setFilteredDevices(filtered);
-    setFilteredPositions(
-      filterMap
-        ? filtered.map((device) => positions[device.id]).filter(Boolean)
-        : Object.values(positions),
-    );
-  }, [
-    keyword,
-    filter,
-    filterSort,
-    filterMap,
-    groups,
-    devices,
-    positions,
-    setFilteredDevices,
-    setFilteredPositions,
-  ]);
+
+    const filteredPositions = filterMap
+      ? filtered.map((device) => positions[device.id]).filter(Boolean)
+      : Object.values(positions);
+
+    return { filteredDevices: filtered, filteredPositions };
+  }, [keyword, filter, filterSort, filterMap, groups, devices, positions]);
 };

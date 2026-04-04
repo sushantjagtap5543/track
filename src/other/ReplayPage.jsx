@@ -24,6 +24,9 @@ import MapScale from '../map/MapScale';
 import BackIcon from '../common/components/BackIcon';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 import MapOverlay from '../map/overlay/MapOverlay';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -111,6 +114,41 @@ const ReplayPage = () => {
     }
   }, [from, to, setPositions]);
 
+  const [interpolatedPosition, setInterpolatedPosition] = useState(null);
+
+  useEffect(() => {
+    let animationFrame;
+    const startTime = Date.now();
+    const duration = 500; // ms per step
+
+    const animate = () => {
+      if (playing && positions.length > 0 && index < positions.length - 1) {
+        const now = Date.now();
+        const elapsed = now % duration;
+        const fraction = elapsed / duration;
+
+        const p1 = positions[index];
+        const p2 = positions[index + 1];
+
+        if (p1 && p2) {
+          setInterpolatedPosition({
+            ...p1,
+            latitude: p1.latitude + (p2.latitude - p1.latitude) * fraction,
+            longitude: p1.longitude + (p2.longitude - p1.longitude) * fraction,
+            course: p1.course + (p2.course - p1.course) * fraction,
+            speed: p1.speed + (p2.speed - p1.speed) * fraction,
+          });
+        }
+      } else if (positions.length > 0) {
+        setInterpolatedPosition(positions[index]);
+      }
+      animationFrame = requestAnimationFrame(animate);
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [playing, positions, index]);
+
   useEffect(() => {
     if (playing && positions.length > 0) {
       timerRef.current = setInterval(() => {
@@ -127,6 +165,7 @@ const ReplayPage = () => {
     if (index >= positions.length - 1) {
       clearInterval(timerRef.current);
       setPlaying(false);
+      setIndex(positions.length - 1);
     }
   }, [index, positions]);
 
@@ -174,9 +213,9 @@ const ReplayPage = () => {
         <MapGeofence />
         <MapRoutePath positions={positions} />
         <MapRoutePoints positions={positions} onClick={onPointClick} showSpeedControl />
-        {index < positions.length && (
+        {interpolatedPosition && (
           <MapPositions
-            positions={[positions[index]]}
+            positions={[interpolatedPosition]}
             onMarkerClick={onMarkerClick}
             titleField="fixTime"
           />
@@ -244,6 +283,43 @@ const ReplayPage = () => {
                 </IconButton>
                 {formatTime(positions[index].fixTime, 'seconds')}
               </div>
+              <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 700, letterSpacing: '1px' }}>REFINED TELEMETRY STREAM</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', bgcolor: 'rgba(59, 130, 246, 0.1)', p: 1.5, borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                  <Box>
+                    <Typography variant="body2" sx={{ opacity: 0.7 }}>Speed</Typography>
+                    <Typography variant="h6">{Math.round((interpolatedPosition?.speed || 0) * 1.852)} <Typography component="span" variant="caption">km/h</Typography></Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Typography variant="body2" sx={{ opacity: 0.7 }}>Ignition</Typography>
+                    <Typography variant="h6" color={positions[index].attributes.ignition ? 'success.main' : 'textSecondary'}>
+                      {positions[index].attributes.ignition ? 'ON' : 'OFF'}
+                    </Typography>
+                  </Box>
+                </Box>
+                {positions[index].attributes.ais140 && (
+                  <Alert 
+                    severity="success" 
+                    icon={<VerifiedUserIcon sx={{ fontSize: '1.2rem' }} />} 
+                    sx={{ 
+                      borderRadius: '8px',
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      border: '1px solid rgba(16, 185, 129, 0.2)',
+                      '& .MuiAlert-message': { width: '100%' }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>AIS140 Government Certified</Typography>
+                      <Typography variant="caption" sx={{ px: 1, bgcolor: 'rgba(16, 185, 129, 0.2)', borderRadius: '4px' }}>SECURE</Typography>
+                    </Box>
+                    {positions[index].attributes.panic && (
+                      <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5, fontWeight: 700 }}>
+                        ⚠️ EMERGENCY BUTTON ACTIVE
+                      </Typography>
+                    )}
+                  </Alert>
+                )}
+              </Box>
             </>
           )}
           <div style={{ display: loaded ? 'none' : 'block' }}>

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { makeStyles } from 'tss-react/mui';
 import {
@@ -7,8 +8,11 @@ import {
   ListItemAvatar,
   ListItemText,
   ListItemButton,
+  Box,
+  Alert,
   Typography,
 } from '@mui/material';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import BatteryFullIcon from '@mui/icons-material/BatteryFull';
 import BatteryChargingFullIcon from '@mui/icons-material/BatteryChargingFull';
 import Battery60Icon from '@mui/icons-material/Battery60';
@@ -34,6 +38,8 @@ import { useAttributePreference } from '../common/util/preferences';
 import GeofencesValue from '../common/components/GeofencesValue';
 import DriverValue from '../common/components/DriverValue';
 import MotionBar from './components/MotionBar';
+import fetchOrThrow from '../common/util/fetchOrThrow';
+import { useCatch } from '../reactHelper';
 
 dayjs.extend(relativeTime);
 
@@ -97,6 +103,18 @@ const DeviceRow = ({ devices, index, style }) => {
   const primaryValue = resolveFieldValue(devicePrimary);
   const secondaryValue = resolveFieldValue(deviceSecondary);
 
+  const handleIgnition = useCatch(async () => {
+    const command = {
+      deviceId: item.id,
+      type: position.attributes.ignition ? 'engineStop' : 'engineResume',
+    };
+    await fetchOrThrow('/api/commands/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(command),
+    });
+  });
+
   const secondaryText = () => {
     let status;
     if (item.status === 'online' || !item.lastUpdate) {
@@ -143,6 +161,11 @@ const DeviceRow = ({ devices, index, style }) => {
             secondary: { noWrap: true },
           }}
         />
+        {item.attributes.ais140 && (
+          <Tooltip title="AIS140 Certified Vehicle">
+            <VerifiedUserIcon sx={{ color: '#10b981', ml: 1, fontSize: '1rem' }} />
+          </Tooltip>
+        )}
         {position && (
           <>
             {position.attributes.hasOwnProperty('alarm') && (
@@ -156,7 +179,7 @@ const DeviceRow = ({ devices, index, style }) => {
               <Tooltip
                 title={`${t('positionIgnition')}: ${formatBoolean(position.attributes.ignition, t)}`}
               >
-                <IconButton size="small">
+                <IconButton size="small" onClick={handleIgnition}>
                   {position.attributes.ignition ? (
                     <EngineIcon width={20} height={20} className={classes.success} />
                   ) : (
@@ -197,4 +220,4 @@ const DeviceRow = ({ devices, index, style }) => {
   );
 };
 
-export default DeviceRow;
+export default memo(DeviceRow);

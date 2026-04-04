@@ -25,6 +25,8 @@ import MapIcon from '@mui/icons-material/Map';
 import DnsIcon from '@mui/icons-material/Dns';
 import AddIcon from '@mui/icons-material/Add';
 import TuneIcon from '@mui/icons-material/Tune';
+import PsychologyIcon from '@mui/icons-material/Psychology';
+import { useAI } from '../common/components/AIProvider';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { useDeviceReadonly } from '../common/util/permissions';
 import DeviceRow from './DeviceRow';
@@ -55,7 +57,9 @@ const MainToolbar = ({
   setFilterSort,
   filterMap,
   setFilterMap,
+  onAIButtonClick,
 }) => {
+  const { getFleetAnalysis } = useAI();
   const { classes } = useStyles();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -65,6 +69,7 @@ const MainToolbar = ({
 
   const groups = useSelector((state) => state.groups.items);
   const devices = useSelector((state) => state.devices.items);
+  const positions = useSelector((state) => state.session.positions);
 
   const toolbarRef = useRef();
   const inputRef = useRef();
@@ -192,6 +197,18 @@ const MainToolbar = ({
           </FormGroup>
         </div>
       </Popover>
+      <IconButton
+        edge="end"
+        onClick={() => {
+          getFleetAnalysis(Object.values(devices), positions);
+          onAIButtonClick();
+        }}
+        color="secondary"
+      >
+        <Tooltip title="AI Fleet Insights">
+          <PsychologyIcon />
+        </Tooltip>
+      </IconButton>
       <IconButton edge="end" onClick={() => navigate('/settings/device')} disabled={deviceReadonly}>
         <Tooltip
           open={!deviceReadonly && Object.keys(devices).length === 0}
