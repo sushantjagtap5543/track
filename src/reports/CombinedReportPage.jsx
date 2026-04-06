@@ -78,7 +78,7 @@ const CombinedReportPage = () => {
           <div className={classes.header}>
             <ReportFilter onShow={onShow} deviceType="multiple" loading={loading} />
           </div>
-          <Table>
+          <Table className={classes.premiumTable}>
             <TableHead>
               <TableRow>
                 <TableCell>{t('sharedDevice')}</TableCell>

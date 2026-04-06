@@ -168,30 +168,67 @@ const SummaryReportPage = () => {
           <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
         </ReportFilter>
       </div>
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('sharedDevice')}</TableCell>
-            {columns.map((key) => (
-              <TableCell key={key}>{t(columnsMap.get(key))}</TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {!loading ? (
-            items.map((item) => (
-              <TableRow key={`${item.deviceId}_${Date.parse(item.startTime)}`}>
-                <TableCell>{devices[item.deviceId].name}</TableCell>
-                {columns.map((key) => (
-                  <TableCell key={key}>{formatValue(item, key)}</TableCell>
-                ))}
-              </TableRow>
-            ))
-          ) : (
-            <TableShimmer columns={columns.length + 1} />
-          )}
-        </TableBody>
-      </Table>
+      {items.length > 0 && (
+        <div className={classes.summarySection}>
+          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <div style={{ textAlign: 'center', minWidth: '150px' }}>
+              <div style={{ fontSize: '0.875rem', opacity: 0.7 }}>Total Distance</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+                {formatDistance(
+                  items.reduce((acc, it) => acc + (it.distance || 0), 0),
+                  distanceUnit,
+                  t,
+                )}
+              </div>
+            </div>
+            <div style={{ textAlign: 'center', minWidth: '150px' }}>
+              <div style={{ fontSize: '0.875rem', opacity: 0.7 }}>Total Fuel Spent</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+                {formatVolume(
+                  items.reduce((acc, it) => acc + (it.spentFuel || 0), 0),
+                  volumeUnit,
+                  t,
+                )}
+              </div>
+            </div>
+            <div style={{ textAlign: 'center', minWidth: '150px' }}>
+              <div style={{ fontSize: '0.875rem', opacity: 0.7 }}>Engine Hours</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+                {formatNumericHours(
+                  items.reduce((acc, it) => acc + (it.engineHours || 0), 0),
+                  t,
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className={classes.containerMain}>
+        <Table className={classes.premiumTable}>
+          <TableHead>
+            <TableRow>
+              <TableCell>{t('sharedDevice')}</TableCell>
+              {columns.map((key) => (
+                <TableCell key={key}>{t(columnsMap.get(key))}</TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {!loading ? (
+              items.map((item) => (
+                <TableRow key={`${item.deviceId}_${Date.parse(item.startTime)}`}>
+                  <TableCell>{devices[item.deviceId]?.name}</TableCell>
+                  {columns.map((key) => (
+                    <TableCell key={key}>{formatValue(item, key)}</TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableShimmer columns={columns.length + 1} />
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </PageLayout>
   );
 };

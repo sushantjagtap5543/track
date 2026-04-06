@@ -20,11 +20,17 @@ import {
   Dialog,
   DialogContent,
   DialogActions,
+  useTheme,
+  Box,
+  Grid,
+  ListItem,
+  ListItemText,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import CachedIcon from '@mui/icons-material/Cached';
 import CloseIcon from '@mui/icons-material/Close';
+import PaymentIcon from '@mui/icons-material/Payment';
 import { useDispatch, useSelector } from 'react-redux';
 import EditItemView from './components/EditItemView';
 import EditAttributesAccordion from './components/EditAttributesAccordion';
@@ -41,7 +47,14 @@ import { map } from '../map/core/MapView';
 import useSettingsStyles from './common/useSettingsStyles';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 
+const PLANS = [
+  { id: 'basic', name: 'Monthly Tier', price: 200, months: 1 },
+  { id: 'premium', name: 'Half-Yearly Tier', price: 1000, months: 6 },
+  { id: 'enterprise', name: 'Yearly Elite Tier', price: 2000, months: 12 },
+];
+
 const UserPage = () => {
+  const theme = useTheme();
   const { classes } = useSettingsStyles();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -68,6 +81,43 @@ const UserPage = () => {
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
   const [revokeToken, setRevokeToken] = useState('');
+
+  const [cashPaymentOpen, setCashPaymentOpen] = useState(false);
+  const [cashPlan, setCashPlan] = useState('basic');
+  const [cashSaving, setCashSaving] = useState(false);
+
+  const handleRecordCashPayment = useCatch(async () => {
+    setCashSaving(true);
+    const selectedPlan = PLANS.find((p) => p.id === cashPlan);
+    const currentExpiry = item.attributes?.nextBillingDate
+      ? new Date(item.attributes.nextBillingDate)
+      : new Date();
+    const startDate = currentExpiry > new Date() ? currentExpiry : new Date();
+    const nextDate = new Date(startDate);
+    nextDate.setMonth(nextDate.getMonth() + selectedPlan.months);
+
+    const updatedItem = {
+      ...item,
+      attributes: {
+        ...(item.attributes || {}),
+        plan: cashPlan,
+        nextBillingDate: nextDate.toISOString(),
+      },
+      disabled: false, // Auto-unlock on payment
+    };
+
+    const response = await fetchOrThrow(`/api/users/${item.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedItem),
+    });
+
+    const result = await response.json();
+    setItem(result);
+    onItemSaved(result);
+    setCashPaymentOpen(false);
+    setCashSaving(false);
+  });
 
   const handleDelete = useCatch(async () => {
     if (deleteEmail === currentUser.email) {
@@ -390,9 +440,23 @@ const UserPage = () => {
                     <Checkbox
                       checked={item.disabled}
                       onChange={(e) => setItem({ ...item, disabled: e.target.checked })}
+                      color="error"
                     />
                   }
-                  label={t('sharedDisabled')}
+                  label={
+                    <Box>
+                      <Typography
+                        variant="body1"
+                        sx={{ fontWeight: 700, color: item.disabled ? 'error.main' : 'inherit' }}
+                      >
+                        Restrict Access (Payment Pending)
+                      </Typography>
+                      <Typography variant="caption" sx={{ opacity: 0.7, display: 'block' }}>
+                        If checked, the client will be blocked from logging in until their payment
+                        is confirmed.
+                      </Typography>
+                    </Box>
+                  }
                   disabled={!manager}
                 />
                 <FormControlLabel
@@ -456,6 +520,173 @@ const UserPage = () => {
                   disabled={!manager}
                 />
               </FormGroup>
+            </AccordionDetails>
+          </Accordion>
+          {admin && (
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography
+                  variant="subtitle1"
+                  sx={{ color: theme.palette.primary.main, fontWeight: 700 }}
+                >
+                  Billing & Infrastructure (Admin Only)
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails className={classes.details}>
+                <Box
+                  sx={{
+                    mb: 2,
+                    p: 2,
+                    bgcolor: 'rgba(25, 118, 210, 0.05)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(25, 118, 210, 0.1)',
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'primary.main', fontWeight: 700, mb: 1, display: 'block' }}
+                  >
+                    SUBSCRIPTION LIFECYCLE
+                  </Typography>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Next Billing Date"
+                        type="date"
+                        InputLabelProps={{ shrink: true }}
+                        value={
+                          item.attributes?.nextBillingDate
+                            ? item.attributes.nextBillingDate.split('T')[0]
+                            : ''
+                        }
+                        onChange={(e) =>
+                          setItem({
+                            ...item,
+                            attributes: {
+                              ...(item.attributes || {}),
+                              nextBillingDate: new Date(e.target.value).toISOString(),
+                            },
+                          })
+                        }
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        color="success"
+                        startIcon={<PaymentIcon />}
+                        onClick={() => setCashPaymentOpen(true)}
+                        sx={{ height: '56px', fontWeight: 700 }}
+                      >
+                        Record Cash Payment
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </Box>
+
+                <FormControl fullWidth>
+                  <InputLabel>Subscription Tier</InputLabel>
+                  <Select
+                    label="Subscription Tier"
+                    value={item.attributes?.plan || 'basic'}
+                    onChange={(e) =>
+                      setItem({
+                        ...item,
+                        attributes: { ...(item.attributes || {}), plan: e.target.value },
+                      })
+                    }
+                  >
+                    <MenuItem value="basic">Monthly Tier (₹200)</MenuItem>
+                    <MenuItem value="premium">Half-Yearly Tier (₹1000)</MenuItem>
+                    <MenuItem value="enterprise">Yearly Elite Tier (₹2000)</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <Dialog
+                  open={cashPaymentOpen}
+                  onClose={() => setCashPaymentOpen(false)}
+                  maxWidth="xs"
+                  fullWidth
+                >
+                  <Box sx={{ p: 3 }}>
+                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 800 }}>
+                      Record Manual Payment
+                    </Typography>
+                    <Typography variant="body2" sx={{ mb: 3, opacity: 0.7 }}>
+                      Selecting a plan will automatically calculate the next billing date and unlock
+                      the account.
+                    </Typography>
+                    <FormControl fullWidth sx={{ mb: 3 }}>
+                      <InputLabel>Payment Plan</InputLabel>
+                      <Select
+                        value={cashPlan}
+                        label="Payment Plan"
+                        onChange={(e) => setCashPlan(e.target.value)}
+                      >
+                        {PLANS.map((p) => (
+                          <MenuItem key={p.id} value={p.id}>
+                            {p.name} (₹{p.price})
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <Button fullWidth onClick={() => setCashPaymentOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        color="success"
+                        onClick={handleRecordCashPayment}
+                        disabled={cashSaving}
+                      >
+                        {cashSaving ? 'Saving...' : 'Confirm Cash'}
+                      </Button>
+                    </Box>
+                  </Box>
+                </Dialog>
+              </AccordionDetails>
+            </Accordion>
+          )}
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle1">
+                {t('userBillingHistory', 'Billing History')}
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <List sx={{ width: '100%' }}>
+                {JSON.parse(item.attributes.billingHistory || '[]').map((log, index, array) => (
+                  <ListItem key={index} divider={index < array.length - 1}>
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant="body1" sx={{ fontWeight: 700 }}>{log.planName}</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 900, color: '#10b981' }}>
+                            ₹{log.amount}
+                          </Typography>
+                        </Box>
+                      }
+                      secondary={
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                          <Typography variant="caption" color="textSecondary">{log.method}</Typography>
+                          <Typography variant="caption" color="textSecondary">
+                            {new Date(log.date).toLocaleString()}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                ))}
+                {(!item.attributes.billingHistory || JSON.parse(item.attributes.billingHistory).length === 0) && (
+                  <Typography variant="body2" sx={{ p: 2, color: 'text.secondary', textAlign: 'center' }}>
+                    No billing records found for this account.
+                  </Typography>
+                )}
+              </List>
             </AccordionDetails>
           </Accordion>
           <EditAttributesAccordion

@@ -22,6 +22,7 @@ import {
   TextField,
   createFilterOptions,
   Button,
+  Box,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CachedIcon from '@mui/icons-material/Cached';
@@ -430,7 +431,8 @@ const PreferencesPage = () => {
           </AccordionSummary>
           <AccordionDetails className={classes.details}>
             <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-              Maintain your GeoSurePath platform state by exporting a secure backup or restoring from a previous configuration.
+              Maintain your GeoSurePath platform state by exporting a secure backup or restoring
+              from a previous configuration.
             </Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Button variant="contained" color="secondary" onClick={handleBackup} fullWidth>

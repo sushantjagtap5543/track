@@ -68,21 +68,26 @@ const MapRoutePath = ({ positions }) => {
     const maxSpeed = positions.map((p) => p.speed).reduce((a, b) => Math.max(a, b), -Infinity);
     const features = [];
     for (let i = 0; i < positions.length - 1; i += 1) {
-      features.push({
-        type: 'Feature',
-        geometry: {
-          type: 'LineString',
-          coordinates: [
-            [positions[i].longitude, positions[i].latitude],
-            [positions[i + 1].longitude, positions[i + 1].latitude],
-          ],
-        },
-        properties: {
-          color: reportColor || getSpeedColor(positions[i + 1].speed, minSpeed, maxSpeed),
-          width: mapLineWidth,
-          opacity: mapLineOpacity,
-        },
-      });
+      const timeDiffMs = new Date(positions[i + 1].fixTime) - new Date(positions[i].fixTime);
+      const isGap = timeDiffMs > 5 * 60 * 1000; // 5 minutes threshold for a gap
+
+      if (!isGap) {
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [positions[i].longitude, positions[i].latitude],
+              [positions[i + 1].longitude, positions[i + 1].latitude],
+            ],
+          },
+          properties: {
+            color: reportColor || getSpeedColor(positions[i + 1].speed, minSpeed, maxSpeed),
+            width: mapLineWidth,
+            opacity: mapLineOpacity,
+          },
+        });
+      }
     }
     map.getSource(id)?.setData({
       type: 'FeatureCollection',

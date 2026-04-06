@@ -3,7 +3,7 @@ export const saveBackup = (state) => {
     const backup = {
       timestamp: new Date().toISOString(),
       config: state.session.server.attributes,
-      userPreferences: state.session.user.attributes
+      userPreferences: state.session.user.attributes,
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

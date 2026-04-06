@@ -30,7 +30,6 @@ const SettingsMenu = () => {
   const manager = useManager();
   const userId = useSelector((state) => state.session.user.id);
   const supportLink = useSelector((state) => state.session.server.attributes.support);
-  const billingLink = useSelector((state) => state.session.user.attributes.billingLink);
 
   const features = useFeatures();
 
@@ -155,6 +154,12 @@ const SettingsMenu = () => {
                 location.pathname.startsWith('/settings/user') &&
                 location.pathname !== `/settings/user/${userId}`
               }
+            />
+            <MenuItem
+              title="Fleet Management"
+              link="/settings/fleet"
+              icon={<PaymentIcon />}
+              selected={location.pathname === '/settings/fleet'}
             />
           </List>
         </>

@@ -45,7 +45,7 @@ const useStyles = makeStyles()((theme) => ({
     fontSize: '1.05rem',
     fontWeight: 500,
     textAlign: 'center',
-    marginBottom: theme.spacing(2)
+    marginBottom: theme.spacing(2),
   },
   backButton: {
     position: 'absolute',
@@ -59,25 +59,25 @@ const useStyles = makeStyles()((theme) => ({
   },
   input: {
     '& .MuiOutlinedInput-root': {
-        borderRadius: '16px',
-        background: 'rgba(255, 255, 255, 0.04)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        color: '#fff',
-        transition: 'all 0.3s ease',
-        '&:hover': {
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-        },
-        '&.Mui-focused': {
-            background: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(59, 130, 246, 0.5)',
-            boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.15)',
-        }
+      borderRadius: '16px',
+      background: 'rgba(255, 255, 255, 0.04)',
+      backdropFilter: 'blur(10px)',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      color: '#fff',
+      transition: 'all 0.3s ease',
+      '&:hover': {
+        background: 'rgba(255, 255, 255, 0.08)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+      },
+      '&.Mui-focused': {
+        background: 'rgba(255, 255, 255, 0.1)',
+        border: '1px solid rgba(59, 130, 246, 0.5)',
+        boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.15)',
+      },
     },
     '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.5)' },
     '& .MuiInputLabel-root.Mui-focused': { color: '#3b82f6' },
-    '& .MuiOutlinedInput-notchedOutline': { border: 'none' }
+    '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
   },
   resetButton: {
     borderRadius: '18px',
@@ -146,7 +146,9 @@ const ResetPasswordPage = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token, newPassword: password }),
         });
-        setSnackbarMessage('Identity security protocol updated successfully. You may now re-enter the platform.');
+        setSnackbarMessage(
+          'Identity security protocol updated successfully. You may now re-enter the platform.',
+        );
         setSnackbarSeverity('success');
       }
       setSnackbarOpen(true);
@@ -165,7 +167,13 @@ const ResetPasswordPage = () => {
         <IconButton
           className={classes.backButton}
           onClick={() => navigate('/login')}
-          sx={{ position: 'absolute', top: 20, left: 20, color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}
+          sx={{
+            position: 'absolute',
+            top: 20,
+            left: 20,
+            color: 'rgba(255,255,255,0.5)',
+            '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
+          }}
         >
           <BackIcon />
         </IconButton>
@@ -173,10 +181,10 @@ const ResetPasswordPage = () => {
 
       <form className={classes.container} onSubmit={handleSubmit}>
         <motion.div
-           className={classes.header}
-           initial={{ y: -20, opacity: 0 }}
-           animate={{ y: 0, opacity: 1 }}
-           transition={{ delay: 0.2 }}
+          className={classes.header}
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
         >
           <Typography className={classes.title}>
             {!token ? t('loginReset') || 'Recovery' : t('userPassword') || 'New Security'}
@@ -190,14 +198,26 @@ const ResetPasswordPage = () => {
 
         {passwordError && (
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-            <Alert severity="error" sx={{ borderRadius: '16px', fontWeight: 600, bgcolor: 'rgba(244, 67, 54, 0.1)', color: '#f44336' }}>
+            <Alert
+              severity="error"
+              sx={{
+                borderRadius: '16px',
+                fontWeight: 600,
+                bgcolor: 'rgba(244, 67, 54, 0.1)',
+                color: '#f44336',
+              }}
+            >
               {passwordError}
             </Alert>
           </motion.div>
         )}
 
         {!token ? (
-          <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.3 }}>
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
             <TextField
               required
               fullWidth
@@ -212,7 +232,11 @@ const ResetPasswordPage = () => {
           </motion.div>
         ) : (
           <>
-            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.3 }}>
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+            >
               <TextField
                 required
                 fullWidth
@@ -226,7 +250,11 @@ const ResetPasswordPage = () => {
                 sx={{ mb: 2 }}
               />
             </motion.div>
-            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
               <TextField
                 required
                 fullWidth
@@ -236,15 +264,21 @@ const ResetPasswordPage = () => {
                 type="password"
                 autoComplete="new-password"
                 error={!!confirmPassword && password !== confirmPassword}
-                helperText={confirmPassword && password !== confirmPassword ? 'Passwords do not match' : ''}
+                helperText={
+                  confirmPassword && password !== confirmPassword ? 'Passwords do not match' : ''
+                }
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 className={classes.input}
               />
             </motion.div>
           </>
         )}
-        
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
+
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
           <Button
             variant="contained"
             className={classes.resetButton}
@@ -252,28 +286,53 @@ const ResetPasswordPage = () => {
             disabled={loading || (!!token && (!password || password !== confirmPassword))}
             fullWidth
           >
-            {loading ? <CircularProgress size={24} color="inherit" /> : (!token ? 'Request Reset' : 'Update Security')}
+            {loading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : !token ? (
+              'Request Reset'
+            ) : (
+              'Update Security'
+            )}
           </Button>
         </motion.div>
 
         <motion.div
-           className={classes.footer}
-           initial={{ opacity: 0 }}
-           animate={{ opacity: 1 }}
-           transition={{ delay: 0.6 }}
-           style={{ textAlign: 'center', marginTop: '16px' }}
+          className={classes.footer}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          style={{ textAlign: 'center', marginTop: '16px' }}
         >
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
-            Know your credentials? <Box component="span" sx={{ color: '#3b82f6', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }} onClick={() => navigate('/login')}>Sign In</Box>
+            Know your credentials?{' '}
+            <Box
+              component="span"
+              sx={{
+                color: '#3b82f6',
+                cursor: 'pointer',
+                '&:hover': { textDecoration: 'underline' },
+              }}
+              onClick={() => navigate('/login')}
+            >
+              Sign In
+            </Box>
           </Typography>
         </motion.div>
       </form>
       <Snackbar
         open={snackbarOpen}
-        onClose={() => { setSnackbarOpen(false); if (snackbarSeverity === 'success') navigate('/login'); }}
+        onClose={() => {
+          setSnackbarOpen(false);
+          if (snackbarSeverity === 'success') navigate('/login');
+        }}
         autoHideDuration={4000}
       >
-        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} variant="filled" sx={{ width: '100%', borderRadius: '12px', fontWeight: 700 }}>
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          variant="filled"
+          sx={{ width: '100%', borderRadius: '12px', fontWeight: 700 }}
+        >
           {snackbarMessage}
         </Alert>
       </Snackbar>

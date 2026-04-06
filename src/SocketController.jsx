@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector, connect } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Snackbar } from '@mui/material';
+import { Snackbar, SnackbarContent } from '@mui/material';
 import { devicesActions, sessionActions } from './store';
 import { useCatchCallback, useEffectAsync } from './reactHelper';
 import { snackBarDurationLongMs } from './common/util/duration';
@@ -26,9 +26,9 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
   const Δφ = ((lat2 - lat1) * Math.PI) / 180;
   const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2)
-          + Math.cos(φ1) * Math.cos(φ2)
-          * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c;
@@ -78,23 +78,51 @@ const SocketController = () => {
       }
 
       const now = Date.now();
-      const criticalAlarm = events.find((e) => e.type === 'alarm' && ['sos', 'theft', 'vibration'].includes(e.attributes.alarm));
-      
+      const isCritical = events.some(
+        (e) =>
+          (e.type === 'alarm' &&
+            [
+              'sos',
+              'theft',
+              'vibration',
+              'overspeed',
+              'fallDown',
+              'lowPower',
+              'lowBattery',
+              'jamming',
+              'fatigueDriving',
+              'powerCut',
+              'tampering',
+              'removing',
+              'accident',
+            ].includes(e.attributes.alarm)) ||
+          ['geofenceEnter', 'geofenceExit', 'deviceOverspeed', 'maintenance'].includes(e.type) ||
+          ['ignitionOn', 'ignitionOff'].includes(e.type),
+      );
+
       if (
+        isCritical ||
         events.some(
           (e) =>
             soundEvents.includes(e.type) ||
             (e.type === 'alarm' && soundAlarms.includes(e.attributes.alarm)),
         )
       ) {
-        if (now - lastSoundTime.current > 2000) {
+        if (now - lastSoundTime.current > 1000) {
           new Audio(alarm).play().catch(() => {});
           lastSoundTime.current = now;
         }
       }
 
+      const criticalAlarm = events.find(
+        (e) =>
+          e.type === 'alarm' &&
+          ['sos', 'theft', 'accident', 'jamming', 'powerCut'].includes(e.attributes.alarm),
+      );
       if (criticalAlarm) {
-        speak(`Alert: ${criticalAlarm.attributes.alarm} detected on ${devices[criticalAlarm.deviceId]?.name || 'unknown vehicle'}`);
+        speak(
+          `CRITICAL ALERT: ${criticalAlarm.attributes.alarm.toUpperCase()} detected on ${devices[criticalAlarm.deviceId]?.name || 'unknown vehicle'}`,
+        );
       }
 
       setNotifications(
@@ -108,10 +136,96 @@ const SocketController = () => {
     [features, dispatch, soundEvents, soundAlarms, devices, t],
   );
 
+  useEffect(() => {
+    let simulationInterval = null;
+    window.startLiveFleetSimulation = () => {
+      console.log('--- STARTING LIVE FLEET SIMULATION ---');
+      const deviceIds = Object.keys(devices).length > 0 ? Object.keys(devices) : [1];
+      let step = 0;
+
+      simulationInterval = setInterval(() => {
+        step++;
+        const positions = deviceIds.map((id, index) => ({
+          id: index + '-' + step,
+          deviceId: parseInt(id),
+          protocol: 'osmand',
+          serverTime: new Date().toISOString(),
+          deviceTime: new Date().toISOString(),
+          fixTime: new Date().toISOString(),
+          outdated: false,
+          valid: true,
+          latitude: 18.5204 + step * 0.001 + index * 0.01,
+          longitude: 73.8567 + step * 0.001 + index * 0.01,
+          altitude: 500,
+          speed: 40 + Math.random() * 60,
+          course: (step * 10) % 360,
+          address: 'Simulated Moving Street',
+          accuracy: 0,
+          network: null,
+          attributes: { ignition: true, distance: 100, totalDistance: 1000 + step * 100 },
+        }));
+
+        dispatch(sessionActions.updatePositions(positions));
+
+        if (step % 5 === 0) {
+          handleEvents([
+            {
+              id: `sim-event-${Date.now()}`,
+              type: 'deviceOverspeed',
+              deviceId: deviceIds[0],
+              attributes: { message: 'SIMULATED LIVE: Overspeeding detected!' },
+            },
+          ]);
+        }
+      }, 2000);
+    };
+
+    window.stopLiveFleetSimulation = () => {
+      if (simulationInterval) {
+        clearInterval(simulationInterval);
+        console.log('--- LIVE FLEET SIMULATION STOPPED ---');
+      }
+    };
+
+    window.simulateGeoSurePathAlarms = () => {
+      const scenarios = [
+        { type: 'alarm', alarm: 'sos', msg: 'SOS EMERGENCY BUTTON PRESSED!' },
+        { type: 'alarm', alarm: 'theft', msg: 'THEFT ATTEMPT DETECTED!' },
+        { type: 'alarm', alarm: 'jamming', msg: 'GSM/GPS JAMMING SIGNAL DETECTED!' },
+        { type: 'deviceOverspeed', msg: 'OVERSPEEDING: UNIT EXCEEDED 80KM/H' },
+        { type: 'ignitionOn', msg: 'IGNITION TURNED ON' },
+        { type: 'geofenceEnter', msg: 'VEHICLE ENTERED RESTRICTED ZONE' },
+        { type: 'alarm', alarm: 'vibration', msg: 'VIBRATION / TAMPER ALERT' },
+        { type: 'alarm', alarm: 'powerCut', msg: 'MAIN POWER SUPPLY DISCONNECTED!' },
+        { type: 'alarm', alarm: 'fatigueDriving', msg: 'DRIVER FATIGUE DETECTED' },
+        { type: 'alarm', alarm: 'hardBraking', msg: 'SUDDEN BRAKING EVENT' },
+        { type: 'alarm', alarm: 'tow', msg: 'UNAUTHORIZED TOWING DETECTED!' },
+        { type: 'maintenance', msg: 'SCHEDULED ENGINE MAINTENANCE DUE' },
+      ];
+      console.log('--- STARTING 20+ SCENARIO AI CHECK ---');
+      scenarios.forEach((s, i) => {
+        setTimeout(() => {
+          handleEvents([
+            {
+              id: `sim-${Date.now()}-${i}`,
+              type: s.type,
+              deviceId: Object.keys(devices)[0] || 1,
+              attributes: { alarm: s.alarm, message: s.msg },
+            },
+          ]);
+          console.log(`Simulated ${i + 1}/${scenarios.length}: ${s.msg}`);
+        }, i * 3500);
+      });
+    };
+  }, [handleEvents, devices, dispatch]);
+
   const connectSocket = () => {
     clearReconnectTimeout();
     if (socketRef.current) {
-      if (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING) {
+      if (
+        socketRef.current.readyState === WebSocket.OPEN ||
+        socketRef.current.readyState === WebSocket.CONNECTING
+      ) {
         return;
       }
       socketRef.current.close();
@@ -146,7 +260,7 @@ const SocketController = () => {
         reconnectTimeoutRef.current = setTimeout(() => {
           reconnectTimeoutRef.current = null;
           connectSocket();
-        }, 60000);
+        }, 2000);
       }
     };
 
@@ -157,26 +271,37 @@ const SocketController = () => {
       if (buffer.devices.length) dispatch(devicesActions.update(buffer.devices));
       if (buffer.positions.length) {
         dispatch(sessionActions.updatePositions(buffer.positions));
-        
+
         // Persist for Safe Parking Lock
         const lastPositions = JSON.parse(localStorage.getItem('last_positions') || '{}');
-        buffer.positions.forEach(p => {
-            lastPositions[p.deviceId] = p;
+        buffer.positions.forEach((p) => {
+          lastPositions[p.deviceId] = p;
         });
         localStorage.setItem('last_positions', JSON.stringify(lastPositions));
 
         // Proactive Safe Parking Check
-        buffer.positions.forEach(p => {
+        buffer.positions.forEach((p) => {
           const device = devices[p.deviceId];
           if (device?.attributes?.safeParkingEnabled && device?.attributes?.safeParkingLat) {
-            const dist = getDistance(p.latitude, p.longitude, device.attributes.safeParkingLat, device.attributes.safeParkingLon);
-            if (dist > (device.attributes.safeParkingRadius || 50)) { // 50m default
-               handleEvents([{
+            const dist = getDistance(
+              p.latitude,
+              p.longitude,
+              device.attributes.safeParkingLat,
+              device.attributes.safeParkingLon,
+            );
+            if (dist > (device.attributes.safeParkingRadius || 50)) {
+              // 50m default
+              handleEvents([
+                {
                   id: `safe-parking-${p.id}`,
                   type: 'alarm',
                   deviceId: p.deviceId,
-                  attributes: { alarm: 'theft', message: `SAFE PARKING BREACH: ${device.name} has moved ${Math.round(dist)} meters from locked position!` }
-               }]);
+                  attributes: {
+                    alarm: 'theft',
+                    message: `SAFE PARKING BREACH: ${device.name} has moved ${Math.round(dist)} meters from locked position!`,
+                  },
+                },
+              ]);
             }
           }
         });
@@ -208,7 +333,9 @@ const SocketController = () => {
   };
 
   useEffect(() => {
-    socketRef.current?.send(JSON.stringify({ logs: includeLogs }));
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ logs: includeLogs }));
+    }
   }, [includeLogs]);
 
   useEffectAsync(async () => {
@@ -281,10 +408,19 @@ const SocketController = () => {
         <Snackbar
           key={notification.id}
           open={notification.show}
-          message={notification.message}
           autoHideDuration={snackBarDurationLongMs}
           onClose={() => setNotifications(notifications.filter((e) => e.id !== notification.id))}
-        />
+        >
+          <SnackbarContent
+            message={notification.message}
+            sx={{
+              backgroundColor: 'background.paper',
+              color: 'text.primary',
+              border: 1,
+              borderColor: 'divider',
+            }}
+          />
+        </Snackbar>
       ))}
     </>
   );

@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
   Toolbar,
@@ -30,6 +30,7 @@ import PsychologyIcon from '@mui/icons-material/Psychology';
 import { useAI } from '../common/components/AIProvider';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { useDeviceReadonly } from '../common/util/permissions';
+import { sessionActions } from '../store';
 import DeviceRow from './DeviceRow';
 
 const useStyles = makeStyles()((theme) => ({
@@ -64,11 +65,13 @@ const MainToolbar = ({
   const { getFleetAnalysis } = useAI();
   const { classes } = useStyles();
   const theme = useTheme();
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const t = useTranslation();
 
   const deviceReadonly = useDeviceReadonly();
 
+  const user = useSelector((state) => state.session.user);
   const groups = useSelector((state) => state.groups.items);
   const devices = useSelector((state) => state.devices.items);
   const positions = useSelector((state) => state.session.positions);
@@ -196,13 +199,30 @@ const MainToolbar = ({
               }
               label={t('sharedFilterMap')}
             />
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={!!user.attributes.mapCluster} 
+                  onChange={async (e) => {
+                    const updatedUser = {
+                        ...user,
+                        attributes: { ...user.attributes, mapCluster: e.target.checked }
+                    };
+                    await fetchOrThrow(`/api/users/${updatedUser.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updatedUser)
+                    });
+                    dispatch(sessionActions.updateUser(updatedUser));
+                  }} 
+                />
+              }
+              label="Enable Map Clustering"
+            />
           </FormGroup>
         </div>
       </Popover>
-      <IconButton
-        edge="end"
-        onClick={onSearchClick}
-      >
+      <IconButton edge="end" onClick={onSearchClick}>
         <Tooltip title="Command Center (⌘K)">
           <SearchIcon sx={{ color: '#fff' }} />
         </Tooltip>
@@ -213,7 +233,7 @@ const MainToolbar = ({
           getFleetAnalysis(Object.values(devices), positions);
           onAIButtonClick();
         }}
-        color="secondary"
+        sx={{ color: '#8b5cf6' }}
       >
         <Tooltip title="AI Fleet Insights">
           <PsychologyIcon />

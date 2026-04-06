@@ -71,10 +71,14 @@ export default (t) =>
         name: 'Subscription Plan',
         type: 'select',
         options: [
-          { key: 'basic', value: 'Basic Tracking' },
-          { key: 'premium', value: 'Premium Compliance' },
-          { key: 'enterprise', value: 'Enterprise AI' },
+          { key: 'basic', value: 'Monthly Tier' },
+          { key: 'premium', value: 'Half-Yearly Tier' },
+          { key: 'enterprise', value: 'Yearly Elite Tier' },
         ],
+      },
+      gpsDataRetention: {
+        name: 'GPS Data Retention (Hours)',
+        type: 'number',
       },
     }),
     [t],

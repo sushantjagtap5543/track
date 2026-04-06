@@ -35,18 +35,28 @@ export const formatConsumption = (value, t) =>
 export const formatTime = (value, format) => {
   if (value) {
     const d = dayjs(value).toDate();
-    const dateConfig = { year: 'numeric', month: '2-digit', day: '2-digit' };
-    const minuteConfig = { hour: '2-digit', minute: '2-digit' };
+    const dateConfig = {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: 'Asia/Kolkata',
+    };
+    const minuteConfig = {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'Asia/Kolkata',
+    };
     const secondConfig = { ...minuteConfig, second: '2-digit' };
     switch (format) {
       case 'date':
-        return d.toLocaleDateString(undefined, dateConfig);
+        return d.toLocaleDateString('en-IN', dateConfig);
       case 'time':
-        return d.toLocaleTimeString(undefined, secondConfig);
+        return d.toLocaleTimeString('en-IN', secondConfig);
       case 'minutes':
-        return d.toLocaleString(undefined, { ...dateConfig, ...minuteConfig });
+        return d.toLocaleString('en-IN', { ...dateConfig, ...minuteConfig });
       default:
-        return d.toLocaleString(undefined, { ...dateConfig, ...secondConfig });
+        return d.toLocaleString('en-IN', { ...dateConfig, ...secondConfig });
     }
   }
   return '';
@@ -101,6 +111,9 @@ export const formatNumericHours = (value, t) => {
 };
 
 export const formatCoordinate = (key, value, unit) => {
+  if (value === undefined || value === null) {
+    return '';
+  }
   let hemisphere;
   let degrees;
   let minutes;

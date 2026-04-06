@@ -29,7 +29,7 @@ const canvasTintImage = (image, color) => {
   return canvas;
 };
 
-export const prepareIcon = (background, icon, color) => {
+export const prepareIcon = (background, icon, color, skipTint = false) => {
   const canvas = document.createElement('canvas');
   canvas.width = background.width * devicePixelRatio;
   canvas.height = background.height * devicePixelRatio;
@@ -43,8 +43,9 @@ export const prepareIcon = (background, icon, color) => {
     const iconRatio = 0.5;
     const imageWidth = canvas.width * iconRatio;
     const imageHeight = canvas.height * iconRatio;
+    const iconImage = skipTint ? icon : canvasTintImage(icon, color);
     context.drawImage(
-      canvasTintImage(icon, color),
+      iconImage,
       (canvas.width - imageWidth) / 2,
       (canvas.height - imageHeight) / 2,
       imageWidth,

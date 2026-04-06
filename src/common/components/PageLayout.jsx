@@ -22,8 +22,29 @@ const useStyles = makeStyles()((theme, { miniVariant }) => ({
   root: {
     height: '100%',
     display: 'flex',
+    background: '#ffffff !important',
+    color: '#000000',
     [theme.breakpoints.down('md')]: {
       flexDirection: 'column',
+    },
+    '& .MuiPaper-root': {
+      background: '#ffffff !important',
+    },
+    '& .MuiTable-root': {
+      background: '#ffffff',
+    },
+    '& .MuiTableCell-root': {
+      color: '#000000',
+      borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
+    },
+    '& .MuiTableHead-root .MuiTableCell-root': {
+      backgroundColor: '#f1f5f9',
+      color: '#000000',
+      fontWeight: 900,
+      textTransform: 'uppercase',
+      letterSpacing: '1px',
+      fontSize: '0.75rem',
+      borderBottom: '2px solid rgba(0, 0, 0, 0.15)',
     },
   },
   desktopDrawer: {
@@ -32,8 +53,17 @@ const useStyles = makeStyles()((theme, { miniVariant }) => ({
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
     }),
+    background: '#ffffff !important',
+    borderRight: '1px solid rgba(0, 0, 0, 0.1) !important',
+    color: '#000000 !important',
     '@media print': {
       display: 'none',
+    },
+    '& .MuiTypography-root': {
+      color: '#000000',
+    },
+    '& .MuiSvgIcon-root': {
+      color: '#000000',
     },
   },
   mobileDrawer: {

@@ -18,6 +18,8 @@ import {
   TableFooter,
   Link,
   Tooltip,
+  Alert,
+  Box,
 } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import CloseIcon from '@mui/icons-material/Close';
@@ -42,12 +44,21 @@ const useStyles = makeStyles()((theme, { desktopPadding }) => ({
   card: {
     pointerEvents: 'auto',
     width: theme.dimensions.popupMaxWidth,
-    background: 'rgba(15, 23, 42, 0.75) !important',
+    background: 'rgba(255, 255, 255, 0.9) !important',
     backdropFilter: 'blur(30px) saturate(180%)',
     borderRadius: '28px !important',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    boxShadow: '0 30px 70px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1) !important',
-    color: '#fff',
+    border: '1px solid rgba(0, 0, 0, 0.12)',
+    boxShadow: '0 30px 70px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.5) !important',
+    color: '#000000 !important',
+    '& .MuiTypography-root': {
+      color: '#000000',
+    },
+    '& .MuiTypography-colorTextSecondary': {
+      color: 'rgba(0,0,0,0.7)',
+    },
+    '& .MuiIconButton-root': {
+      color: '#000000',
+    },
   },
   media: {
     height: theme.dimensions.popupImageHeight,
@@ -213,23 +224,28 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                 </div>
               )}
               {device?.attributes.ais140 && (
-                <Alert 
-                  icon={<VerifiedUserIcon />} 
-                  severity="success" 
-                  sx={{ 
-                    mx: 2, 
-                    mt: 1, 
-                    borderRadius: '12px', 
+                <Alert
+                  icon={<VerifiedUserIcon />}
+                  severity="success"
+                  sx={{
+                    mx: 2,
+                    mt: 1,
+                    borderRadius: '12px',
                     py: 1,
                     background: 'rgba(16, 185, 129, 0.1)',
                     border: '1px solid rgba(16, 185, 129, 0.2)',
-                    color: '#10b981'
+                    color: '#10b981',
                   }}
                 >
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>AIS140 Government Certified</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      AIS140 Government Certified
+                    </Typography>
                     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                      <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Typography
+                        variant="caption"
+                        sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+                      >
                         ● Power: {position?.attributes.power ? 'Main' : 'Battery'}
                       </Typography>
                       {position?.attributes.tamper && (

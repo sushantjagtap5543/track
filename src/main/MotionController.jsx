@@ -1,9 +1,11 @@
 import dayjs from 'dayjs';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { motionActions } from '../store';
 import { useAttributePreference } from '../common/util/preferences';
 import { useEffectAsync } from '../reactHelper';
 import fetchOrThrow from '../common/util/fetchOrThrow';
+import { checkMaintenanceStatus } from '../common/util/maintenanceCheck';
+import { errorsActions } from '../store';
 
 const buildSegments = (events, fromTimestamp, toTimestamp) => {
   const segments = [];
@@ -43,6 +45,8 @@ const buildSegments = (events, fromTimestamp, toTimestamp) => {
 
 const MotionController = () => {
   const dispatch = useDispatch();
+  const devices = useSelector((state) => state.devices.items);
+  const positions = useSelector((state) => state.session.positions);
 
   const deviceSecondary = useAttributePreference('deviceSecondary', '');
 
@@ -82,6 +86,17 @@ const MotionController = () => {
           buildSegments(deviceEvents, from.valueOf(), to.valueOf()),
         ]),
       );
+
+      // Perform AI Maintenance Checks
+      Object.values(devices).forEach((device) => {
+          const position = positions[device.id];
+          if (position) {
+              const status = checkMaintenanceStatus(device, position);
+              if (status.overdue) {
+                  dispatch(errorsActions.push(status.reason));
+              }
+          }
+      });
 
       if (active) {
         dispatch(motionActions.set(nextMotion));

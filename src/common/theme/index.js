@@ -9,7 +9,8 @@ export default (server, darkMode, direction) =>
     () =>
       createTheme({
         typography: {
-          fontFamily: "'Inter', 'Outfit', 'Roboto', 'Segoe UI', 'Helvetica Neue', 'Arial', sans-serif",
+          fontFamily:
+            "'Inter', 'Outfit', 'Roboto', 'Segoe UI', 'Helvetica Neue', 'Arial', sans-serif",
         },
         palette: palette(server, darkMode),
         direction,

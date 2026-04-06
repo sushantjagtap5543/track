@@ -7,16 +7,14 @@ import rtlPlugin from 'stylis-plugin-rtl';
 import theme from './common/theme';
 import { useLocalization } from './common/components/LocalizationProvider';
 
-const cache = {
-  ltr: createCache({
-    key: 'muiltr',
-    stylisPlugins: [prefixer],
-  }),
-  rtl: createCache({
-    key: 'muirtl',
-    stylisPlugins: [prefixer, rtlPlugin],
-  }),
-};
+const cacheLtr = createCache({
+  key: 'muiltr',
+});
+
+const cacheRtl = createCache({
+  key: 'muirtl',
+  stylisPlugins: [prefixer, rtlPlugin],
+});
 
 const AppThemeProvider = ({ children }) => {
   const server = useSelector((state) => state.session.server);
@@ -29,7 +27,7 @@ const AppThemeProvider = ({ children }) => {
   const themeInstance = theme(server, darkMode, direction);
 
   return (
-    <CacheProvider value={cache[direction]}>
+    <CacheProvider value={direction === 'rtl' ? cacheRtl : cacheLtr}>
       <ThemeProvider theme={themeInstance}>{children}</ThemeProvider>
     </CacheProvider>
   );

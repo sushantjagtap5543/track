@@ -12,7 +12,7 @@ import {
   CircularProgress,
   Box,
   Alert,
-  Fade
+  Fade,
 } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useNavigate } from 'react-router-dom';
@@ -66,25 +66,25 @@ const useStyles = makeStyles()((theme) => ({
   },
   input: {
     '& .MuiOutlinedInput-root': {
-        borderRadius: '12px',
-        background: 'rgba(255, 255, 255, 0.04)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        color: '#fff',
-        transition: 'all 0.3s ease',
-        '&:hover': {
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-        },
-        '&.Mui-focused': {
-            background: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(59, 130, 246, 0.5)',
-            boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.15)',
-        }
+      borderRadius: '12px',
+      background: 'rgba(255, 255, 255, 0.04)',
+      backdropFilter: 'blur(10px)',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      color: '#fff',
+      transition: 'all 0.3s ease',
+      '&:hover': {
+        background: 'rgba(255, 255, 255, 0.08)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+      },
+      '&.Mui-focused': {
+        background: 'rgba(255, 255, 255, 0.1)',
+        border: '1px solid rgba(59, 130, 246, 0.5)',
+        boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.15)',
+      },
     },
     '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.9rem' },
     '& .MuiInputLabel-root.Mui-focused': { color: '#3b82f6' },
-    '& .MuiOutlinedInput-notchedOutline': { border: 'none' }
+    '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
   },
   registerButton: {
     borderRadius: '14px',
@@ -141,11 +141,13 @@ const RegisterPage = () => {
   const [errorText, setErrorText] = useState('');
 
   const isFormValid = () => {
-    return name.trim() && 
-           email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) && 
-           password.length >= 8 && 
-           password === confirmPassword && 
-           acceptedTerms;
+    return (
+      name.trim() &&
+      email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) &&
+      password.length >= 8 &&
+      password === confirmPassword &&
+      acceptedTerms
+    );
   };
 
   const handleSubmit = useCatch(async (event) => {
@@ -168,8 +170,8 @@ const RegisterPage = () => {
         setErrorText('Registration Successful!');
         setSnackbarOpen(true);
         setTimeout(() => {
-            dispatch(sessionActions.updateServer({ ...server, newServer: false }));
-            navigate('/login', { state: { registered: true, email } });
+          dispatch(sessionActions.updateServer({ ...server, newServer: false }));
+          navigate('/login', { state: { registered: true, email } });
         }, 1500);
       } else {
         setErrorText(data.error || 'Registration failed. Please try again.');
@@ -191,16 +193,21 @@ const RegisterPage = () => {
         <BackIcon />
       </IconButton>
 
-      <Box component={motion.form}
+      <Box
+        component={motion.form}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={classes.container} 
+        className={classes.container}
         onSubmit={handleSubmit}
       >
         <div className={classes.header}>
-          <Typography className={classes.title} sx={{ fontSize: '2.5rem', fontWeight: 800 }}>SIGN UP</Typography>
-          <Typography className={classes.subText} sx={{ opacity: 0.6 }}>Create a new account</Typography>
+          <Typography className={classes.title} sx={{ fontSize: '2.5rem', fontWeight: 800 }}>
+            SIGN UP
+          </Typography>
+          <Typography className={classes.subText} sx={{ opacity: 0.6 }}>
+            Create a new account
+          </Typography>
         </div>
 
         {errorText && snackbarSeverity === 'error' && (
@@ -272,7 +279,11 @@ const RegisterPage = () => {
           label={
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
               I agree to the{' '}
-              <Link href="/terms.html" target="_blank" sx={{ color: 'primary.light', textDecoration: 'none' }}>
+              <Link
+                href="/terms.html"
+                target="_blank"
+                sx={{ color: 'primary.light', textDecoration: 'none' }}
+              >
                 Terms and Conditions
               </Link>
             </Typography>
@@ -292,7 +303,12 @@ const RegisterPage = () => {
         <div className={classes.footer}>
           <Typography variant="body2" sx={{ color: '#fff' }}>
             Already have an account?{' '}
-            <Link className={classes.loginLink} onClick={() => navigate('/login')} component="button" type="button">
+            <Link
+              className={classes.loginLink}
+              onClick={() => navigate('/login')}
+              component="button"
+              type="button"
+            >
               Login here
             </Link>
           </Typography>
@@ -304,7 +320,11 @@ const RegisterPage = () => {
         onClose={() => setSnackbarOpen(false)}
         autoHideDuration={snackBarDurationShortMs}
       >
-        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
           {errorText || 'Success'}
         </Alert>
       </Snackbar>

@@ -44,7 +44,7 @@ const EventPage = () => {
     formatNotificationTitle(t, {
       type: event.type,
       attributes: {
-        alarms: event.attributes.alarm,
+        alarms: event.attributes?.alarm,
       },
     });
 

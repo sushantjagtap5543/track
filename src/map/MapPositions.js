@@ -23,7 +23,7 @@ const MapPositions = ({
 
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
-  const iconScale = useAttributePreference('iconScale', desktop ? 0.75 : 1);
+  const iconScale = useAttributePreference('iconScale', desktop ? 1.5 : 1.25);
 
   const devices = useSelector((state) => state.devices.items);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
@@ -54,6 +54,7 @@ const MapPositions = ({
       color: showStatus ? position.attributes.color || getStatusColor(device.status) : 'neutral',
       rotation: position.course,
       direction: showDirection,
+      ignition: position.attributes.ignition !== undefined ? position.attributes.ignition : true,
     };
   };
 
@@ -134,8 +135,13 @@ const MapPositions = ({
           'text-letter-spacing': 0.05,
         },
         paint: {
-          'text-halo-color': 'rgba(15, 23, 42, 0.9)',
-          'text-halo-width': 2.5,
+          'text-halo-color': [
+            'case',
+            ['==', ['get', 'ignition'], false],
+            'rgba(239, 68, 68, 0.9)',
+            'rgba(15, 23, 42, 0.9)',
+          ],
+          'text-halo-width': ['case', ['==', ['get', 'ignition'], false], 4.5, 2.5],
           'text-color': '#fff',
           'icon-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.8, 15, 1],
         },

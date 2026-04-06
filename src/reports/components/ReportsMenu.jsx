@@ -12,6 +12,7 @@ import RouteIcon from '@mui/icons-material/Route';
 import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import NotesIcon from '@mui/icons-material/Notes';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import PsychologyIcon from '@mui/icons-material/Psychology';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import { useAdministrator, useRestriction } from '../../common/util/permissions';
@@ -96,6 +97,12 @@ const ReportsMenu = () => {
           link={buildLink('/reports/route')}
           icon={<TimelineIcon />}
           selected={location.pathname === '/reports/route'}
+        />
+        <MenuItem
+          title={t('reportInsights')}
+          link={buildLink('/reports/insights')}
+          icon={<PsychologyIcon />}
+          selected={location.pathname === '/reports/insights'}
         />
       </List>
       <Divider />

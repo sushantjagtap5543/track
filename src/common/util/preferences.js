@@ -4,6 +4,12 @@ const containsProperty = (object, key) => object.hasOwnProperty(key) && object[k
 
 export const usePreference = (key, defaultValue) =>
   useSelector((state) => {
+    if (key === 'speedUnit') return 'kmh';
+    if (key === 'distanceUnit') return 'km';
+    if (key === 'altitudeUnit') return 'm';
+    if (key === 'volumeUnit') return 'ltr';
+    if (key === 'timezone') return 'Asia/Kolkata';
+
     if (state.session.server.forceSettings) {
       if (containsProperty(state.session.server, key)) {
         return state.session.server[key];
@@ -19,11 +25,18 @@ export const usePreference = (key, defaultValue) =>
     if (containsProperty(state.session.server, key)) {
       return state.session.server[key];
     }
+
     return defaultValue;
   });
 
 export const useAttributePreference = (key, defaultValue) =>
   useSelector((state) => {
+    if (key === 'speedUnit') return 'kmh';
+    if (key === 'distanceUnit') return 'km';
+    if (key === 'altitudeUnit') return 'm';
+    if (key === 'volumeUnit') return 'ltr';
+    if (key === 'timezone') return 'Asia/Kolkata';
+
     if (state.session.server.forceSettings) {
       if (containsProperty(state.session.server.attributes, key)) {
         return state.session.server.attributes[key];
@@ -39,5 +52,6 @@ export const useAttributePreference = (key, defaultValue) =>
     if (containsProperty(state.session.server.attributes, key)) {
       return state.session.server.attributes[key];
     }
+
     return defaultValue;
   });

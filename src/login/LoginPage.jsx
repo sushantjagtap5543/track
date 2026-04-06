@@ -81,36 +81,36 @@ const useStyles = makeStyles()((theme) => ({
   },
   input: {
     '& .MuiOutlinedInput-root': {
-        borderRadius: '20px',
-        background: 'rgba(255, 255, 255, 0.03)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        color: '#fff',
-        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-        '&:hover': {
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            transform: 'translateY(-1px)',
-        },
-        '&.Mui-focused': {
-            background: 'rgba(59, 130, 246, 0.05)',
-            border: '1px solid rgba(59, 130, 246, 0.8)',
-            boxShadow: '0 0 40px rgba(59, 130, 246, 0.2), inset 0 0 10px rgba(59, 130, 246, 0.1)',
-            animation: 'inputPulse 2s infinite ease-in-out',
-        }
+      borderRadius: '20px',
+      background: 'rgba(255, 255, 255, 0.03)',
+      backdropFilter: 'blur(10px)',
+      border: '1px solid rgba(255, 255, 255, 0.08)',
+      color: '#fff',
+      transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+      '&:hover': {
+        background: 'rgba(255, 255, 255, 0.06)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        transform: 'translateY(-1px)',
+      },
+      '&.Mui-focused': {
+        background: 'rgba(59, 130, 246, 0.05)',
+        border: '1px solid rgba(59, 130, 246, 0.8)',
+        boxShadow: '0 0 40px rgba(59, 130, 246, 0.2), inset 0 0 10px rgba(59, 130, 246, 0.1)',
+        animation: 'inputPulse 2s infinite ease-in-out',
+      },
     },
     '@keyframes inputPulse': {
-        '0%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.1)' },
-        '50%': { boxShadow: '0 0 40px rgba(59, 130, 246, 0.3)' },
-        '100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.1)' },
+      '0%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.1)' },
+      '50%': { boxShadow: '0 0 40px rgba(59, 130, 246, 0.3)' },
+      '100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.1)' },
     },
-    '& .MuiInputLabel-root': { 
-        color: 'rgba(255, 255, 255, 0.4)',
-        fontWeight: 600,
-        fontSize: '0.9rem',
+    '& .MuiInputLabel-root': {
+      color: 'rgba(255, 255, 255, 0.4)',
+      fontWeight: 600,
+      fontSize: '0.9rem',
     },
     '& .MuiInputLabel-root.Mui-focused': { color: '#3b82f6' },
-    '& .MuiOutlinedInput-notchedOutline': { border: 'none' }
+    '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
   },
   loginButton: {
     borderRadius: '24px',
@@ -143,7 +143,7 @@ const useStyles = makeStyles()((theme) => ({
     },
     '&:hover::after': {
       opacity: 1,
-    }
+    },
   },
   secondaryButton: {
     borderRadius: '20px',
@@ -317,7 +317,7 @@ const LoginPage = () => {
 
       if (response.ok) {
         const saasData = await response.json();
-        
+
         if (saasData.mfaRequired) {
           setMfaRequired(true);
           setLoading(false);
@@ -337,28 +337,44 @@ const LoginPage = () => {
         const maxRetries = 2;
 
         const syncWithTraccar = async () => {
+          console.log(
+            `[Protocol] Initiating handshake with Traccar Engine (Attempt ${retryCount + 1}/${maxRetries + 1})`,
+          );
           try {
             const traccarRes = await fetch('/api/session');
             if (traccarRes.ok) {
               const user = await traccarRes.json();
               dispatch(sessionActions.updateUser(user));
               userFetched = true;
+              console.log('[Protocol] Handshake established: Traccar session active.');
             } else if (traccarRes.status === 401) {
-              // Explicit fallback for fresh sync
+              console.log(
+                '[Protocol] No active Traccar session found. Attempting explicit provisioning...',
+              );
               const traccarLoginRes = await fetch('/api/session', {
                 method: 'POST',
-                body: new URLSearchParams(`email=${encodeURIComponent(normalizedEmail)}&password=${encodeURIComponent(cleanPassword)}`),
+                body: new URLSearchParams(
+                  `email=${encodeURIComponent(normalizedEmail)}&password=${encodeURIComponent(password)}`,
+                ), // Use raw password for the initial handshake
               });
               if (traccarLoginRes.ok) {
                 const user = await traccarLoginRes.json();
                 dispatch(sessionActions.updateUser(user));
                 userFetched = true;
+                console.log('[Protocol] Provisioning successful: Traccar session initialized.');
+              } else {
+                console.warn(`[Protocol] Provisioning rejected: ${traccarLoginRes.status}`);
               }
+            } else {
+              console.error(`[Protocol] Engine error: ${traccarRes.status}`);
             }
           } catch (e) {
+            console.error('[Protocol] Transport error during handshake:', e);
             if (retryCount < maxRetries) {
               retryCount++;
-              await new Promise(resolve => setTimeout(resolve, 500));
+              const delay = 500 * Math.pow(2, retryCount - 1); // Exponential backoff
+              console.log(`[Protocol] Retrying handshake in ${delay}ms...`);
+              await new Promise((resolve) => setTimeout(resolve, delay));
               return syncWithTraccar();
             }
           }
@@ -399,7 +415,11 @@ const LoginPage = () => {
         setPassword('');
       }
     } catch (e) {
-      setSnackbar({ open: true, message: 'Platform Protocol Error. Refreshing node connectivity...', severity: 'error' });
+      setSnackbar({
+        open: true,
+        message: 'Platform Protocol Error. Refreshing node connectivity...',
+        severity: 'error',
+      });
       setFailed(true);
       setPassword('');
     } finally {
@@ -435,13 +455,17 @@ const LoginPage = () => {
           // If SaaS MFA succeeded but Traccar session is missing, attempt explicit Traccar login
           await fetch('/api/session', {
             method: 'POST',
-            body: new URLSearchParams(`email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`),
-          }).then(async (res) => {
-            if (res.ok) {
-              const user = await res.json();
-              dispatch(sessionActions.updateUser(user));
-            }
-          }).catch(console.error);
+            body: new URLSearchParams(
+              `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
+            ),
+          })
+            .then(async (res) => {
+              if (res.ok) {
+                const user = await res.json();
+                dispatch(sessionActions.updateUser(user));
+              }
+            })
+            .catch(console.error);
         }
 
         const finalTarget = '/';
@@ -458,7 +482,6 @@ const LoginPage = () => {
     }
   };
 
-
   const handleTokenLogin = useCatch(async (token) => {
     const response = await fetchOrThrow(`/api/session?token=${encodeURIComponent(token)}`);
     const user = await response.json();
@@ -472,21 +495,29 @@ const LoginPage = () => {
 
   const handleSocialLogin = async (provider) => {
     if (provider === 'Google') {
-        try {
-            const res = await fetch('/api/auth/google-auth-url');
-            const data = await res.json();
-            if (data.url) {
-                window.location.href = data.url;
-                return;
-            }
-        } catch (e) {
-            console.error('Google Auth provision error:', e);
+      try {
+        const res = await fetch('/api/auth/google-auth-url');
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+          return;
         }
+      } catch (e) {
+        console.error('Google Auth provision error:', e);
+      }
     }
-    
-    setSnackbar({ open: true, message: `Redirecting to secure ${provider} gateway...`, severity: 'info' });
+
+    setSnackbar({
+      open: true,
+      message: `Redirecting to secure ${provider} gateway...`,
+      severity: 'info',
+    });
     setTimeout(() => {
-        setSnackbar({ open: true, message: `${provider} authentication is being provisioned for your enterprise tier.`, severity: 'warning' });
+      setSnackbar({
+        open: true,
+        message: `${provider} authentication is being provisioned for your enterprise tier.`,
+        severity: 'warning',
+      });
     }, 1500);
   };
 
@@ -501,10 +532,10 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (location.state?.registered) {
-      setSnackbar({ 
-        open: true, 
-        message: 'Account provisioned successfully. Welcome to GeoSurePath Enterprise!', 
-        severity: 'success' 
+      setSnackbar({
+        open: true,
+        message: 'Account provisioned successfully. Welcome to GeoSurePath Enterprise!',
+        severity: 'success',
       });
       if (location.state?.email) {
         setEmail(location.state.email);
@@ -583,16 +614,27 @@ const LoginPage = () => {
         )}
       </div>
 
-      <Box component={motion.div} variants={containerVariants} initial="hidden" animate="visible" className={classes.container}>
+      <Box
+        component={motion.div}
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className={classes.container}
+      >
         <motion.div variants={itemVariants} className={classes.titleSection}>
-          <Typography className={classes.welcomeText} sx={{ fontSize: '2.8rem', fontWeight: 800, mb: 1 }}>LOGIN</Typography>
+          <Typography
+            className={classes.welcomeText}
+            sx={{ fontSize: '2.8rem', fontWeight: 800, mb: 1 }}
+          >
+            LOGIN
+          </Typography>
           <Typography className={classes.subText} sx={{ fontSize: '1rem', opacity: 0.6 }}>
             Enter your credentials to access the portal
           </Typography>
         </motion.div>
-        
+
         {isHardlocked ? (
-          <HardlockPaymentView 
+          <HardlockPaymentView
             onLogout={() => {
               setIsHardlocked(false);
               setBill(null);
@@ -682,8 +724,20 @@ const LoginPage = () => {
 
             {mfaRequired && (
               <motion.div variants={itemVariants}>
-                <Box sx={{ mt: 2, p: 3, background: 'rgba(59, 130, 246, 0.1)', backdropFilter: 'blur(10px)', borderRadius: '24px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-                  <Typography variant="subtitle2" sx={{ color: '#fff', mb: 2, fontWeight: 800, textAlign: 'center' }}>
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 3,
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: '24px',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ color: '#fff', mb: 2, fontWeight: 800, textAlign: 'center' }}
+                  >
                     Identity Verification Required
                   </Typography>
                   <TextField
@@ -699,9 +753,18 @@ const LoginPage = () => {
                     variant="contained"
                     onClick={handleVerifyMfa}
                     disabled={mfaLoading || mfaToken.length < 6}
-                    sx={{ height: 56, borderRadius: '16px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', fontWeight: 800 }}
+                    sx={{
+                      height: 56,
+                      borderRadius: '16px',
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      fontWeight: 800,
+                    }}
                   >
-                    {mfaLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm Identity'}
+                    {mfaLoading ? (
+                      <CircularProgress size={24} color="inherit" />
+                    ) : (
+                      'Confirm Identity'
+                    )}
                   </Button>
                 </Box>
               </motion.div>
@@ -722,7 +785,12 @@ const LoginPage = () => {
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
           variant="filled"
-          sx={{ width: '100%', borderRadius: '12px', fontWeight: 700, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
+          sx={{
+            width: '100%',
+            borderRadius: '12px',
+            fontWeight: 700,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          }}
         >
           {snackbar.message}
         </Alert>

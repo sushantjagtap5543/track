@@ -190,19 +190,49 @@ const MainPage = () => {
         anchor="right"
         open={aiOpen}
         onClose={() => setAiOpen(false)}
-        PaperProps={{ sx: { width:  desktop ? 400 : '100%', p: 3, background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(10px)', borderLeft: '1px solid rgba(255,255,255,0.1)' } }}
+        PaperProps={{
+          sx: {
+            width: desktop ? 400 : '100%',
+            p: 3,
+            background: 'rgba(15, 23, 42, 0.95)',
+            backdropFilter: 'blur(10px)',
+            borderLeft: '1px solid rgba(255,255,255,0.1)',
+          },
+        }}
       >
-        <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography
+          variant="h5"
+          sx={{
+            mb: 3,
+            fontWeight: 700,
+            color: '#3b82f6',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
           <PsychologyIcon /> AI Fleet Insights
         </Typography>
         {aiLoading ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 10, gap: 2 }}>
+          <Box
+            sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 10, gap: 2 }}
+          >
             <CircularProgress size={60} thickness={2} sx={{ color: '#3b82f6' }} />
-            <Typography sx={{ color: 'rgba(255,255,255,0.7)' }}>Analyzing Fleet Behavior...</Typography>
+            <Typography sx={{ color: 'rgba(255,255,255,0.7)' }}>
+              Analyzing Fleet Behavior...
+            </Typography>
           </Box>
         ) : aiError ? (
           <Box>
-            <Alert severity="warning" sx={{ mb: 2, background: 'rgba(153, 27, 27, 0.2)', color: '#f87171', border: '1px solid rgba(248, 113, 113, 0.2)' }}>
+            <Alert
+              severity="warning"
+              sx={{
+                mb: 2,
+                background: 'rgba(153, 27, 27, 0.2)',
+                color: '#f87171',
+                border: '1px solid rgba(248, 113, 113, 0.2)',
+              }}
+            >
               <AlertTitle sx={{ fontWeight: 700 }}>AI Failover Active</AlertTitle>
               {aiError}
             </Alert>

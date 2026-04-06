@@ -42,12 +42,24 @@ const EventsDrawer = ({ open, onClose }) => {
     formatNotificationTitle(t, {
       type: event.type,
       attributes: {
-        alarms: event.attributes.alarm,
+        alarms: event.attributes?.alarm,
       },
     });
 
   return (
-    <Drawer anchor="right" open={open} onClose={onClose}>
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
+          background: 'rgba(15, 23, 42, 0.4)',
+          backdropFilter: 'blur(30px) saturate(180%)',
+          borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+          color: '#ffffff',
+        },
+      }}
+    >
       <Toolbar className={classes.toolbar} disableGutters>
         <Typography variant="h6" className={classes.title}>
           {t('reportEvents')}
@@ -60,7 +72,15 @@ const EventsDrawer = ({ open, onClose }) => {
           <DeleteIcon fontSize="small" />
         </IconButton>
       </Toolbar>
-      <List className={classes.drawer} dense>
+      <List
+        className={classes.drawer}
+        dense
+        sx={{
+          '& .MuiListItemText-primary': { color: '#ffffff' },
+          '& .MuiListItemText-secondary': { color: 'rgba(255,255,255,0.7)' },
+          '& .MuiIconButton-root': { color: '#ffffff' },
+        }}
+      >
         {events.map((event) => (
           <ListItemButton
             key={event.id}

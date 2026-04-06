@@ -1,41 +1,45 @@
 export const PLANS = [
   {
     id: 'basic',
-    name: 'Basic Tracking',
-    price: 5.00,
+    name: 'Monthly Tier',
+    price: 200.0,
+    months: 1,
     features: [
-      'Real-time tracking',
-      '3 months history',
-      'Basic reports',
-      'Mobile App access'
+      'Premium Real-time tracking',
+      'AIS140 support included',
+      'Full Telemetry & Reports',
+      'Mobile App & AI Insights',
+      'Incl. GST, Server & Cloud',
     ],
-    color: '#94a3b8'
+    color: '#94a3b8',
   },
   {
     id: 'premium',
-    name: 'Premium Compliance',
-    price: 15.00,
+    name: 'Half-Yearly Tier',
+    price: 1000.0,
+    months: 6,
     features: [
-      'AIS140 Support',
-      '1 year history',
-      'Advanced telemetry',
-      'Geofence alerts',
-      'Email notifications'
+      'Premium Real-time tracking',
+      'AIS140 support included',
+      'Full Telemetry & Reports',
+      'Mobile App & AI Insights',
+      'Incl. GST, Server & Cloud',
     ],
     color: '#3b82f6',
-    popular: true
+    popular: true,
   },
   {
     id: 'enterprise',
-    name: 'Enterprise AI',
-    price: 30.00,
+    name: 'Yearly Elite Tier',
+    price: 2000.0,
+    months: 12,
     features: [
-      'AI Fleet Insights',
-      'Priority Support',
-      'Unlimited users',
-      'API Access',
-      'Custom branding'
+      'Premium Real-time tracking',
+      'AIS140 support included',
+      'Full Telemetry & Reports',
+      'Mobile App & AI Insights',
+      'Incl. GST, Server & Cloud',
     ],
-    color: '#8b5cf6'
-  }
+    color: '#8b5cf6',
+  },
 ];

@@ -60,16 +60,16 @@ const LogoImage = () => {
 
   return (
     <Box className={classes.root}>
-      <motion.div 
+      <motion.div
         className={classes.logoWrapper}
-        animate={{ 
+        animate={{
           scale: [1, 1.05, 1],
-          rotate: [0, 2, -2, 0]
+          rotate: [0, 2, -2, 0],
         }}
-        transition={{ 
-          duration: 4, 
+        transition={{
+          duration: 4,
           repeat: Infinity,
-          ease: "easeInOut" 
+          ease: 'easeInOut',
         }}
       >
         <div className={classes.glow} />

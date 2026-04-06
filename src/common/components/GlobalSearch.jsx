@@ -77,7 +77,7 @@ const useStyles = makeStyles()((theme) => ({
     background: 'rgba(255, 255, 255, 0.1)',
     color: 'rgba(255, 255, 255, 0.6)',
     fontSize: '0.75rem',
-  }
+  },
 }));
 
 const GlobalSearch = ({ open, onClose }) => {
@@ -88,10 +88,13 @@ const GlobalSearch = ({ open, onClose }) => {
 
   const devices = useSelector((state) => Object.values(state.devices.items));
 
-  const filteredDevices = devices.filter((device) =>
-    device.name.toLowerCase().includes(query.toLowerCase()) ||
-    device.uniqueId.toLowerCase().includes(query.toLowerCase())
-  ).slice(0, 5);
+  const filteredDevices = devices
+    .filter(
+      (device) =>
+        (device.name || '').toLowerCase().includes(query.toLowerCase()) ||
+        (device.uniqueId || '').toLowerCase().includes(query.toLowerCase()),
+    )
+    .slice(0, 5);
 
   const handleSelectDevice = (deviceId) => {
     dispatch(devicesActions.selectId(deviceId));
@@ -123,11 +126,11 @@ const GlobalSearch = ({ open, onClose }) => {
               <InputAdornment position="end">
                 <Box className={classes.shortcut}>ESC</Box>
               </InputAdornment>
-            )
+            ),
           }}
         />
         <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.05)' }} />
-        
+
         <Box className={classes.list}>
           {filteredDevices.length > 0 && (
             <>
@@ -139,13 +142,19 @@ const GlobalSearch = ({ open, onClose }) => {
                   onClick={() => handleSelectDevice(device.id)}
                 >
                   <ListItemIcon sx={{ minWidth: 40 }}>
-                    <img style={{ width: 20, height: 20, filter: 'brightness(0) invert(1)' }} src={mapIcons[mapIconKey(device.category)]} alt="" />
+                    <img
+                      style={{ width: 20, height: 20, filter: 'brightness(0) invert(1)' }}
+                      src={mapIcons[mapIconKey(device.category)]}
+                      alt=""
+                    />
                   </ListItemIcon>
-                  <ListItemText 
-                    primary={device.name} 
-                    secondary={device.uniqueId} 
+                  <ListItemText
+                    primary={device.name}
+                    secondary={device.uniqueId}
                     primaryTypographyProps={{ sx: { color: '#fff', fontWeight: 600 } }}
-                    secondaryTypographyProps={{ sx: { color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' } }}
+                    secondaryTypographyProps={{
+                      sx: { color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' },
+                    }}
                   />
                 </ListItemButton>
               ))}
@@ -153,13 +162,29 @@ const GlobalSearch = ({ open, onClose }) => {
           )}
 
           <Typography className={classes.sectionTitle}>Global Actions</Typography>
-          <ListItemButton className={classes.listItem} onClick={() => handleAction('/reports/combined')}>
-            <ListItemIcon sx={{ minWidth: 40 }}><AssessmentIcon sx={{ color: '#fff', fontSize: '1.2rem' }} /></ListItemIcon>
-            <ListItemText primary="Generate Fleet Report" primaryTypographyProps={{ sx: { color: '#fff', fontWeight: 600 } }} />
+          <ListItemButton
+            className={classes.listItem}
+            onClick={() => handleAction('/reports/combined')}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <AssessmentIcon sx={{ color: '#fff', fontSize: '1.2rem' }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Generate Fleet Report"
+              primaryTypographyProps={{ sx: { color: '#fff', fontWeight: 600 } }}
+            />
           </ListItemButton>
-          <ListItemButton className={classes.listItem} onClick={() => handleAction('/settings/preferences')}>
-            <ListItemIcon sx={{ minWidth: 40 }}><SettingsIcon sx={{ color: '#fff', fontSize: '1.2rem' }} /></ListItemIcon>
-            <ListItemText primary="Account Preferences" primaryTypographyProps={{ sx: { color: '#fff', fontWeight: 600 } }} />
+          <ListItemButton
+            className={classes.listItem}
+            onClick={() => handleAction('/settings/preferences')}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <SettingsIcon sx={{ color: '#fff', fontSize: '1.2rem' }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Account Preferences"
+              primaryTypographyProps={{ sx: { color: '#fff', fontWeight: 600 } }}
+            />
           </ListItemButton>
         </Box>
       </DialogContent>

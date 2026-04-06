@@ -92,7 +92,9 @@ const UsersPage = () => {
                   <TableCell>{item.name}</TableCell>
                   <TableCell>{item.email}</TableCell>
                   <TableCell>{formatBoolean(item.administrator, t)}</TableCell>
-                  <TableCell sx={{ textTransform: 'capitalize', fontWeight: 700, color: '#3b82f6' }}>
+                  <TableCell
+                    sx={{ textTransform: 'capitalize', fontWeight: 700, color: '#3b82f6' }}
+                  >
                     {item.attributes.plan || 'Basic'}
                   </TableCell>
                   <TableCell>{formatBoolean(item.disabled, t)}</TableCell>

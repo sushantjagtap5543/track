@@ -39,7 +39,12 @@ import SelectField from '../common/components/SelectField';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 import exportExcel from '../common/util/exportExcel';
 import AddressValue from '../common/components/AddressValue';
-import ReportSummary, { NotificationsActiveIcon, SpeedIcon, TimerIcon, DirectionsCarIcon } from './components/ReportSummary';
+import ReportSummary, {
+  NotificationsActiveIcon,
+  SpeedIcon,
+  TimerIcon,
+  DirectionsCarIcon,
+} from './components/ReportSummary';
 import SecurityIcon from '@mui/icons-material/Security';
 
 const columnsArray = [
@@ -236,12 +241,19 @@ const EventReportPage = () => {
 
   const summaryData = useMemo(() => {
     if (items.length === 0) return [];
-    const alarmsCount = items.filter(it => it.type === 'alarm').length;
-    const overspeedCount = items.filter(it => it.type === 'deviceOverspeed').length;
-    const geofenceCount = items.filter(it => it.type === 'geofenceEnter' || it.type === 'geofenceExit').length;
+    const alarmsCount = items.filter((it) => it.type === 'alarm').length;
+    const overspeedCount = items.filter((it) => it.type === 'deviceOverspeed').length;
+    const geofenceCount = items.filter(
+      (it) => it.type === 'geofenceEnter' || it.type === 'geofenceExit',
+    ).length;
 
     return [
-      { icon: NotificationsActiveIcon, label: 'Total Events', value: items.length, color: theme.palette.primary.main },
+      {
+        icon: NotificationsActiveIcon,
+        label: 'Total Events',
+        value: items.length,
+        color: theme.palette.primary.main,
+      },
       { icon: SecurityIcon, label: 'Alarms', value: alarmsCount, color: '#ff5252' },
       { icon: SpeedIcon, label: 'Speeding', value: overspeedCount, color: '#ffab40' },
       { icon: SecurityIcon, label: 'Geofencing', value: geofenceCount, color: '#40c4ff' },

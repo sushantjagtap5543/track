@@ -16,11 +16,18 @@ import SettingsMenu from './components/SettingsMenu';
 import { useCatch } from '../reactHelper';
 import useSettingsStyles from './common/useSettingsStyles';
 import fetchOrThrow from '../common/util/fetchOrThrow';
+import { useDispatch, useSelector } from 'react-redux';
+import { devicesActions } from '../store';
+import { eventsActions } from '../store/events';
+import alarm from '../resources/alarm.mp3';
 
 const CommandDevicePage = () => {
   const navigate = useNavigate();
   const { classes } = useSettingsStyles();
   const t = useTranslation();
+
+  const dispatch = useDispatch();
+  const devices = useSelector((state) => state.devices.items);
 
   const { id } = useParams();
 
@@ -43,6 +50,36 @@ const CommandDevicePage = () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(command),
     });
+
+    if (command.type === 'engineStop' || command.type === 'engineResume') {
+      new Audio(alarm).play().catch(() => {});
+      const deviceIdNum = parseInt(id, 10);
+      if (devices[deviceIdNum]) {
+        dispatch(
+          devicesActions.update([
+            {
+              ...devices[deviceIdNum],
+              attributes: {
+                ...devices[deviceIdNum].attributes,
+                ignition: command.type !== 'engineStop',
+              },
+            },
+          ]),
+        );
+      }
+      const actionType = command.type === 'engineStop' ? 'ignitionOff' : 'ignitionOn';
+      dispatch(
+        eventsActions.add([
+          {
+            id: new Date().getTime(),
+            deviceId: deviceIdNum,
+            type: actionType,
+            attributes: { message: `Remote command sent: ${command.type}` },
+          },
+        ]),
+      );
+    }
+
     navigate(-1);
   });
 

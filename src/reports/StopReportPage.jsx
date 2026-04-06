@@ -32,6 +32,13 @@ import MapScale from '../map/MapScale';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 import exportExcel from '../common/util/exportExcel';
 
+import ReportSummary, {
+  TimerIcon,
+  NotificationsActiveIcon,
+  DirectionsCarIcon,
+} from './components/ReportSummary';
+import { useMemo } from 'react';
+
 const columnsArray = [
   ['startTime', 'reportStartTime'],
   ['startOdometer', 'positionOdometer'],
@@ -136,6 +143,41 @@ const StopReportPage = () => {
     }
   };
 
+  const summaryData = useMemo(() => {
+    if (items.length === 0) return [];
+
+    const totalDuration = items.reduce((acc, it) => acc + it.duration, 0);
+    const totalEngine = items.reduce((acc, it) => acc + (it.engineHours || 0), 0);
+    const totalFuel = items.reduce((acc, it) => acc + (it.spentFuel || 0), 0);
+
+    return [
+      {
+        icon: NotificationsActiveIcon,
+        label: 'Total Stops',
+        value: items.length,
+        color: theme.palette.primary.main,
+      },
+      {
+        icon: TimerIcon,
+        label: 'Idle Duration',
+        value: formatNumericHours(totalDuration, t),
+        color: '#4db6ac',
+      },
+      {
+        icon: TimerIcon,
+        label: 'Engine Hours',
+        value: formatNumericHours(totalEngine, t),
+        color: '#ff7043',
+      },
+      {
+        icon: DirectionsCarIcon,
+        label: 'Fuel Spent',
+        value: formatVolume(totalFuel, volumeUnit, t),
+        color: '#9575cd',
+      },
+    ];
+  }, [items, theme, distanceUnit, volumeUnit, t]);
+
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportStops']}>
       <div className={classes.container}>
@@ -171,7 +213,8 @@ const StopReportPage = () => {
               <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
             </ReportFilter>
           </div>
-          <Table>
+          {items.length > 0 && <ReportSummary data={summaryData} />}
+          <Table className={classes.premiumTable}>
             <TableHead>
               <TableRow>
                 <TableCell className={classes.columnAction} />

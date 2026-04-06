@@ -2,13 +2,7 @@ import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
-export default (
-  keyword,
-  filter,
-  filterSort,
-  filterMap,
-  positions,
-) => {
+export default (keyword, filter, filterSort, filterMap, positions) => {
   const groups = useSelector((state) => state.groups.items);
   const devices = useSelector((state) => state.devices.items);
 
@@ -33,8 +27,10 @@ export default (
       .filter((device) => {
         if (!keyword) return true;
         const lowerCaseKeyword = keyword.toLowerCase();
-        return (device.name && device.name.toLowerCase().includes(lowerCaseKeyword)) ||
-               (device.uniqueId && device.uniqueId.toLowerCase().includes(lowerCaseKeyword));
+        return (
+          (device.name && device.name.toLowerCase().includes(lowerCaseKeyword)) ||
+          (device.uniqueId && device.uniqueId.toLowerCase().includes(lowerCaseKeyword))
+        );
       });
 
     switch (filterSort) {

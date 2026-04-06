@@ -43,6 +43,7 @@ import GeofencePage from './settings/GeofencePage';
 import SharePage from './settings/SharePage';
 import AnnouncementPage from './settings/AnnouncementPage';
 import SubscriptionPage from './settings/SubscriptionPage';
+import FleetDashboardPage from './settings/FleetDashboardPage';
 
 // Connection Pages
 import DeviceConnectionsPage from './settings/DeviceConnectionsPage';
@@ -61,6 +62,7 @@ import ChartReportPage from './reports/ChartReportPage';
 import StatisticsPage from './reports/StatisticsPage';
 import AuditPage from './reports/AuditPage';
 import LogsPage from './reports/LogsPage';
+import FleetInsightsPage from './reports/FleetInsightsPage';
 
 // Other Pages
 import PositionPage from './other/PositionPage';
@@ -167,6 +169,7 @@ const Navigation = () => {
           <Route path="notification" element={<NotificationPage />} />
           <Route path="preferences" element={<PreferencesPage />} />
           <Route path="users" element={<UsersPage />} />
+          <Route path="fleet" element={<FleetDashboardPage />} />
           <Route path="user/:id/connections" element={<UserConnectionsPage />} />
           <Route path="user/:id" element={<UserPage />} />
           <Route path="user" element={<UserPage />} />
@@ -183,6 +186,7 @@ const Navigation = () => {
           <Route path="stops" element={<StopReportPage />} />
           <Route path="summary" element={<SummaryReportPage />} />
           <Route path="trips" element={<TripReportPage />} />
+          <Route path="insights" element={<FleetInsightsPage />} />
           <Route path="statistics" element={<StatisticsPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="logs" element={<LogsPage />} />

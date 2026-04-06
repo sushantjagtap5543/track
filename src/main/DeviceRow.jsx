@@ -22,6 +22,8 @@ import BatteryCharging20Icon from '@mui/icons-material/BatteryCharging20';
 import ErrorIcon from '@mui/icons-material/Error';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import LocalParkingIcon from '@mui/icons-material/LocalParking';
 import { devicesActions } from '../store';
 import {
   formatAlarm,
@@ -67,7 +69,8 @@ const useStyles = makeStyles()((theme) => ({
     color: theme.palette.neutral.main,
   },
   selected: {
-    background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%) !important',
+    background:
+      'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%) !important',
     borderLeft: '4px solid #3b82f6',
   },
   row: {
@@ -85,7 +88,7 @@ const useStyles = makeStyles()((theme) => ({
   secondaryText: {
     fontWeight: 500,
     opacity: 0.7,
-  }
+  },
 }));
 
 const DeviceRow = ({ devices, index, style }) => {
@@ -130,6 +133,34 @@ const DeviceRow = ({ devices, index, style }) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(command),
     });
+  });
+
+  const handleReboot = useCatch(async () => {
+    await fetchOrThrow('/api/commands/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId: item.id, type: 'rebootDevice' }),
+    });
+  });
+
+  const handleSafeParking = useCatch(async () => {
+    const enabled = !item.attributes.safeParkingEnabled;
+    const updatedUser = {
+        ...item,
+        attributes: {
+            ...item.attributes,
+            safeParkingEnabled: enabled,
+            safeParkingLat: enabled ? position.latitude : null,
+            safeParkingLon: enabled ? position.longitude : null,
+            safeParkingRadius: 50,
+        }
+    };
+    const response = await fetchOrThrow(`/api/devices/${item.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser),
+    });
+    dispatch(devicesActions.update([await response.json()]));
   });
 
   const secondaryText = () => {
@@ -230,6 +261,23 @@ const DeviceRow = ({ devices, index, style }) => {
                 </IconButton>
               </Tooltip>
             )}
+            <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <Tooltip title="Safe Parking Lock">
+                    <IconButton size="small" onClick={handleSafeParking}>
+                        <LocalParkingIcon 
+                            fontSize="small" 
+                            sx={{ color: item.attributes.safeParkingEnabled ? '#3b82f6' : 'rgba(255,255,255,0.2)' }} 
+                        />
+                    </IconButton>
+                </Tooltip>
+                {admin && (
+                    <Tooltip title="Reboot Tracking Hardware">
+                        <IconButton size="small" onClick={handleReboot}>
+                            <RestartAltIcon fontSize="small" sx={{ color: 'rgba(255,255,255,0.4)' }} />
+                        </IconButton>
+                    </Tooltip>
+                )}
+            </Box>
           </>
         )}
       </ListItemButton>

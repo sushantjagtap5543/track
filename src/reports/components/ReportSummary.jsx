@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Card, CardContent, Typography, Grid } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
@@ -27,10 +26,10 @@ const useStyles = makeStyles()((theme) => ({
   value: {
     fontWeight: 900,
     fontSize: '1.5rem',
-    color: '#fff',
+    color: theme.palette.text.primary,
   },
   label: {
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: theme.palette.text.secondary,
     fontWeight: 600,
     textTransform: 'uppercase',
     letterSpacing: '1px',
@@ -43,7 +42,14 @@ const SummaryCard = ({ icon: Icon, label, value, color }) => {
   return (
     <Card className={classes.card} elevation={0}>
       <CardContent>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+          }}
+        >
           <Icon className={classes.icon} sx={{ color }} />
           <Typography className={classes.value}>{value}</Typography>
           <Typography className={classes.label}>{label}</Typography>

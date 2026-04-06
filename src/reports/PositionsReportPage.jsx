@@ -162,7 +162,7 @@ const PositionsReportPage = () => {
               />
             </ReportFilter>
           </div>
-          <Table>
+          <Table className={classes.premiumTable}>
             <TableHead>
               <TableRow>
                 <TableCell className={classes.columnAction} />

@@ -102,8 +102,6 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-
-
 const LoginLayout = ({ children }) => {
   const { classes } = useStyles();
   const theme = useTheme();
@@ -125,29 +123,49 @@ const LoginLayout = ({ children }) => {
           >
             <LogoImage color="#fff" width={250} />
 
-            
-            <Typography className={classes.tagline} sx={{ fontSize: '3.5rem', letterSpacing: '-2px', mb: 1 }}>
+            <Typography
+              className={classes.tagline}
+              sx={{ fontSize: '3.5rem', letterSpacing: '-2px', mb: 1 }}
+            >
               WELCOME
               <br />
               TO GEOSURE
             </Typography>
-            <Typography variant="h5" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 300, mb: 6, letterSpacing: '1px' }}>
-                Simple. Secure. Sovereign.
+            <Typography
+              variant="h5"
+              sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 300, mb: 6, letterSpacing: '1px' }}
+            >
+              Simple. Secure. Sovereign.
             </Typography>
-            
+
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, opacity: 0.8 }}>
-                {[
-                    'Real-time Satellite Tracking',
-                    'Biometric Security Protocols',
-                    'Advanced Fleet Analytics'
-                ].map((text, index) => (
-                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', boxShadow: '0 0 10px #3b82f6' }} />
-                        <Typography sx={{ color: '#fff', fontSize: '1rem', fontWeight: 500, letterSpacing: '0.5px' }}>
-                            {text}
-                        </Typography>
-                    </Box>
-                ))}
+              {[
+                'Real-time Satellite Tracking',
+                'Biometric Security Protocols',
+                'Advanced Fleet Analytics',
+              ].map((text, index) => (
+                <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: '#3b82f6',
+                      boxShadow: '0 0 10px #3b82f6',
+                    }}
+                  />
+                  <Typography
+                    sx={{
+                      color: '#fff',
+                      fontSize: '1rem',
+                      fontWeight: 500,
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    {text}
+                  </Typography>
+                </Box>
+              ))}
             </Box>
           </motion.div>
         </div>
@@ -159,9 +177,7 @@ const LoginLayout = ({ children }) => {
             transition={{ delay: 0.4, duration: 1, type: 'spring', stiffness: 80 }}
             style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
           >
-            <Box className={classes.paper}>
-              {children}
-            </Box>
+            <Box className={classes.paper}>{children}</Box>
           </motion.div>
         </div>
       </motion.div>

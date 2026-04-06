@@ -28,7 +28,7 @@ const BaseCommandView = ({
 
   useEffectAsync(async () => {
     if (includeSaved) {
-      const savedResponse = await fetchOrThrow(`/api/commands/send?deviceId=${deviceId}`);
+      const savedResponse = await fetchOrThrow(`/api/commands?deviceId=${deviceId}`);
       const saved = await savedResponse.json();
       let combined = saved.map((it) => ({ ...it, optionType: 'saved', key: `saved-${it.id}` }));
       if (!limitCommands) {

@@ -281,39 +281,84 @@ const ReplayPage = () => {
                 >
                   <FastForwardIcon />
                 </IconButton>
-                {formatTime(positions[index].fixTime, 'seconds')}
+                {positions[index] && formatTime(positions[index].fixTime, 'seconds')}
               </div>
               <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 700, letterSpacing: '1px' }}>REFINED TELEMETRY STREAM</Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', bgcolor: 'rgba(59, 130, 246, 0.1)', p: 1.5, borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 700, letterSpacing: '1px' }}
+                >
+                  REFINED TELEMETRY STREAM
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    bgcolor: 'rgba(59, 130, 246, 0.1)',
+                    p: 1.5,
+                    borderRadius: '8px',
+                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                  }}
+                >
                   <Box>
-                    <Typography variant="body2" sx={{ opacity: 0.7 }}>Speed</Typography>
-                    <Typography variant="h6">{Math.round((interpolatedPosition?.speed || 0) * 1.852)} <Typography component="span" variant="caption">km/h</Typography></Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.7 }}>
+                      Speed
+                    </Typography>
+                    <Typography variant="h6">
+                      {Math.round((interpolatedPosition?.speed || 0) * 1.852)}{' '}
+                      <Typography component="span" variant="caption">
+                        km/h
+                      </Typography>
+                    </Typography>
                   </Box>
                   <Box sx={{ textAlign: 'right' }}>
-                    <Typography variant="body2" sx={{ opacity: 0.7 }}>Ignition</Typography>
-                    <Typography variant="h6" color={positions[index].attributes.ignition ? 'success.main' : 'textSecondary'}>
-                      {positions[index].attributes.ignition ? 'ON' : 'OFF'}
+                    <Typography variant="body2" sx={{ opacity: 0.7 }}>
+                      Ignition
+                    </Typography>
+                    <Typography
+                      variant="h6"
+                      color={
+                        positions[index]?.attributes?.ignition ? 'success.main' : 'textSecondary'
+                      }
+                    >
+                      {positions[index]?.attributes?.ignition ? 'ON' : 'OFF'}
                     </Typography>
                   </Box>
                 </Box>
-                {positions[index].attributes.ais140 && (
-                  <Alert 
-                    severity="success" 
-                    icon={<VerifiedUserIcon sx={{ fontSize: '1.2rem' }} />} 
-                    sx={{ 
+                {positions[index]?.attributes?.ais140 && (
+                  <Alert
+                    severity="success"
+                    icon={<VerifiedUserIcon sx={{ fontSize: '1.2rem' }} />}
+                    sx={{
                       borderRadius: '8px',
                       background: 'rgba(16, 185, 129, 0.1)',
                       border: '1px solid rgba(16, 185, 129, 0.2)',
-                      '& .MuiAlert-message': { width: '100%' }
+                      '& .MuiAlert-message': { width: '100%' },
                     }}
                   >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>AIS140 Government Certified</Typography>
-                      <Typography variant="caption" sx={{ px: 1, bgcolor: 'rgba(16, 185, 129, 0.2)', borderRadius: '4px' }}>SECURE</Typography>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        AIS140 Government Certified
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ px: 1, bgcolor: 'rgba(16, 185, 129, 0.2)', borderRadius: '4px' }}
+                      >
+                        SECURE
+                      </Typography>
                     </Box>
-                    {positions[index].attributes.panic && (
-                      <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5, fontWeight: 700 }}>
+                    {positions[index]?.attributes?.panic && (
+                      <Typography
+                        variant="caption"
+                        color="error"
+                        sx={{ display: 'block', mt: 0.5, fontWeight: 700 }}
+                      >
                         ⚠️ EMERGENCY BUTTON ACTIVE
                       </Typography>
                     )}
